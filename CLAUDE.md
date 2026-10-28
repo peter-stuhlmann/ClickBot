@@ -4,18 +4,21 @@ Web-Tool zum automatisierten Testen von Websites (eigene Seiten und Kundenseiten
 Ein Bot öffnet eine Seite in einem echten Browser, führt einen Ablauf aus (klicken, Formulare
 ausfüllen, prüfen) und erstellt pro Lauf einen Report auf dem Bildschirm und als PDF.
 
-Status: Grundgerüst, Datenbank-Schicht und Ablauf-Ausführung stehen.
+Status: Grundgerüst, Datenbank-Schicht, Ablauf-Ausführung und der erste Screen stehen.
 
 - **Fertig:**
   - das Design (Figma)
   - `packages/shared`: Ablauf-Schema, Variablen, Zeitplan, Domain-Regeln
-  - `packages/db`: Schema, Migrationen, Jobs, Zugangsdaten, Verschlüsselung
-  - `apps/web`: Tailwind-Tokens, Atomic-Design-Lint und das Atom `Button`
+  - `packages/db`: Schema, Migrationen, Jobs, Zugangsdaten, Verschlüsselung, Übersicht und
+    Kennzahlen, Demo-Daten
+  - `apps/web`: App-Rahmen mit Sidebar und Screen 01 „Jobs“ mit echten Daten, inklusive
+    Pausieren und Fortsetzen
   - `apps/worker`: führt einen Ablauf mit Playwright aus (`runFlow`)
 - **Noch nicht gebaut:**
-  - im Worker: Queue (pg-boss), Speichern der Ergebnisse, Proxies und Geräte, KI- und
-    Code-Schritte, Live-Stream
-  - Login und alle Screens
+  - im Worker: Queue (pg-boss), Speichern der Ergebnisse, Status an die Web-App, Proxies und
+    Geräte, KI- und Code-Schritte, Live-Stream
+  - Login (bis dahin zeigt die Sidebar den ältesten Benutzer, siehe `src/server/session.ts`)
+  - alle übrigen Screens; „Neuer Job“ hat noch kein Ziel
 
 Was als „geplant“ markiert ist, existiert noch nicht.
 
@@ -207,9 +210,19 @@ Regeln:
     ESLint-Konfiguration ändert, ergänzt dort einen Fall.
   - Die Element-Muster in v7 sind Ordner, keine Dateien. `boundaries/root-path` muss gesetzt
     bleiben, sonst rechnet das Plugin vom Prozess-Verzeichnis aus und meldet nichts mehr.
-- **Datenzugriff nur in Seiten.** Atoms bis Templates sind rein darstellend: nur Props, kein
-  fetch, keine Server Actions, kein DB-Import. Interaktivität (`"use client"`) so tief wie
-  möglich ansetzen.
+- **Datenzugriff nur in Seiten.**
+  - Atoms bis Templates sind rein darstellend: nur Props, kein fetch, kein DB-Import.
+    Interaktivität (`"use client"`) so tief wie möglich ansetzen.
+  - Server Actions bekommen Komponenten als Prop, z. B. `toggleAction`. Sie liegen in
+    `src/app/actions.ts`.
+  - `src/server/` enthält den DB-Zugriff (`getDb`) und die Umwandlung von Datenbank-Zeilen in
+    Anzeigedaten (`*-view.ts`). Die Datei beginnt mit `import 'server-only'`. Nur `src/app` darf
+    sie importieren.
+  - Anzeigedaten-Typen für Komponenten stehen in `src/lib/views.ts`. Komponenten kennen die
+    Datenbank-Form nicht.
+  - Komponenten und `src/lib` dürfen `@click-bot/db`, `pg` und `drizzle-orm` nicht importieren.
+    Das prüft `no-restricted-imports`, weil eslint-plugin-boundaries Workspace-Pakete außerhalb
+    von `src/` übersieht.
 - **Eine Komponente pro Ordner:** `Button/Button.tsx`, `Button/index.ts`, `Button.test.tsx`
   daneben. Kein Storybook (bewusst entschieden).
 - **Neue Komponente:**
@@ -255,7 +268,7 @@ Tests ist nicht fertig.
 | UI-Komponenten (atoms bis templates)                            | Vitest + Testing Library                             | Abfragen über Rolle und Label (`getByRole`), Tastaturbedienung, Zustände (leer, laden, Fehler), Varianten            |
 | Worker (Schritte, KI-Fallback, Proxy-Landprüfung, Abbrüche)     | Vitest + echtes Chromium gegen lokale Fixture-Seiten | Timeout, Element fehlt, langsame Seite, Weiterleitung, Ländersperre, Analytics-Request ja oder nein                  |
 | API und Datenbank                                               | Vitest gegen echtes Postgres (`db-test`, Port 5443)  | Rechte, Queue-Verhalten, Limit `MAX_CONCURRENT_BROWSERS`                                                             |
-| Ende-zu-Ende                                                    | Playwright gegen den lokalen Docker-Stack            | Login → Job anlegen → Lauf → Report → PDF, Live-Ansicht                                                              |
+| Ende-zu-Ende (`apps/web/e2e`)                                   | Playwright gegen echten Next-Server und `db-test`    | Login → Job anlegen → Lauf → Report → PDF, Live-Ansicht                                                              |
 
 **Regeln**
 
@@ -286,6 +299,9 @@ Alle Befehle im Repo-Root ausführen.
 | `pnpm db:up` / `pnpm db:down`              | lokale Datenbanken starten / stoppen (Docker)                               |
 | `pnpm db:migrate`                          | Migrationen auf die Entwicklungs-Datenbank anwenden (liest `.env`)          |
 | `pnpm db:generate`                         | nach Schema-Änderung neue SQL-Migration erzeugen                            |
+| `pnpm db:seed`                             | Demo-Daten (4 Jobs aus dem Design) in eine leere Entwicklungs-DB schreiben  |
+| `pnpm db:reset`                            | Entwicklungs-DB löschen, neu migrieren und Demo-Daten anlegen               |
+| `pnpm test:e2e`                            | Playwright-Tests gegen echten Next-Server und Test-DB (nicht in `test`)     |
 | `pnpm --filter @click-bot/worker browsers` | Chromium für Playwright installieren (einmalig, nötig für die Worker-Tests) |
 | `pnpm dev`                                 | Web-App auf http://localhost:3000                                           |
 | `pnpm test`                                | alle Tests (Vitest-Projekte `shared` und `web`)                             |
@@ -297,8 +313,19 @@ Alle Befehle im Repo-Root ausführen.
 | `pnpm check`                               | format:check, lint, typecheck und test in einem Lauf                        |
 | `pnpm --filter @click-bot/web build`       | Produktions-Build der Web-App                                               |
 
-pnpm führt Build-Skripte von Abhängigkeiten nur aus, wenn sie in `pnpm-workspace.yaml` unter
-`onlyBuiltDependencies` freigegeben sind.
+- **Build-Skripte:** pnpm führt Build-Skripte von Abhängigkeiten nur aus, wenn sie in
+  `pnpm-workspace.yaml` unter `onlyBuiltDependencies` freigegeben sind.
+- **`.env` der Web-App:** Sie liest die `.env` im Repo-Root über `process.loadEnvFile` in
+  `next.config.ts`. Bereits gesetzte Variablen haben Vorrang. Die Node-Option
+  `--env-file` funktioniert mit Next nicht, weil Next sie über `NODE_OPTIONS` weitergibt.
+- **Migrationen:** `runMigrations` gibt es nur über `@click-bot/db/migrate`. Turbopack kann
+  den Migrations-Ordner nicht bündeln, deshalb darf er nie über den Haupt-Import in die
+  Web-App gelangen.
+- **E2E-Tests:**
+  - Sie starten einen eigenen Next-Server auf Port 3200 mit Build-Ordner `.next-e2e`, damit
+    `pnpm dev` daneben laufen kann.
+  - Vorher wird die Test-DB mit den Demo-Daten neu aufgebaut. Nicht gleichzeitig mit
+    `pnpm test` laufen lassen, beide nutzen `db-test`.
 
 ## Design (Figma, via figwright-Plugin)
 

@@ -20,7 +20,10 @@
     "db:up": "docker compose up -d --wait",
     "db:down": "docker compose down",
     "db:migrate": "pnpm --filter @click-bot/db migrate",
-    "db:generate": "pnpm --filter @click-bot/db generate"
+    "db:generate": "pnpm --filter @click-bot/db generate",
+    "db:seed": "pnpm --filter @click-bot/db seed",
+    "db:reset": "docker compose rm -sfv db && docker volume rm -f click-bot_db-data && pnpm db:up && pnpm db:migrate && pnpm db:seed",
+    "test:e2e": "pnpm --filter @click-bot/web test:e2e"
   },
   "devDependencies": {
     "@eslint/js": "9.39.5",

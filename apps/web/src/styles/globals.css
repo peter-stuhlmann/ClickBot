@@ -10,6 +10,8 @@
   --color-surface: #ffffff;
   --color-border: #e4e7ec;
   --color-border-strong: #d0d5dd;
+  --color-divider: #eaecf0;
+  --color-subtle: #f9fafb;
   --color-text: #101828;
   --color-text-muted: #667085;
   --color-text-subtle: #98a2b3;
@@ -25,8 +27,14 @@
   --color-danger-soft: #fef3f2;
   --color-warning: #b54708;
   --color-warning-soft: #fffaeb;
+  /* Status dots are brighter than the matching text colours. */
+  --color-success-dot: #12b76a;
+  --color-warning-dot: #f79009;
+  --color-danger-dot: #f04438;
+  --color-online: #32d583;
   --color-sidebar: #0f172a;
   --color-sidebar-text: #cbd5e1;
+  --color-sidebar-muted: #94a3b8;
   --color-sidebar-active: #1e293b;
 
   --font-sans: var(--font-inter), ui-sans-serif, system-ui, sans-serif;

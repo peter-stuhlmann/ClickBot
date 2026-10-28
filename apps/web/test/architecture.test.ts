@@ -14,10 +14,13 @@ beforeAll(() => {
   eslint = new ESLint({ cwd: webDir });
 });
 
+const ARCHITECTURE_RULES = /^(boundaries\/|no-restricted-imports$)/;
+
+/** Rule ids of architecture violations in a virtual file; other lint findings are ignored. */
 async function boundaryErrors(filePath: string, source: string): Promise<string[]> {
   const [result] = await eslint.lintText(`${source}\nexport {};\n`, { filePath });
   return (result?.messages ?? [])
-    .filter((message) => message.ruleId?.startsWith('boundaries/'))
+    .filter((message) => ARCHITECTURE_RULES.test(message.ruleId ?? ''))
     .map((message) => message.ruleId as string);
 }
 
@@ -72,5 +75,35 @@ describe('Atomic Design import rules', { timeout: 60_000 }, () => {
     expect(await boundaryErrors('src/utils/helper.ts', '')).toEqual([
       'boundaries/no-unknown-files',
     ]);
+  });
+});
+
+describe('data access stays in pages', { timeout: 60_000 }, () => {
+  const importServer = "import { getDb } from '@/server/db';";
+  const importDbPackage = "import { listJobOverview } from '@click-bot/db';";
+
+  it('lets pages use src/server', async () => {
+    expect(await boundaryErrors('src/app/jobs/page.tsx', importServer)).toEqual([]);
+  });
+
+  it.each([
+    'src/components/atoms/Badge/Badge.tsx',
+    'src/components/organisms/JobsTable/JobsTable.tsx',
+    'src/components/templates/AppShell/AppShell.tsx',
+    'src/lib/format.ts',
+  ])('forbids %s to use src/server', async (file) => {
+    expect(await boundaryErrors(file, importServer)).toEqual(['boundaries/dependencies']);
+  });
+
+  it.each([
+    'src/components/molecules/StatCard/StatCard.tsx',
+    'src/components/organisms/JobsTable/JobsTable.tsx',
+    'src/lib/format.ts',
+  ])('forbids %s to import the database package', async (file) => {
+    expect(await boundaryErrors(file, importDbPackage)).toEqual(['no-restricted-imports']);
+  });
+
+  it('lets src/server use the database package', async () => {
+    expect(await boundaryErrors('src/server/jobs.ts', importDbPackage)).toEqual([]);
   });
 });

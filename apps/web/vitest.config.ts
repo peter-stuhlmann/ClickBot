@@ -11,6 +11,8 @@ export default defineProject({
     name: 'web',
     environment: 'jsdom',
     include: ['src/**/*.test.{ts,tsx}', 'test/**/*.test.ts'],
+    // 'server-only' throws outside a React Server Component bundle; tests import server code directly.
+    alias: { 'server-only': fileURLToPath(new URL('./test/server-only-stub.ts', import.meta.url)) },
     setupFiles: ['./test/setup.ts'],
   },
 });

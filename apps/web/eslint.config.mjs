@@ -9,9 +9,13 @@ const viaIndex = (types) => ({
   to: { element: { types: { anyOf: types }, fileInternalPath: 'index.ts' } },
 });
 
+/** Packages that talk to the database. Only src/server and src/app may use them. */
+const DATA_MODULES = ['@click-bot/db', 'pg', 'drizzle-orm', 'drizzle-orm/**'];
+
 /**
  * Strict Atomic Design: every level may only import levels below it, never its own level.
  * Pages (src/app) may import everything. lib/ holds pure helpers usable everywhere.
+ * server/ holds data access and view mapping and is reserved for pages.
  */
 const atomicDesign = {
   files: ['src/**/*.{ts,tsx}'],
@@ -26,6 +30,7 @@ const atomicDesign = {
       { type: 'template', pattern: 'src/components/templates/*' },
       { type: 'app', pattern: 'src/app' },
       { type: 'lib', pattern: 'src/lib' },
+      { type: 'server', pattern: 'src/server' },
       { type: 'styles', pattern: 'src/styles' },
     ],
     'import/resolver': {
@@ -49,10 +54,32 @@ const atomicDesign = {
           },
           { from: { element: { type: 'app' } }, allow: viaIndex(COMPONENT_LEVELS) },
           { from: { element: { type: 'app' } }, allow: { to: { element: { type: 'styles' } } } },
+          { from: { element: { type: 'app' } }, allow: { to: { element: { type: 'server' } } } },
         ],
       },
     ],
     'boundaries/no-unknown-files': 2,
+  },
+};
+
+/**
+ * Components and lib must not reach the database. eslint-plugin-boundaries ignores imports that
+ * resolve outside src/ (pnpm links @click-bot/db there), so this uses ESLint's own rule.
+ */
+const noDataAccessInComponents = {
+  files: ['src/components/**/*.{ts,tsx}', 'src/lib/**/*.{ts,tsx}'],
+  rules: {
+    'no-restricted-imports': [
+      'error',
+      {
+        patterns: [
+          {
+            group: DATA_MODULES,
+            message: 'Datenzugriff nur in Seiten (src/app) über src/server.',
+          },
+        ],
+      },
+    ],
   },
 };
 
@@ -61,6 +88,7 @@ const config = [
   ...nextVitals,
   ...baseConfig,
   atomicDesign,
+  noDataAccessInComponents,
   {
     files: ['src/**/*.test.{ts,tsx}', 'test/**/*.ts'],
     rules: { 'boundaries/no-unknown-files': 0 },
