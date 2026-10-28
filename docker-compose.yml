@@ -1,0 +1,43 @@
+# Local development services. Production uses a separate compose file on the VPS.
+name: click-bot
+
+services:
+  db:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-clickbot}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-clickbot}
+      POSTGRES_DB: ${POSTGRES_DB:-clickbot}
+    ports:
+      - '127.0.0.1:${POSTGRES_PORT:-5442}:5432'
+    volumes:
+      - db-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}']
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  # Throwaway database for tests: data lives in RAM and is gone after `docker compose down`.
+  db-test:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: clickbot
+      POSTGRES_PASSWORD: clickbot
+      POSTGRES_DB: clickbot_test
+    ports:
+      - '127.0.0.1:${POSTGRES_TEST_PORT:-5443}:5432'
+    tmpfs:
+      - /var/lib/postgresql/data
+    command:
+      ['postgres', '-c', 'fsync=off', '-c', 'synchronous_commit=off', '-c', 'full_page_writes=off']
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U clickbot -d clickbot_test']
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+volumes:
+  db-data:
