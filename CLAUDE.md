@@ -5,7 +5,7 @@ Ein Bot öffnet eine Seite in einem echten Browser, führt einen Ablauf aus (kli
 ausfüllen, prüfen) und erstellt pro Lauf einen Report auf dem Bildschirm und als PDF.
 
 Status: Grundgerüst, Datenbank-Schicht, Worker mit Zeitplan, die Job-Liste, der Assistent
-„Neuer Job“, der Editor, der Lauf-Report und die Kunden stehen.
+„Neuer Job“, der Editor, der Lauf-Report, die Läufe-Übersicht und die Kunden stehen.
 
 - **Fertig:**
   - das Design (Figma)
@@ -25,6 +25,9 @@ Status: Grundgerüst, Datenbank-Schicht, Worker mit Zeitplan, die Job-Liste, der
       Lauf wartet oder läuft.
     - Screen 10 „Kunden“ (`/kunden`) mit Kennzahlen und „Kunde anlegen“ (`/kunden/neu`). Die
       Spalte „Wochen-PDF“ fehlt, bis es das PDF gibt.
+    - Screen 14 „Läufe“ (`/laeufe`): alle Läufe, neueste zuerst, 50 je Seite, mit Filtern nach
+      Kunde, Ergebnis, Zeitraum und Gerät. Die Filter stehen in der Adresse (GET-Formular,
+      `src/lib/run-filters.ts`). CSV, Sammel-PDF, gespeicherte Ansichten und Standort fehlen.
     - Screen 03 „Lauf-Report“ (`/laeufe/<id>`), erreichbar über „Letzter Lauf“ in der
       Job-Liste: Kennzahlen, Schritte mit Ergebnis, Fehler und Bildschirmfoto
   - `apps/worker`:

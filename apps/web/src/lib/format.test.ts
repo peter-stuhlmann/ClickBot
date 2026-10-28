@@ -7,6 +7,7 @@ import {
   formatDuration,
   formatPercent,
   formatRelative,
+  formatShortDateTime,
 } from './format';
 
 describe('formatPercent', () => {
@@ -123,5 +124,11 @@ describe('formatClock and formatDateLong', () => {
 
   it('shows weekday and date', () => {
     expect(formatDateLong(instant)).toBe('Do., 05.11.2026');
+  });
+});
+
+describe('formatShortDateTime', () => {
+  it('shows day, month and time in German time', () => {
+    expect(formatShortDateTime(new Date('2026-11-05T13:30:12Z'))).toBe('05.11. 14:30');
   });
 });

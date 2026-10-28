@@ -93,3 +93,17 @@ export function formatClock(date: Date): string {
 export function formatDateLong(date: Date): string {
   return longDate.format(date);
 }
+
+const shortDateTime = new Intl.DateTimeFormat('de-DE', {
+  timeZone: DEFAULT_TIMEZONE,
+  day: '2-digit',
+  month: '2-digit',
+  hour: '2-digit',
+  minute: '2-digit',
+  hourCycle: 'h23',
+});
+
+/** "05.11. 14:30" in German time. */
+export function formatShortDateTime(date: Date): string {
+  return shortDateTime.format(date).replace(',', '');
+}

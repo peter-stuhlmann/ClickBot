@@ -86,3 +86,20 @@ export type CustomerRowView = {
   lastRun: JobRowView['lastRun'];
   successRate: { text: string; tone: Tone } | null;
 };
+
+/** One run in the list of all runs (screen 14). */
+export type RunListRowView = {
+  id: string;
+  href: string;
+  jobName: string;
+  /** "Lauf #7 · iPhone 15 · Bot 2": the second line, never cut off. */
+  detail: string;
+  /** Started from the editor, outside the schedule. */
+  testRun: boolean;
+  customer: string;
+  /** "05.11. 14:30", start or planned start. */
+  when: string;
+  duration: string;
+  status: { tone: Tone; label: string };
+  failed: boolean;
+};

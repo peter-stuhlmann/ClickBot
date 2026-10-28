@@ -25,4 +25,23 @@ describe('ReportLayout', () => {
     );
     expect(screen.queryByRole('complementary')).not.toBeInTheDocument();
   });
+
+  it('names the detail column after its content', () => {
+    render(
+      <ReportLayout header={null} stats={null} aside={<p>Kunde</p>} asideLabel="Filter">
+        <p>Läufe</p>
+      </ReportLayout>,
+    );
+    expect(screen.getByRole('complementary', { name: 'Filter' })).toHaveTextContent('Kunde');
+    expect(screen.getByRole('complementary', { name: 'Filter' })).toHaveClass('w-110');
+  });
+
+  it('can make the detail column narrower for a wide table', () => {
+    render(
+      <ReportLayout header={null} stats={null} aside={<p>Kunde</p>} asideLabel="Filter" narrowAside>
+        <p>Läufe</p>
+      </ReportLayout>,
+    );
+    expect(screen.getByRole('complementary', { name: 'Filter' })).toHaveClass('w-80');
+  });
 });
