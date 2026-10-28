@@ -58,4 +58,24 @@ describe('SegmentedControl', () => {
     await user.keyboard('a');
     expect(screen.getByRole('radio', { name: 'Intervall' })).toBeChecked();
   });
+
+  it('can show a choice that may not change', async () => {
+    const user = userEvent.setup();
+    let changed = false;
+    render(
+      <SegmentedControl
+        label="Zeitplan"
+        options={options}
+        value="times"
+        disabled
+        onChange={() => {
+          changed = true;
+        }}
+      />,
+    );
+    await user.click(screen.getByRole('radio', { name: 'Intervall' }));
+    expect(changed).toBe(false);
+    expect(screen.getByRole('radio', { name: 'Termine' })).toBeChecked();
+    expect(screen.getByRole('radio', { name: 'Termine' })).toBeDisabled();
+  });
 });

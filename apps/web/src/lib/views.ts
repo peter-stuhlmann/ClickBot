@@ -48,6 +48,8 @@ export type RunStepView = {
 /** Screen 03 "Lauf-Report". */
 export type RunReportView = {
   jobName: string;
+  /** The editor of the job. */
+  jobHref: string;
   /** "Lauf #7", for the breadcrumb. */
   runLabel: string;
   /** "Lauf #7 von 20" */
@@ -61,4 +63,11 @@ export type RunReportView = {
   steps: RunStepView[];
   failure: { title: string; message: string } | null;
   screenshot: { url: string; caption: string } | null;
+};
+
+/** Title line of the editor: name, status badge, schedule and devices. */
+export type JobHeaderView = {
+  title: string;
+  status: { tone: Tone; label: string };
+  description: string;
 };

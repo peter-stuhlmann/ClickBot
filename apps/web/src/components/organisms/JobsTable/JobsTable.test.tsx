@@ -114,4 +114,12 @@ describe('JobsTable', () => {
       }),
     ).toHaveAttribute('href', '/laeufe/run-7');
   });
+
+  it('opens the editor from the job name', () => {
+    render(<JobsTable rows={[row()]} toggleAction={noop} />);
+    expect(screen.getByRole('link', { name: 'Kontaktformular-Test' })).toHaveAttribute(
+      'href',
+      '/jobs/job-1',
+    );
+  });
 });

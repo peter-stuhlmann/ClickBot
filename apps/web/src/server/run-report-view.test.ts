@@ -98,6 +98,7 @@ describe('toRunReportView', () => {
 
     expect(view).toMatchObject({
       jobName: 'Kontaktformular-Test',
+      jobHref: '/jobs/job-1',
       runLabel: 'Lauf #7',
       title: 'Lauf #7 von 20',
       status: { tone: 'success', label: 'Erfolgreich' },

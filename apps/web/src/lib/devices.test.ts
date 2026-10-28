@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { DEVICE_OPTIONS, deviceLabel } from './devices';
+import { DEVICE_OPTIONS, deviceLabel, toggleDevice } from './devices';
 
 describe('devices', () => {
   it('offers the four devices the worker can emulate', () => {
@@ -17,5 +17,10 @@ describe('devices', () => {
 
   it('falls back to the key for a device it does not know', () => {
     expect(deviceLabel('watch' as never)).toBe('watch');
+  });
+
+  it('adds and removes devices in the order of the cards', () => {
+    expect(toggleDevice(['ipad'], 'desktop')).toEqual(['desktop', 'ipad']);
+    expect(toggleDevice(['desktop', 'ipad'], 'desktop')).toEqual(['ipad']);
   });
 });

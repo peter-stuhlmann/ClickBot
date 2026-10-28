@@ -9,6 +9,8 @@ export type SegmentedControlProps<T extends string> = {
   options: readonly { value: T; label: string }[];
   value: T;
   onChange: (value: T) => void;
+  /** Shows the choice but does not allow changing it. */
+  disabled?: boolean;
 };
 
 const ARROW_DELTA: Record<string, number> = {
@@ -24,6 +26,7 @@ export function SegmentedControl<T extends string>({
   options,
   value,
   onChange,
+  disabled = false,
 }: SegmentedControlProps<T>) {
   // Radio group keyboard pattern: arrow keys move the choice, Tab leaves the group.
   function onKeyDown(event: KeyboardEvent<HTMLButtonElement>, index: number) {
@@ -50,11 +53,12 @@ export function SegmentedControl<T extends string>({
             role="radio"
             aria-checked={checked}
             tabIndex={checked ? 0 : -1}
+            disabled={disabled}
             onClick={() => onChange(option.value)}
             onKeyDown={(event) => onKeyDown(event, index)}
             className={cn(
               'flex-1 rounded-chip px-3 py-1.5 text-body transition-colors',
-              'focus-visible:outline-2 focus-visible:outline-primary',
+              'focus-visible:outline-2 focus-visible:outline-primary disabled:cursor-not-allowed',
               checked
                 ? 'bg-surface font-medium text-text shadow-tab'
                 : 'text-text-muted hover:text-text',

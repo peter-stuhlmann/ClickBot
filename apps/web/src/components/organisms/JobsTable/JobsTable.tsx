@@ -92,7 +92,12 @@ export function JobsTable({ rows, toggleAction }: JobsTableProps) {
           {rows.map((row) => (
             <tr key={row.id} className="border-b border-divider last:border-0">
               <td className="py-3.5 pl-5">
-                <div className="truncate text-body font-medium text-text">{row.name}</div>
+                <Link
+                  href={`/jobs/${row.id}`}
+                  className="block truncate rounded-chip text-body font-medium text-text hover:underline focus-visible:outline-2 focus-visible:outline-primary"
+                >
+                  {row.name}
+                </Link>
                 <div className="mt-0.5 truncate font-mono text-small text-text-muted">
                   {row.url}
                 </div>

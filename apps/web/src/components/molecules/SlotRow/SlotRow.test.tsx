@@ -73,4 +73,13 @@ describe('SlotRow', () => {
     expect(time).toBeInvalid();
     expect(time).toHaveAccessibleDescription('Der Termin liegt in der Vergangenheit.');
   });
+
+  it('keeps date and time of a slot that already has runs', () => {
+    render(<SlotRow index={0} slot={slot} locked onChange={vi.fn()} onRemove={vi.fn()} />);
+    expect(screen.getByLabelText('Datum Termin 1')).toBeDisabled();
+    expect(screen.getByLabelText('Uhrzeit Termin 1')).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Termin 1 entfernen' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: /Ein Bot mehr/ })).toBeEnabled();
+    expect(screen.getByText(/Hat schon Läufe/)).toBeVisible();
+  });
 });

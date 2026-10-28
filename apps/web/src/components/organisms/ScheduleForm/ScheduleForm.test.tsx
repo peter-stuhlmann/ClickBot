@@ -134,4 +134,54 @@ describe('ScheduleForm', () => {
     );
     expect(screen.getByText('Mindestens einen Termin anlegen.')).toBeVisible();
   });
+
+  it('keeps dates with runs and the kind of schedule in the editor', () => {
+    render(
+      <ScheduleForm
+        schedule={{ ...initial, type: 'times' }}
+        errors={{
+          fields: { type: 'Die Art des Zeitplans lässt sich nicht mehr ändern.' },
+          slots: {},
+        }}
+        lockedSlots={[0]}
+        typeLocked
+        onChange={vi.fn()}
+      />,
+    );
+    expect(screen.getByRole('radio', { name: 'Intervall' })).toBeDisabled();
+    expect(screen.getByText(/bleibt die Art des Zeitplans/)).toBeVisible();
+    expect(screen.getByText('Die Art des Zeitplans lässt sich nicht mehr ändern.')).toBeVisible();
+    expect(screen.getByLabelText('Uhrzeit Termin 1')).toBeDisabled();
+  });
+
+  it('names the stagger distance of the job', () => {
+    render(
+      <ScheduleForm
+        schedule={{ ...initial, type: 'times', staggerSeconds: 5 }}
+        errors={noErrors}
+        onChange={vi.fn()}
+      />,
+    );
+    expect(screen.getByText(/im Abstand von 5 s/)).toBeVisible();
+  });
+
+  it('does not remove a date before one with runs, which would move it', () => {
+    const slots = [
+      { key: 'slot-1', date: '2026-11-06', time: '10:00', bots: 1 },
+      { key: 'slot-2', date: '2026-11-05', time: '11:00', bots: 1 },
+      { key: 'slot-3', date: '2026-11-07', time: '12:00', bots: 1 },
+    ];
+    render(
+      <ScheduleForm
+        schedule={{ ...initial, type: 'times', slots }}
+        errors={noErrors}
+        lockedSlots={[1]}
+        onChange={vi.fn()}
+      />,
+    );
+    expect(screen.getByRole('button', { name: 'Termin 1 entfernen' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Termin 2 entfernen' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Termin 3 entfernen' })).toBeEnabled();
+    expect(screen.getByLabelText('Uhrzeit Termin 1')).toBeEnabled();
+  });
 });

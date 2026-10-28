@@ -5,7 +5,7 @@ Ein Bot öffnet eine Seite in einem echten Browser, führt einen Ablauf aus (kli
 ausfüllen, prüfen) und erstellt pro Lauf einen Report auf dem Bildschirm und als PDF.
 
 Status: Grundgerüst, Datenbank-Schicht, Worker mit Zeitplan, die Job-Liste, der Assistent
-„Neuer Job“ und der Lauf-Report stehen.
+„Neuer Job“, der Editor und der Lauf-Report stehen.
 
 - **Fertig:**
   - das Design (Figma)
@@ -17,6 +17,9 @@ Status: Grundgerüst, Datenbank-Schicht, Worker mit Zeitplan, die Job-Liste, der
     - Screen 01 „Jobs“ mit echten Daten, inklusive Pausieren und Fortsetzen
     - Screen 05 „Neuer Job“ (`/jobs/neu`): Assistent in vier Schritten (Website, Ablauf,
       Zeitplan, Geräte). Am Ende wird der Job aktiv angelegt und läuft nach Zeitplan.
+    - Screen 02 „Editor“ (`/jobs/<id>`, über den Job-Namen in der Liste): Name, Start-URL,
+      Zeitplan, Geräte und Ablauf eines bestehenden Jobs ändern. Zwei Spalten statt der drei
+      aus dem Design, weil die Terminzeilen sonst zu schmal werden.
     - Screen 03 „Lauf-Report“ (`/laeufe/<id>`), erreichbar über „Letzter Lauf“ in der
       Job-Liste: Kennzahlen, Schritte mit Ergebnis, Fehler und Bildschirmfoto
   - `apps/worker`:
@@ -32,7 +35,8 @@ Status: Grundgerüst, Datenbank-Schicht, Worker mit Zeitplan, die Job-Liste, der
     Standort-Profile je Termin; Schritte vom Typ „auslesen“ lassen sich noch nicht anlegen
   - im Lauf-Report: PDF, „Erneut ausführen“, KI-Eingriffe, Konsolenfehler und ausgelesene
     Werte (dafür speichert der Worker noch keine Daten)
-  - alle übrigen Screens, auch der Editor (02) für bestehende Jobs und der Welle-Report (03b)
+  - im Editor: „Testlauf starten“, KI-Box, „Erfolg & Daten“ und Variablen-Liste aus dem Design
+  - alle übrigen Screens, auch der Welle-Report (03b)
 
 Was als „geplant“ markiert ist, existiert noch nicht.
 
@@ -84,6 +88,20 @@ packages/db      Drizzle-Schema, SQL-Migrationen, Repository-Funktionen, Verschl
     direkt am Feld zeigt (z. B. „Bitte ausfüllen.“).
 - **Jobs** legt `createJob` als Entwurf an. Mit `status: 'active'` (Assistent) plant der
   Worker sie sofort ein.
+- **Jobs ändern** (`updateJob`, Editor):
+  - Gleiche Prüfungen wie beim Anlegen. Der Status bleibt.
+  - Läuft mit derselben Zeilensperre wie der Planer, damit kein Start aus einem halb
+    geänderten Zeitplan entsteht.
+  - Der Planer erkennt erledigte Starts an ihrer Position (`runs.slot_index`). Deshalb:
+    Termine mit Läufen (`listStartedSlots`) lassen sich nicht verschieben oder löschen, nur
+    ihre Bot-Zahl ändern. Neue Termine kommen hinten dazu. Hat ein Job Läufe, bleibt die Art
+    des Zeitplans (Intervall oder Termine). Ein Intervall darf sich frei ändern, es zählt
+    einfach weiter.
+  - Starts in der Vergangenheit sind erlaubt, wenn sie schon gespeichert waren
+    (`validateJobEdit`). Eine gespeicherte Intervall-Startzeit bleibt sekundengenau, solange
+    Datum und Uhrzeit im Formular unverändert sind.
+  - Jobs mit Schritten ohne Formular (Auslesen, KI, Code) zeigt der Editor nur an, damit
+    Speichern sie nicht verliert.
 - **Zugangsdaten:**
   - Gespeichert wird nur der verschlüsselte Wert (`createCipher`: AES-256-GCM, Schlüssel aus
     `SECRETS_KEY`).

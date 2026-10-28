@@ -1,10 +1,20 @@
 'use server';
 
-import { createJob, setJobActive, ValidationError } from '@click-bot/db';
+import {
+  createJob,
+  getJob,
+  NotFoundError,
+  setJobActive,
+  updateJob,
+  ValidationError,
+} from '@click-bot/db';
 import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
 import {
+  jobToDraft,
+  toJobUpdateInput,
   toNewJobInput,
+  validateJobEdit,
   validateWizardStep,
   WIZARD_STEPS,
   type Issue,
@@ -42,4 +52,33 @@ export async function createJobAction(draft: WizardDraft): Promise<CreateJobResu
   }
   revalidatePath('/');
   redirect('/');
+}
+
+export type UpdateJobResult = { issues: Issue[] };
+
+const GONE: Issue = { path: 'job', message: 'Diesen Job gibt es nicht mehr.' };
+
+/**
+ * Saves the editor. Starts in the past are only accepted if they were already stored, so the
+ * stored job is loaded here as the reference, not taken from the browser.
+ */
+export async function updateJobAction(jobId: string, draft: WizardDraft): Promise<UpdateJobResult> {
+  const db = getDb();
+  const now = new Date();
+  try {
+    const loaded = jobToDraft(await getJob(db, jobId), now);
+    if (!('draft' in loaded)) return { issues: [{ path: 'job', message: loaded.notEditable }] };
+
+    const issues = validateJobEdit(draft, loaded.draft, now);
+    if (issues.length > 0) return { issues };
+
+    await updateJob(db, jobId, toJobUpdateInput(draft, now));
+  } catch (error) {
+    if (error instanceof ValidationError) return { issues: error.issues };
+    if (error instanceof NotFoundError) return { issues: [GONE] };
+    throw error;
+  }
+  revalidatePath('/');
+  revalidatePath(`/jobs/${jobId}`);
+  return { issues: [] };
 }

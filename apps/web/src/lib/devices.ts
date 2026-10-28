@@ -14,3 +14,11 @@ export const DEVICE_OPTIONS: readonly DeviceOption[] = [
 export function deviceLabel(key: DeviceKey): string {
   return DEVICE_OPTIONS.find((option) => option.key === key)?.label ?? key;
 }
+
+/** Adds or removes a device, keeping the order of the device cards. */
+export function toggleDevice(devices: readonly DeviceKey[], device: DeviceKey): DeviceKey[] {
+  const chosen = new Set(devices);
+  if (chosen.has(device)) chosen.delete(device);
+  else chosen.add(device);
+  return DEVICE_OPTIONS.map((option) => option.key).filter((key) => chosen.has(key));
+}

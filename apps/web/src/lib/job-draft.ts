@@ -3,6 +3,8 @@ import {
   flowSchema,
   localToUtc,
   scheduleSchema,
+  type Flow,
+  type Schedule,
   type Step,
   type Target,
 } from '@click-bot/shared';
@@ -63,9 +65,15 @@ export type ScheduleDraft = {
   startMode: 'now' | 'at';
   startDate: string;
   startTime: string;
+  /**
+   * The stored start of an interval (ISO, with seconds). Saved unchanged while date and time
+   * still show it, so merely saving a job never moves its starts.
+   */
+  storedStartAt: string | null;
   slots: SlotDraft[];
-  /** Start the bots of a slot 10 s apart instead of in the same second. */
+  /** Start the bots of a slot `staggerSeconds` apart instead of in the same second. */
   stagger: boolean;
+  staggerSeconds: number;
 };
 
 export type WizardDraft = {
@@ -127,8 +135,10 @@ export function emptyDraft(now: Date): WizardDraft {
       startMode: 'now',
       startDate: date,
       startTime: time,
+      storedStartAt: null,
       slots: [{ key: 'slot-1', date, time, bots: 1 }],
       stagger: true,
+      staggerSeconds: STAGGER_SECONDS,
     },
     devices: ['desktop'],
   };
@@ -338,6 +348,14 @@ export function toStepDraft(step: Step): StepDraft | null {
 function startInstant(schedule: ScheduleDraft, now: Date): Date | null {
   if (schedule.startMode === 'now') return now;
   if (!DATE.test(schedule.startDate) || !TIME.test(schedule.startTime)) return null;
+  const stored = schedule.storedStartAt ? new Date(schedule.storedStartAt) : null;
+  if (
+    stored &&
+    berlinDate.format(stored) === schedule.startDate &&
+    berlinTime.format(stored) === schedule.startTime
+  ) {
+    return stored;
+  }
   return localToUtc(schedule.startDate, schedule.startTime, DEFAULT_TIMEZONE);
 }
 
@@ -353,7 +371,7 @@ function toSchedule(schedule: ScheduleDraft, now: Date): Record<string, unknown>
   return {
     type: 'times',
     slots: schedule.slots.map(({ date, time, bots }) => ({ date, time, bots })),
-    staggerSeconds: schedule.stagger ? STAGGER_SECONDS : 0,
+    staggerSeconds: schedule.stagger ? schedule.staggerSeconds : 0,
     timezone: DEFAULT_TIMEZONE,
   };
 }
@@ -401,19 +419,31 @@ function websiteIssues(draft: WizardDraft): Issue[] {
   return issues;
 }
 
-function scheduleIssues(schedule: ScheduleDraft, now: Date): Issue[] {
+/**
+ * Schema problems plus starts in the past. With `original` (the editor), starts that were
+ * already saved may stay in the past: a running job has done most of them.
+ */
+function scheduleIssues(schedule: ScheduleDraft, now: Date, original?: ScheduleDraft): Issue[] {
   const parsed = scheduleSchema.safeParse(toSchedule(schedule, now));
   if (!parsed.success) return issuesFrom('schedule', parsed.error);
 
   if (schedule.type === 'interval') {
     const start = startInstant(schedule, now);
-    return start && start < now
+    const unchanged =
+      original?.type === 'interval' &&
+      original.startMode === 'at' &&
+      original.startDate === schedule.startDate &&
+      original.startTime === schedule.startTime;
+    return start && start < now && !unchanged
       ? [{ path: 'schedule.startAt', message: 'Der Start liegt in der Vergangenheit.' }]
       : [];
   }
+  const saved = new Set(
+    original?.type === 'times' ? original.slots.map((slot) => `${slot.date} ${slot.time}`) : [],
+  );
   return schedule.slots.flatMap((slot, index) => {
     const start = localToUtc(slot.date, slot.time, DEFAULT_TIMEZONE);
-    return start && start < now
+    return start && start < now && !saved.has(`${slot.date} ${slot.time}`)
       ? [
           {
             path: `schedule.slots.${index}.time`,
@@ -440,6 +470,121 @@ export function validateWizardStep(draft: WizardDraft, step: WizardStep, now: Da
         ? []
         : [{ path: 'devices', message: 'Mindestens ein Gerät wählen.' }];
   }
+}
+
+export type JobUpdateDraftInput = Omit<NewJobDraftInput, 'customerId' | 'status'>;
+
+/** Input for updateJob from the editor: the job keeps its customer and status. */
+export function toJobUpdateInput(draft: WizardDraft, now: Date): JobUpdateDraftInput {
+  const { customerId: _customer, status: _status, ...input } = toNewJobInput(draft, now);
+  return input;
+}
+
+/** Problems that keep the editor from saving; `original` is the job as loaded. */
+export function validateJobEdit(draft: WizardDraft, original: WizardDraft, now: Date): Issue[] {
+  return [
+    ...websiteIssues(draft),
+    ...validateWizardStep(draft, 'flow', now),
+    ...scheduleIssues(draft.schedule, now, original.schedule),
+    ...validateWizardStep(draft, 'devices', now),
+  ];
+}
+
+export type StoredJob = {
+  customerId: string;
+  name: string;
+  startUrl: string;
+  flow: Flow;
+  schedule: Schedule;
+  devices: readonly DeviceKey[];
+};
+
+/**
+ * A saved job as editor state, or why the editor cannot show it without losing something:
+ * step types without a form, or dates in another time zone than the forms use.
+ */
+export function jobToDraft(
+  job: StoredJob,
+  now: Date,
+): { draft: WizardDraft } | { notEditable: string } {
+  const steps = job.flow.steps.map(toStepDraft);
+  if (steps.some((step) => step === null)) {
+    return {
+      notEditable:
+        'Der Ablauf enthält Schritte, die der Editor noch nicht kann (Auslesen, KI oder Code).',
+    };
+  }
+  const { schedule } = job;
+  if (schedule.type === 'times' && schedule.timezone !== DEFAULT_TIMEZONE) {
+    return {
+      notEditable: `Der Zeitplan nutzt die Zeitzone ${schedule.timezone}, der Editor kennt nur ${DEFAULT_TIMEZONE}.`,
+    };
+  }
+
+  const defaults = emptyDraft(now).schedule;
+  const scheduleDraft: ScheduleDraft =
+    schedule.type === 'interval'
+      ? {
+          ...defaults,
+          type: 'interval',
+          everyMinutes: String(schedule.everyMinutes),
+          maxRuns: String(schedule.maxRuns),
+          startMode: 'at',
+          startDate: berlinDate.format(new Date(schedule.startAt)),
+          startTime: berlinTime.format(new Date(schedule.startAt)),
+          storedStartAt: schedule.startAt,
+        }
+      : {
+          ...defaults,
+          type: 'times',
+          slots: schedule.slots.map((slot, index) => ({ key: `slot-${index + 1}`, ...slot })),
+          stagger: schedule.staggerSeconds > 0,
+          staggerSeconds: schedule.staggerSeconds || STAGGER_SECONDS,
+        };
+
+  return {
+    draft: {
+      customerId: job.customerId,
+      name: job.name,
+      startUrl: job.startUrl,
+      // Confirmed when the job was created.
+      confirmed: true,
+      steps: steps as StepDraft[],
+      schedule: scheduleDraft,
+      devices: [...job.devices],
+    },
+  };
+}
+
+export type StepListState = { steps: StepDraft[]; selected: number | null };
+
+/** Adds a click step (or, to an empty flow, the opening of the start URL) and selects it. */
+export function appendStep(steps: StepDraft[], startUrl: string): StepListState {
+  const step = newStep(steps.length === 0 ? 'open' : 'click', steps, startUrl);
+  return { steps: [...steps, step], selected: steps.length };
+}
+
+/** Moves a step one place; it stays selected. A move past either end changes nothing. */
+export function moveStep(steps: StepDraft[], index: number, delta: -1 | 1): StepListState {
+  const target = index + delta;
+  if (target < 0 || target >= steps.length) return { steps, selected: index };
+  const moved = [...steps];
+  [moved[index], moved[target]] = [moved[target] as StepDraft, moved[index] as StepDraft];
+  return { steps: moved, selected: target };
+}
+
+/** Removes a step and keeps the selection on the same step, or its neighbour if it was removed. */
+export function removeStep(
+  steps: StepDraft[],
+  index: number,
+  selected: number | null,
+): StepListState {
+  const remaining = steps.filter((_, other) => other !== index);
+  if (selected === null || remaining.length === 0) return { steps: remaining, selected: null };
+  if (selected > index || selected === remaining.length) {
+    return { steps: remaining, selected: selected - 1 };
+  }
+  return { steps: remaining, selected };
 }
 
 /** The wizard step that shows the field at `path`, e.g. after the server rejected the job. */

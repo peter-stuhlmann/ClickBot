@@ -6,9 +6,12 @@ export {
   allocateRunNumber,
   createJob,
   getJob,
+  listStartedSlots,
   plannedRunCount,
+  updateJob,
   type Device,
   type Job,
+  type JobUpdateInput,
   type NewJobInput,
 } from './jobs';
 export * as schema from './schema';

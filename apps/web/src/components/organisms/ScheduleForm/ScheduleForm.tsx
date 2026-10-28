@@ -15,6 +15,10 @@ export type ScheduleFormProps = {
   /** Summary below the form, e.g. "3 Termine · 10 Bots gesamt". */
   note?: string | null;
   onChange: (schedule: ScheduleDraft) => void;
+  /** Positions of dates that already have runs (editor); they cannot move. */
+  lockedSlots?: readonly number[];
+  /** The job already has runs, so interval/dates may not switch. */
+  typeLocked?: boolean;
 };
 
 const TYPE_OPTIONS = [
@@ -28,9 +32,18 @@ const START_OPTIONS = [
 ];
 
 /** Step 3 of the job wizard: a fixed interval or explicit dates with a wave of bots each. */
-export function ScheduleForm({ schedule, errors, note, onChange }: ScheduleFormProps) {
+export function ScheduleForm({
+  schedule,
+  errors,
+  note,
+  onChange,
+  lockedSlots = [],
+  typeLocked = false,
+}: ScheduleFormProps) {
   const set = (patch: Partial<ScheduleDraft>) => onChange({ ...schedule, ...patch });
   const startError = errors.fields.startAt;
+  // Removing a date before one with runs would move that one, so only later dates can go.
+  const lastLocked = Math.max(-1, ...lockedSlots);
 
   return (
     <Card
@@ -42,7 +55,14 @@ export function ScheduleForm({ schedule, errors, note, onChange }: ScheduleFormP
         options={TYPE_OPTIONS}
         value={schedule.type}
         onChange={(type) => set({ type })}
+        disabled={typeLocked}
       />
+      {typeLocked && (
+        <p className="text-small text-text-muted">
+          Der Job hat schon Läufe, deshalb bleibt die Art des Zeitplans.
+        </p>
+      )}
+      {errors.fields.type && <p className="text-small text-danger">{errors.fields.type}</p>}
 
       {schedule.type === 'interval' ? (
         <>
@@ -124,6 +144,7 @@ export function ScheduleForm({ schedule, errors, note, onChange }: ScheduleFormP
                 key={slot.key}
                 index={index}
                 slot={slot}
+                locked={lockedSlots.includes(index)}
                 error={errors.slots[index]}
                 onChange={(value) =>
                   set({
@@ -133,7 +154,7 @@ export function ScheduleForm({ schedule, errors, note, onChange }: ScheduleFormP
                   })
                 }
                 onRemove={
-                  schedule.slots.length > 1
+                  schedule.slots.length > 1 && index > lastLocked
                     ? () => set({ slots: schedule.slots.filter((other) => other.key !== slot.key) })
                     : undefined
                 }
@@ -160,7 +181,8 @@ export function ScheduleForm({ schedule, errors, note, onChange }: ScheduleFormP
             <div className="flex flex-col gap-0.5">
               <span className="text-body font-medium text-text">Gestaffelt starten</span>
               <span className="text-meta text-text-muted">
-                Bots eines Termins starten im Abstand von 10 s statt alle in derselben Sekunde.
+                Bots eines Termins starten im Abstand von {schedule.staggerSeconds} s statt alle in
+                derselben Sekunde.
               </span>
             </div>
           </div>

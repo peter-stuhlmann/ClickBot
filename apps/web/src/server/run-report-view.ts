@@ -104,6 +104,7 @@ export function toRunReportView(report: RunReport): RunReportView {
 
   return {
     jobName: job.name,
+    jobHref: `/jobs/${job.id}`,
     runLabel: `Lauf #${run.runNr}`,
     title:
       run.runNr <= job.runsPlanned

@@ -56,7 +56,7 @@ export default async function RunReportPage({ params }: Props) {
             status={view.status}
             breadcrumb={[
               { label: 'Jobs', href: '/' },
-              { label: view.jobName },
+              { label: view.jobName, href: view.jobHref },
               { label: view.runLabel },
             ]}
           />

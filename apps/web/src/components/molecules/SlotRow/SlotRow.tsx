@@ -14,10 +14,12 @@ export type SlotRowProps = {
   onChange: (slot: SlotValue) => void;
   /** Omitted while this is the only slot. */
   onRemove?: () => void;
+  /** The slot already has runs: only the number of bots may change. */
+  locked?: boolean;
 };
 
 /** One date of a "Termine" schedule: date, time and the number of bots of its wave. */
-export function SlotRow({ index, slot, error, onChange, onRemove }: SlotRowProps) {
+export function SlotRow({ index, slot, error, onChange, onRemove, locked = false }: SlotRowProps) {
   const name = `Termin ${index + 1}`;
   const errorId = `slot-${index}-error`;
   const invalid = error ? { 'aria-invalid': true as const, 'aria-describedby': errorId } : {};
@@ -28,6 +30,7 @@ export function SlotRow({ index, slot, error, onChange, onRemove }: SlotRowProps
           type="date"
           aria-label={`Datum ${name}`}
           value={slot.date}
+          disabled={locked}
           onChange={(event) => onChange({ ...slot, date: event.target.value })}
           className="flex-1"
           {...invalid}
@@ -36,6 +39,7 @@ export function SlotRow({ index, slot, error, onChange, onRemove }: SlotRowProps
           type="time"
           aria-label={`Uhrzeit ${name}`}
           value={slot.time}
+          disabled={locked}
           onChange={(event) => onChange({ ...slot, time: event.target.value })}
           className="w-28"
           {...invalid}
@@ -69,11 +73,16 @@ export function SlotRow({ index, slot, error, onChange, onRemove }: SlotRowProps
           size="sm"
           className="px-1.5"
           aria-label={`${name} entfernen`}
-          disabled={!onRemove}
+          disabled={locked || !onRemove}
           onClick={onRemove}
           icon={<Icon name="close" size={16} />}
         />
       </div>
+      {locked && (
+        <p className="text-small text-text-muted">
+          Hat schon Läufe – nur die Zahl der Bots lässt sich ändern.
+        </p>
+      )}
       {error && (
         <p id={errorId} className="text-small text-danger">
           {error}

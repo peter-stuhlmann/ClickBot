@@ -12,12 +12,15 @@ import { StepList } from '@/components/organisms/StepList';
 import { WebsiteForm } from '@/components/organisms/WebsiteForm';
 import { WizardStepper } from '@/components/organisms/WizardStepper';
 import { WizardLayout } from '@/components/templates/WizardLayout';
-import { DEVICE_OPTIONS, type DeviceKey } from '@/lib/devices';
+import { toggleDevice } from '@/lib/devices';
 import {
+  appendStep,
   describeRunTotal,
   emptyDraft,
   errorsByPath,
+  moveStep,
   newStep,
+  removeStep,
   scheduleErrors,
   stepErrors,
   summarise,
@@ -26,6 +29,7 @@ import {
   wizardStepOf,
   type Issue,
   type StepDraft,
+  type StepListState,
   type WizardDraft,
 } from '@/lib/job-draft';
 import { describeStep } from '@/lib/step-view';
@@ -91,39 +95,10 @@ export function NewJobWizard({ customers, now, createAction }: NewJobWizardProps
 
   const setSteps = (steps: StepDraft[]) => update({ steps });
 
-  function addStep() {
-    setSteps([...draft.steps, newStep('click', draft.steps, draft.startUrl)]);
-    setSelected(draft.steps.length);
-  }
-
-  function moveStep(index: number, delta: -1 | 1) {
-    const steps = [...draft.steps];
-    const target = index + delta;
-    [steps[index], steps[target]] = [steps[target] as StepDraft, steps[index] as StepDraft];
-    setSteps(steps);
-    setSelected(target);
-    setIssues([]);
-  }
-
-  function removeStep(index: number) {
-    setSteps(draft.steps.filter((_, other) => other !== index));
-    const remaining = draft.steps.length - 1;
-    setSelected((old) => {
-      if (old === null || remaining === 0) return null;
-      if (old > index || old === remaining) return old - 1;
-      return old;
-    });
-    setIssues([]);
-  }
-
-  function toggleDevice(device: DeviceKey) {
-    const chosen = new Set(draft.devices);
-    if (chosen.has(device)) chosen.delete(device);
-    else chosen.add(device);
-    // Keep the order of the cards, so the summary reads the same way.
-    update({
-      devices: DEVICE_OPTIONS.map((option) => option.key).filter((key) => chosen.has(key)),
-    });
+  function applySteps(next: StepListState, clearIssues = true) {
+    setSteps(next.steps);
+    setSelected(next.selected);
+    if (clearIssues) setIssues([]);
   }
 
   const selectedStep = selected === null ? undefined : draft.steps[selected];
@@ -149,9 +124,9 @@ export function NewJobWizard({ customers, now, createAction }: NewJobWizardProps
             selectedIndex={selected}
             error={errors['flow.steps']}
             onSelect={setSelected}
-            onAdd={addStep}
-            onMove={moveStep}
-            onRemove={removeStep}
+            onAdd={() => applySteps(appendStep(draft.steps, draft.startUrl), false)}
+            onMove={(index, delta) => applySteps(moveStep(draft.steps, index, delta))}
+            onRemove={(index) => applySteps(removeStep(draft.steps, index, selected))}
           />
           {selected !== null && selectedStep && (
             <StepForm
@@ -178,7 +153,11 @@ export function NewJobWizard({ customers, now, createAction }: NewJobWizardProps
       break;
     case 'devices':
       content = (
-        <DevicePicker selected={draft.devices} error={errors.devices} onToggle={toggleDevice} />
+        <DevicePicker
+          selected={draft.devices}
+          error={errors.devices}
+          onToggle={(device) => update({ devices: toggleDevice(draft.devices, device) })}
+        />
       );
       break;
   }

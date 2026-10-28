@@ -27,4 +27,10 @@ describe('DevicePicker', () => {
     expect(screen.getByText('Mindestens ein Gerät wählen.')).toBeVisible();
     expect(screen.getByRole('region', { name: 'Von wo aus testen?' })).toHaveTextContent('geplant');
   });
+
+  it('fits a narrow column without the location card', () => {
+    render(<DevicePicker selected={['desktop']} onToggle={vi.fn()} compact />);
+    expect(screen.getAllByRole('button')).toHaveLength(4);
+    expect(screen.queryByRole('region', { name: 'Von wo aus testen?' })).not.toBeInTheDocument();
+  });
 });
