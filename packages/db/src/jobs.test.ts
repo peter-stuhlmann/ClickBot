@@ -73,16 +73,26 @@ describe('createJob', () => {
     expect(job.devices).toEqual(['desktop', 'iphone']);
   });
 
-  it('fails for an unknown customer', async () => {
-    await expect(
-      createJob(db, {
-        customerId: '00000000-0000-0000-0000-000000000000',
-        name: 'Test',
-        startUrl: 'https://beispiel.de',
-        flow: validFlow,
-        schedule: validSchedule,
-      }),
-    ).rejects.toThrow();
+  it.each([
+    ['an unknown', '00000000-0000-0000-0000-000000000000', 'Kunde nicht gefunden.'],
+    ['a missing', '', 'Bitte einen Kunden wählen.'],
+    ['a malformed', 'beispiel', 'Kunde nicht gefunden.'],
+  ])('reports %s customer at customerId', async (_case, customerId, message) => {
+    const error = await createJob(db, {
+      customerId,
+      name: 'Test',
+      startUrl: 'https://beispiel.de',
+      flow: validFlow,
+      schedule: validSchedule,
+    }).catch((e: unknown) => e);
+
+    expect(error).toBeInstanceOf(ValidationError);
+    expect((error as ValidationError).issues).toEqual([{ path: 'customerId', message }]);
+  });
+
+  it('creates an active job when asked, so the planner picks it up right away', async () => {
+    const job = await newJob({ status: 'active' });
+    expect(job.status).toBe('active');
   });
 });
 

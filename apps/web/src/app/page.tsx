@@ -28,7 +28,11 @@ export default async function JobsPage() {
       <PageHeader
         title="Jobs"
         description="Automatisierte Browser-Abläufe, die nach Zeitplan laufen."
-        actions={<Button icon={<Icon name="plus" size={16} />}>Neuer Job</Button>}
+        actions={
+          <Button href="/jobs/neu" icon={<Icon name="plus" size={16} />}>
+            Neuer Job
+          </Button>
+        }
       />
       <StatGrid cards={toStatCards(stats)} />
       <JobsTable rows={rows.map((row) => toJobRow(row, now))} toggleAction={toggleJobAction} />

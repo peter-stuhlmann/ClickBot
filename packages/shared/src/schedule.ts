@@ -59,16 +59,23 @@ export function localToUtc(date: string, time: string, timeZone: string): Date |
   return matches.length === 0 ? null : new Date(Math.min(...matches));
 }
 
+const BOTS_RANGE = 'Pro Termin 1 bis 50 Bots.';
+const EVERY_RANGE = 'Abstand muss zwischen 1 und 10.080 Minuten liegen.';
+const MAX_RUNS_RANGE = 'Bitte eine ganze Zahl zwischen 1 und 10.000 eingeben.';
+
 const slotSchema = z.object({
   date: z.string().refine(isCalendarDate, 'Ungültiges Datum (erwartet: JJJJ-MM-TT).'),
   time: z.string().regex(TIME_PATTERN, 'Ungültige Uhrzeit (erwartet: HH:MM).'),
-  bots: z.number().int().min(1).max(50),
+  bots: z.number({ error: BOTS_RANGE }).int(BOTS_RANGE).min(1, BOTS_RANGE).max(50, BOTS_RANGE),
 });
 
 const timesScheduleSchema = z
   .object({
     type: z.literal('times'),
-    slots: z.array(slotSchema).min(1).max(500),
+    slots: z
+      .array(slotSchema)
+      .min(1, 'Mindestens einen Termin anlegen.')
+      .max(500, 'Höchstens 500 Termine.'),
     staggerSeconds: z.number().int().min(0).max(600).default(5),
     timezone: z.string().refine(isTimeZone, 'Unbekannte Zeitzone.').default(DEFAULT_TIMEZONE),
   })
@@ -101,9 +108,17 @@ const timesScheduleSchema = z
 
 const intervalScheduleSchema = z.object({
   type: z.literal('interval'),
-  everyMinutes: z.number().int().min(1).max(10_080),
-  maxRuns: z.number().int().min(1).max(10_000),
-  startAt: z.iso.datetime({ offset: true }),
+  everyMinutes: z
+    .number({ error: EVERY_RANGE })
+    .int(EVERY_RANGE)
+    .min(1, EVERY_RANGE)
+    .max(10_080, EVERY_RANGE),
+  maxRuns: z
+    .number({ error: MAX_RUNS_RANGE })
+    .int(MAX_RUNS_RANGE)
+    .min(1, MAX_RUNS_RANGE)
+    .max(10_000, MAX_RUNS_RANGE),
+  startAt: z.iso.datetime({ offset: true, error: 'Ungültiger Startzeitpunkt.' }),
 });
 
 export const scheduleSchema = z.discriminatedUnion('type', [

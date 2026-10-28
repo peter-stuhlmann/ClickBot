@@ -215,3 +215,30 @@ describe('upcomingStarts', () => {
     expect(upcomingStarts(expandSchedule(schedule), now).map((s) => s.botNr)).toEqual([2, 3]);
   });
 });
+
+describe('messages for the schedule form', () => {
+  const messages = (input: unknown) =>
+    Object.fromEntries(
+      (scheduleSchema.safeParse(input).error?.issues ?? []).map((issue) => [
+        issue.path.join('.'),
+        issue.message,
+      ]),
+    );
+
+  it('names the allowed range of an interval in German', () => {
+    expect(
+      messages({ type: 'interval', everyMinutes: 0, maxRuns: Number.NaN, startAt: 'bald' }),
+    ).toEqual({
+      everyMinutes: 'Abstand muss zwischen 1 und 10.080 Minuten liegen.',
+      maxRuns: 'Bitte eine ganze Zahl zwischen 1 und 10.000 eingeben.',
+      startAt: 'Ungültiger Startzeitpunkt.',
+    });
+  });
+
+  it('names the allowed number of bots per slot and asks for a first slot', () => {
+    expect(messages(times([{ date: '2026-11-05', time: '13:24', bots: 51 }]))).toEqual({
+      'slots.0.bots': 'Pro Termin 1 bis 50 Bots.',
+    });
+    expect(messages(times([]))).toEqual({ slots: 'Mindestens einen Termin anlegen.' });
+  });
+});

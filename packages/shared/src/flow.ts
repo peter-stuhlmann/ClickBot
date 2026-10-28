@@ -1,12 +1,19 @@
 import { z } from 'zod';
 
+// Messages are shown next to the field in the editor, so they are German and short.
+const REQUIRED = 'Bitte ausfüllen.';
+const TIMEOUT_RANGE = 'Timeout muss zwischen 0,1 und 120 Sekunden liegen.';
+const WAIT_RANGE = 'Wartezeit muss zwischen 0,001 und 60 Sekunden liegen.';
+
+const filled = () => z.string().min(1, REQUIRED);
+
 /** How a step finds its element. Mirrors Playwright's locator strategies. */
 export const targetSchema = z.discriminatedUnion('by', [
-  z.object({ by: z.literal('role'), role: z.string().min(1), name: z.string().min(1).optional() }),
-  z.object({ by: z.literal('label'), label: z.string().min(1) }),
-  z.object({ by: z.literal('text'), text: z.string().min(1), exact: z.boolean().default(false) }),
-  z.object({ by: z.literal('css'), selector: z.string().min(1) }),
-  z.object({ by: z.literal('testId'), testId: z.string().min(1) }),
+  z.object({ by: z.literal('role'), role: filled(), name: filled().optional() }),
+  z.object({ by: z.literal('label'), label: filled() }),
+  z.object({ by: z.literal('text'), text: filled(), exact: z.boolean().default(false) }),
+  z.object({ by: z.literal('css'), selector: filled() }),
+  z.object({ by: z.literal('testId'), testId: filled() }),
 ]);
 
 // Absolute http(s) URL, a path relative to the job's start URL, or a URL built from a variable.
@@ -14,33 +21,45 @@ const URL_PATTERN = /^(https?:\/\/\S+|\/\S*|\{\{.+\}\}\S*)$/;
 
 const stepBase = {
   id: z.string().min(1),
-  timeoutMs: z.number().int().min(100).max(120_000).default(10_000),
+  timeoutMs: z
+    .number({ error: TIMEOUT_RANGE })
+    .int(TIMEOUT_RANGE)
+    .min(100, TIMEOUT_RANGE)
+    .max(120_000, TIMEOUT_RANGE)
+    .default(10_000),
   aiFallback: z.boolean().default(true),
   note: z.string().max(500).optional(),
 };
 
 const assertionSchema = z.discriminatedUnion('kind', [
-  z.object({ kind: z.literal('textVisible'), text: z.string().min(1) }),
+  z.object({ kind: z.literal('textVisible'), text: filled() }),
   z.object({ kind: z.literal('elementVisible'), target: targetSchema }),
-  z.object({ kind: z.literal('urlContains'), value: z.string().min(1) }),
-  z.object({ kind: z.literal('titleContains'), value: z.string().min(1) }),
+  z.object({ kind: z.literal('urlContains'), value: filled() }),
+  z.object({ kind: z.literal('titleContains'), value: filled() }),
 ]);
 
 const waitConditionSchema = z.discriminatedUnion('kind', [
-  z.object({ kind: z.literal('duration'), ms: z.number().int().min(1).max(60_000) }),
+  z.object({
+    kind: z.literal('duration'),
+    ms: z.number({ error: WAIT_RANGE }).int(WAIT_RANGE).min(1, WAIT_RANGE).max(60_000, WAIT_RANGE),
+  }),
   z.object({ kind: z.literal('element'), target: targetSchema }),
   z.object({ kind: z.literal('networkIdle') }),
 ]);
 
 export const stepSchema = z.discriminatedUnion('type', [
-  z.object({ ...stepBase, type: z.literal('open'), url: z.string().regex(URL_PATTERN) }),
+  z.object({
+    ...stepBase,
+    type: z.literal('open'),
+    url: z.string().regex(URL_PATTERN, 'Adresse muss mit http://, https:// oder / beginnen.'),
+  }),
   z.object({ ...stepBase, type: z.literal('click'), target: targetSchema }),
   z.object({ ...stepBase, type: z.literal('fill'), target: targetSchema, value: z.string() }),
   z.object({
     ...stepBase,
     type: z.literal('select'),
     target: targetSchema,
-    option: z.string().min(1),
+    option: filled(),
   }),
   z.object({ ...stepBase, type: z.literal('assert'), assertion: assertionSchema }),
   z.object({
@@ -60,7 +79,7 @@ export const stepSchema = z.discriminatedUnion('type', [
     ...stepBase,
     type: z.literal('analytics'),
     provider: z.literal('ga4'),
-    event: z.string().min(1),
+    event: filled(),
     params: z.record(z.string(), z.string()).optional(),
   }),
   z.object({ ...stepBase, type: z.literal('ai'), instruction: z.string().min(1).max(2000) }),
@@ -70,7 +89,10 @@ export const stepSchema = z.discriminatedUnion('type', [
 export const flowSchema = z
   .object({
     version: z.literal(1),
-    steps: z.array(stepSchema).min(1).max(200),
+    steps: z
+      .array(stepSchema)
+      .min(1, 'Der Ablauf braucht mindestens einen Schritt.')
+      .max(200, 'Höchstens 200 Schritte.'),
   })
   .superRefine((flow, ctx) => {
     const ids = new Set<string>();

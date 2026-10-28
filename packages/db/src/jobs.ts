@@ -3,7 +3,7 @@ import { eq, sql } from 'drizzle-orm';
 import { z } from 'zod';
 import type { Database } from './client';
 import { NotFoundError, ValidationError, issuesFromZod, type ValidationIssue } from './errors';
-import { device, jobs } from './schema';
+import { customers, device, jobs } from './schema';
 
 export type Job = typeof jobs.$inferSelect;
 export type Device = (typeof device.enumValues)[number];
@@ -17,7 +17,22 @@ export type NewJobInput = {
   /** Untrusted input, validated with scheduleSchema. */
   schedule: unknown;
   devices?: Device[];
+  /** "active" lets the planner pick the job up right away. Default: draft. */
+  status?: 'draft' | 'active';
 };
+
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+async function checkCustomer(db: Database, customerId: string): Promise<ValidationIssue | null> {
+  if (customerId === '') return { path: 'customerId', message: 'Bitte einen Kunden wählen.' };
+  const exists =
+    UUID.test(customerId) &&
+    (await db.query.customers.findFirst({
+      where: eq(customers.id, customerId),
+      columns: { id: true },
+    }));
+  return exists ? null : { path: 'customerId', message: 'Kunde nicht gefunden.' };
+}
 
 const startUrlSchema = z.string().refine((value) => {
   try {
@@ -32,6 +47,9 @@ const devicesSchema = z.array(z.enum(device.enumValues)).min(1, 'Mindestens ein 
 /** Validates everything first and reports all problems at once; writes nothing if one fails. */
 export async function createJob(db: Database, input: NewJobInput): Promise<Job> {
   const issues: ValidationIssue[] = [];
+
+  const customerIssue = await checkCustomer(db, input.customerId);
+  if (customerIssue) issues.push(customerIssue);
 
   const name = input.name.trim();
   if (!name) issues.push({ path: 'name', message: 'Name fehlt.' });
@@ -48,7 +66,14 @@ export async function createJob(db: Database, input: NewJobInput): Promise<Job> 
   const schedule = scheduleSchema.safeParse(input.schedule);
   if (!schedule.success) issues.push(...issuesFromZod('schedule', schedule.error));
 
-  if (!startUrl.success || !devices.success || !flow.success || !schedule.success || !name) {
+  if (
+    customerIssue ||
+    !startUrl.success ||
+    !devices.success ||
+    !flow.success ||
+    !schedule.success ||
+    !name
+  ) {
     throw new ValidationError(issues);
   }
 
@@ -61,6 +86,7 @@ export async function createJob(db: Database, input: NewJobInput): Promise<Job> 
       flow: flow.data,
       schedule: schedule.data,
       devices: devices.data,
+      status: input.status ?? 'draft',
     })
     .returning();
   return job as Job;

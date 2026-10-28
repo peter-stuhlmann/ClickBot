@@ -1,5 +1,6 @@
 export { createDb, type Database, type DbConnection } from './client';
 export { createCipher, parseKey, type Cipher } from './crypto';
+export { listCustomers, type CustomerOption } from './customers';
 export { NotFoundError, ValidationError, type ValidationIssue } from './errors';
 export {
   allocateRunNumber,

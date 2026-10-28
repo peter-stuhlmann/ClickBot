@@ -84,4 +84,15 @@ describe('Button', () => {
     expect(button).toHaveClass('px-8');
     expect(button).not.toHaveClass('px-4');
   });
+
+  it('renders a link styled as a button when given an href', () => {
+    render(
+      <Button href="/" variant="secondary">
+        Abbrechen
+      </Button>,
+    );
+    const link = screen.getByRole('link', { name: 'Abbrechen' });
+    expect(link).toHaveAttribute('href', '/');
+    expect(link).toHaveClass('bg-surface');
+  });
 });

@@ -1,0 +1,528 @@
+import { describe, expect, it } from 'vitest';
+import {
+  addSlot,
+  describeRunTotal,
+  emptyDraft,
+  errorsByPath,
+  newStep,
+  normaliseUrl,
+  scheduleErrors,
+  stepErrors,
+  summarise,
+  toNewJobInput,
+  validateWizardStep,
+  wizardStepOf,
+  type StepDraft,
+  type WizardDraft,
+} from './job-draft';
+
+// 13:30 in Berlin.
+const now = new Date('2026-11-05T12:30:00Z');
+
+function draft(overrides: Partial<WizardDraft> = {}): WizardDraft {
+  return {
+    ...emptyDraft(now),
+    customerId: 'customer-1',
+    startUrl: 'https://beispiel.de/kontakt',
+    name: 'Kontaktformular-Test',
+    confirmed: true,
+    ...overrides,
+  };
+}
+
+function step(type: StepDraft['type'], overrides: Partial<StepDraft> = {}): StepDraft {
+  return { ...newStep(type, [], ''), ...overrides };
+}
+
+const paths = (issues: { path: string }[]) => issues.map((issue) => issue.path);
+
+describe('emptyDraft', () => {
+  it('starts on desktop with an hourly interval from now and one slot at the next full hour', () => {
+    const fresh = emptyDraft(now);
+    expect(fresh.devices).toEqual(['desktop']);
+    expect(fresh.steps).toEqual([]);
+    expect(fresh.schedule).toMatchObject({
+      type: 'interval',
+      everyMinutes: '60',
+      maxRuns: '24',
+      startMode: 'now',
+      stagger: true,
+    });
+    expect(fresh.schedule.slots).toEqual([
+      { key: 'slot-1', date: '2026-11-05', time: '14:00', bots: 1 },
+    ]);
+  });
+
+  it('rolls the first slot over to the next day shortly before midnight', () => {
+    const lateEvening = new Date('2026-11-05T22:40:00Z'); // 23:40 Berlin
+    expect(emptyDraft(lateEvening).schedule.slots[0]).toMatchObject({
+      date: '2026-11-06',
+      time: '00:00',
+    });
+  });
+});
+
+describe('normaliseUrl', () => {
+  it.each([
+    ['beispiel.de/kontakt', 'https://beispiel.de/kontakt'],
+    ['  https://beispiel.de  ', 'https://beispiel.de'],
+    ['http://127.0.0.1:4100/kontakt.html', 'http://127.0.0.1:4100/kontakt.html'],
+    ['', ''],
+  ])('turns %j into %j', (input, expected) => {
+    expect(normaliseUrl(input)).toBe(expected);
+  });
+});
+
+describe('newStep', () => {
+  it('opens the start URL as the first step', () => {
+    expect(newStep('open', [], 'beispiel.de/kontakt')).toMatchObject({
+      id: 'open-1',
+      type: 'open',
+      url: 'https://beispiel.de/kontakt',
+    });
+  });
+
+  it('gives every step an id that is not taken yet', () => {
+    const existing = [step('click', { id: 'click-1' }), step('click', { id: 'click-3' })];
+    expect(newStep('click', existing, '').id).toBe('click-4');
+  });
+
+  it('suggests a sensible way to find the element', () => {
+    expect(newStep('click', [], '')).toMatchObject({ targetBy: 'role', targetRole: 'button' });
+    expect(newStep('fill', [], '')).toMatchObject({ targetBy: 'label' });
+  });
+});
+
+describe('toNewJobInput', () => {
+  it('builds flow, schedule and devices for createJob', () => {
+    const input = toNewJobInput(
+      draft({
+        startUrl: 'beispiel.de/kontakt',
+        name: '  Kontaktformular-Test ',
+        devices: ['desktop', 'iphone'],
+        steps: [
+          step('open', { id: 'open-1', url: 'https://beispiel.de/kontakt' }),
+          step('fill', {
+            id: 'fill-1',
+            targetBy: 'label',
+            targetValue: 'E-Mail',
+            value: '{{faker.email}}',
+            timeoutSeconds: '2,5',
+          }),
+          step('click', { id: 'click-1', targetRole: 'button', targetValue: 'Absenden' }),
+          step('assert', { id: 'assert-1', value: 'Vielen Dank' }),
+        ],
+      }),
+      now,
+    );
+
+    expect(input).toMatchObject({
+      customerId: 'customer-1',
+      name: 'Kontaktformular-Test',
+      startUrl: 'https://beispiel.de/kontakt',
+      devices: ['desktop', 'iphone'],
+      status: 'active',
+      schedule: {
+        type: 'interval',
+        everyMinutes: 60,
+        maxRuns: 24,
+        startAt: '2026-11-05T12:30:00.000Z',
+      },
+    });
+    expect(input.flow).toEqual({
+      version: 1,
+      steps: [
+        { id: 'open-1', type: 'open', url: 'https://beispiel.de/kontakt', timeoutMs: 10_000 },
+        {
+          id: 'fill-1',
+          type: 'fill',
+          target: { by: 'label', label: 'E-Mail' },
+          value: '{{faker.email}}',
+          timeoutMs: 2_500,
+        },
+        {
+          id: 'click-1',
+          type: 'click',
+          target: { by: 'role', role: 'button', name: 'Absenden' },
+          timeoutMs: 10_000,
+        },
+        {
+          id: 'assert-1',
+          type: 'assert',
+          assertion: { kind: 'textVisible', text: 'Vielen Dank' },
+          timeoutMs: 10_000,
+        },
+      ],
+    });
+  });
+
+  it.each([
+    [
+      { targetBy: 'role', targetRole: 'link', targetValue: '' },
+      { by: 'role', role: 'link' },
+    ],
+    [
+      { targetBy: 'text', targetValue: 'Kontakt' },
+      { by: 'text', text: 'Kontakt' },
+    ],
+    [
+      { targetBy: 'css', targetValue: '#send' },
+      { by: 'css', selector: '#send' },
+    ],
+    [
+      { targetBy: 'testId', targetValue: 'send' },
+      { by: 'testId', testId: 'send' },
+    ],
+  ] as const)('finds an element by %j', (fields, target) => {
+    const [built] = toNewJobInput(draft({ steps: [step('click', fields)] }), now).flow.steps;
+    expect(built).toMatchObject({ target });
+  });
+
+  it.each([
+    [
+      { assertKind: 'urlContains', value: '/danke' },
+      { kind: 'urlContains', value: '/danke' },
+    ],
+    [
+      { assertKind: 'titleContains', value: 'Danke' },
+      { kind: 'titleContains', value: 'Danke' },
+    ],
+    [
+      { assertKind: 'elementVisible', targetBy: 'testId', targetValue: 'ok' },
+      { kind: 'elementVisible', target: { by: 'testId', testId: 'ok' } },
+    ],
+  ] as const)('checks %j', (fields, assertion) => {
+    const [built] = toNewJobInput(draft({ steps: [step('assert', fields)] }), now).flow.steps;
+    expect(built).toMatchObject({ assertion });
+  });
+
+  it('builds the remaining step types', () => {
+    const steps = toNewJobInput(
+      draft({
+        steps: [
+          step('select', { targetBy: 'label', targetValue: 'Land', value: 'Österreich' }),
+          step('wait', { waitKind: 'duration', waitSeconds: '1,5' }),
+          step('wait', { waitKind: 'element', targetBy: 'text', targetValue: 'Fertig' }),
+          step('wait', { waitKind: 'networkIdle' }),
+          step('screenshot', { value: 'Danke-Seite', fullPage: true }),
+          step('screenshot', { value: '  ' }),
+          step('analytics', { value: 'form_submit' }),
+        ],
+      }),
+      now,
+    ).flow.steps;
+
+    expect(steps.map(({ id: _id, timeoutMs: _t, ...rest }) => rest)).toEqual([
+      { type: 'select', target: { by: 'label', label: 'Land' }, option: 'Österreich' },
+      { type: 'wait', until: { kind: 'duration', ms: 1_500 } },
+      { type: 'wait', until: { kind: 'element', target: { by: 'text', text: 'Fertig' } } },
+      { type: 'wait', until: { kind: 'networkIdle' } },
+      { type: 'screenshot', name: 'Danke-Seite', fullPage: true },
+      { type: 'screenshot', fullPage: false },
+      { type: 'analytics', provider: 'ga4', event: 'form_submit' },
+    ]);
+  });
+
+  it('converts slots in Berlin time and staggers bots by 10 seconds', () => {
+    const fresh = emptyDraft(now);
+    const input = toNewJobInput(
+      draft({
+        schedule: {
+          ...fresh.schedule,
+          type: 'times',
+          slots: [{ key: 'slot-1', date: '2026-11-05', time: '14:00', bots: 3 }],
+        },
+      }),
+      now,
+    );
+    expect(input.schedule).toEqual({
+      type: 'times',
+      slots: [{ date: '2026-11-05', time: '14:00', bots: 3 }],
+      staggerSeconds: 10,
+      timezone: 'Europe/Berlin',
+    });
+  });
+
+  it('starts an interval at a chosen Berlin time', () => {
+    const fresh = emptyDraft(now);
+    const input = toNewJobInput(
+      draft({
+        schedule: {
+          ...fresh.schedule,
+          startMode: 'at',
+          startDate: '2026-11-06',
+          startTime: '09:00',
+        },
+      }),
+      now,
+    );
+    expect(input.schedule).toMatchObject({ startAt: '2026-11-06T08:00:00.000Z' });
+  });
+});
+
+describe('validateWizardStep', () => {
+  it('accepts a complete first step', () => {
+    expect(validateWizardStep(draft(), 'website', now)).toEqual([]);
+  });
+
+  it('reports every missing field of the first step at once', () => {
+    const issues = validateWizardStep(
+      draft({ customerId: '', name: ' ', startUrl: 'ftp://x', confirmed: false }),
+      'website',
+      now,
+    );
+    expect(issues).toEqual([
+      { path: 'customerId', message: 'Bitte einen Kunden wählen.' },
+      { path: 'startUrl', message: 'Start-URL muss mit http:// oder https:// beginnen.' },
+      { path: 'name', message: 'Name fehlt.' },
+      {
+        path: 'confirmed',
+        message: 'Bitte bestätigen, dass ihr diese Website testen dürft.',
+      },
+    ]);
+  });
+
+  it('accepts a start URL without scheme, because https:// is added', () => {
+    expect(validateWizardStep(draft({ startUrl: 'beispiel.de' }), 'website', now)).toEqual([]);
+  });
+
+  it('reports flow problems with paths to the step fields', () => {
+    const issues = validateWizardStep(
+      draft({ steps: [step('open', { url: 'kontakt' }), step('click', { targetValue: '' })] }),
+      'flow',
+      now,
+    );
+    expect(paths(issues)).toEqual(['flow.steps.0.url']);
+  });
+
+  it('asks for at least one step', () => {
+    expect(validateWizardStep(draft({ steps: [] }), 'flow', now)).toEqual([
+      { path: 'flow.steps', message: 'Der Ablauf braucht mindestens einen Schritt.' },
+    ]);
+  });
+
+  it('rejects a start or a slot in the past', () => {
+    const fresh = emptyDraft(now);
+    const pastStart = draft({
+      schedule: { ...fresh.schedule, startMode: 'at', startDate: '2026-11-05', startTime: '13:00' },
+    });
+    expect(validateWizardStep(pastStart, 'schedule', now)).toEqual([
+      { path: 'schedule.startAt', message: 'Der Start liegt in der Vergangenheit.' },
+    ]);
+
+    const pastSlot = draft({
+      schedule: {
+        ...fresh.schedule,
+        type: 'times',
+        slots: [
+          { key: 'slot-1', date: '2026-11-05', time: '13:00', bots: 1 },
+          { key: 'slot-2', date: '2026-11-05', time: '15:00', bots: 1 },
+        ],
+      },
+    });
+    expect(validateWizardStep(pastSlot, 'schedule', now)).toEqual([
+      { path: 'schedule.slots.0.time', message: 'Der Termin liegt in der Vergangenheit.' },
+    ]);
+  });
+
+  it('reports an invalid start date instead of a past one', () => {
+    const fresh = emptyDraft(now);
+    const issues = validateWizardStep(
+      draft({ schedule: { ...fresh.schedule, startMode: 'at', startDate: '', startTime: '' } }),
+      'schedule',
+      now,
+    );
+    expect(issues).toEqual([{ path: 'schedule.startAt', message: 'Ungültiger Startzeitpunkt.' }]);
+  });
+
+  it('reports numbers that are not numbers', () => {
+    const fresh = emptyDraft(now);
+    const issues = validateWizardStep(
+      draft({ schedule: { ...fresh.schedule, everyMinutes: '', maxRuns: 'viele' } }),
+      'schedule',
+      now,
+    );
+    expect(paths(issues)).toEqual(['schedule.everyMinutes', 'schedule.maxRuns']);
+  });
+
+  it('needs at least one device', () => {
+    expect(validateWizardStep(draft({ devices: [] }), 'devices', now)).toEqual([
+      { path: 'devices', message: 'Mindestens ein Gerät wählen.' },
+    ]);
+  });
+});
+
+describe('wizardStepOf', () => {
+  it.each([
+    ['customerId', 'website'],
+    ['startUrl', 'website'],
+    ['name', 'website'],
+    ['confirmed', 'website'],
+    ['flow.steps.2.target.label', 'flow'],
+    ['schedule.slots.0.time', 'schedule'],
+    ['devices', 'devices'],
+    ['something.else', 'website'],
+  ])('sends %s to the %s step', (path, wizardStep) => {
+    expect(wizardStepOf(path)).toBe(wizardStep);
+  });
+});
+
+describe('stepErrors', () => {
+  it('maps the paths of a step to the fields of the step form', () => {
+    const issues = [
+      { path: 'flow.steps.1.url', message: 'A' },
+      { path: 'flow.steps.1.target.label', message: 'B' },
+      { path: 'flow.steps.1.assertion.text', message: 'C' },
+      { path: 'flow.steps.1.until.ms', message: 'D' },
+      { path: 'flow.steps.1.timeoutMs', message: 'E' },
+      { path: 'flow.steps.1.target.role', message: 'F' },
+      { path: 'flow.steps.1.id', message: 'G' },
+      { path: 'flow.steps.2.url', message: 'other step' },
+    ];
+    expect(stepErrors(issues, 1)).toEqual({
+      url: 'A',
+      targetValue: 'B',
+      value: 'C',
+      waitSeconds: 'D',
+      timeoutSeconds: 'E',
+      targetRole: 'F',
+      general: 'G',
+    });
+  });
+
+  it('keeps the first message per field', () => {
+    const issues = [
+      { path: 'flow.steps.0.assertion.target.label', message: 'first' },
+      { path: 'flow.steps.0.until.target.text', message: 'second' },
+    ];
+    expect(stepErrors(issues, 0)).toEqual({ targetValue: 'first' });
+  });
+});
+
+describe('scheduleErrors', () => {
+  it('collects one message per slot row and the interval fields', () => {
+    const errors = scheduleErrors([
+      { path: 'schedule.everyMinutes', message: 'A' },
+      { path: 'schedule.startAt', message: 'B' },
+      { path: 'schedule.slots', message: 'C' },
+      { path: 'schedule.slots.1', message: 'Doppelt' },
+      { path: 'schedule.slots.2.bots', message: 'Bots' },
+      { path: 'schedule.slots.2.time', message: 'ignored, row has a message' },
+      { path: 'flow.steps', message: 'not a schedule issue' },
+    ]);
+    expect(errors).toEqual({
+      fields: { everyMinutes: 'A', startAt: 'B', slots: 'C' },
+      slots: { 1: 'Doppelt', 2: 'Bots' },
+    });
+  });
+});
+
+describe('summarise', () => {
+  const customers = [{ id: 'customer-1', name: 'Beispiel GmbH' }];
+
+  it('shows dashes for what is not decided yet', () => {
+    expect(summarise(emptyDraft(now), customers, now)).toEqual([
+      { label: 'Kunde', value: '–' },
+      { label: 'Website', value: '–' },
+      { label: 'Job-Name', value: '–' },
+      { label: 'Ablauf', value: '–' },
+      { label: 'Zeitplan', value: 'alle 60 Min. · max. 24 Läufe' },
+      { label: 'Geräte', value: 'Desktop' },
+    ]);
+  });
+
+  it('summarises a complete draft', () => {
+    const fresh = emptyDraft(now);
+    const rows = summarise(
+      draft({
+        startUrl: 'beispiel.de/kontakt',
+        steps: [step('open'), step('click')],
+        devices: ['desktop', 'iphone'],
+        schedule: {
+          ...fresh.schedule,
+          type: 'times',
+          slots: [
+            { key: 'slot-1', date: '2026-11-05', time: '14:00', bots: 3 },
+            { key: 'slot-2', date: '2026-11-05', time: '15:00', bots: 7 },
+          ],
+        },
+      }),
+      customers,
+      now,
+    );
+    expect(rows).toEqual([
+      { label: 'Kunde', value: 'Beispiel GmbH' },
+      { label: 'Website', value: 'beispiel.de/kontakt' },
+      { label: 'Job-Name', value: 'Kontaktformular-Test' },
+      { label: 'Ablauf', value: '2 Schritte' },
+      { label: 'Zeitplan', value: '2 Termine · 10 Bots' },
+      { label: 'Geräte', value: 'Desktop, iPhone 15' },
+    ]);
+  });
+
+  it('shows a dash for a schedule that is not valid yet', () => {
+    const fresh = emptyDraft(now);
+    const rows = summarise(
+      draft({ schedule: { ...fresh.schedule, everyMinutes: '' } }),
+      customers,
+      now,
+    );
+    expect(rows.find((row) => row.label === 'Zeitplan')?.value).toBe('–');
+  });
+});
+
+describe('describeRunTotal', () => {
+  it('multiplies the starts of the schedule by the devices', () => {
+    expect(describeRunTotal(draft({ devices: ['desktop', 'iphone'] }), now)).toBe(
+      '24 Starts × 2 Geräte = 48 Läufe',
+    );
+    const fresh = emptyDraft(now);
+    const oneSlot = draft({ schedule: { ...fresh.schedule, type: 'times' } });
+    expect(describeRunTotal(oneSlot, now)).toBe('1 Start × 1 Gerät = 1 Lauf');
+  });
+
+  it('says nothing while the schedule is invalid or no device is chosen', () => {
+    const fresh = emptyDraft(now);
+    expect(
+      describeRunTotal(draft({ schedule: { ...fresh.schedule, maxRuns: '' } }), now),
+    ).toBeNull();
+    expect(describeRunTotal(draft({ devices: [] }), now)).toBeNull();
+  });
+});
+
+describe('errorsByPath', () => {
+  it('keeps the first message per path', () => {
+    expect(
+      errorsByPath([
+        { path: 'name', message: 'first' },
+        { path: 'name', message: 'second' },
+        { path: 'startUrl', message: 'url' },
+      ]),
+    ).toEqual({ name: 'first', startUrl: 'url' });
+  });
+});
+
+describe('addSlot', () => {
+  it('adds a slot one hour after the last one, with a new key', () => {
+    const slots = [{ key: 'slot-1', date: '2026-11-05', time: '13:24', bots: 3 }];
+    expect(addSlot(slots)).toEqual([
+      ...slots,
+      { key: 'slot-2', date: '2026-11-05', time: '14:24', bots: 1 },
+    ]);
+  });
+
+  it('rolls over to the next day', () => {
+    const slots = [{ key: 'slot-4', date: '2026-12-31', time: '23:30', bots: 1 }];
+    expect(addSlot(slots)[1]).toEqual({
+      key: 'slot-5',
+      date: '2027-01-01',
+      time: '00:30',
+      bots: 1,
+    });
+  });
+
+  it('copies date and time of a last slot that is not filled in yet', () => {
+    const slots = [{ key: 'slot-1', date: '', time: '', bots: 1 }];
+    expect(addSlot(slots)[1]).toMatchObject({ date: '', time: '' });
+  });
+});

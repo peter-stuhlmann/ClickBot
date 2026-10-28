@@ -1,4 +1,5 @@
 import { cva, type VariantProps } from 'class-variance-authority';
+import Link from 'next/link';
 import type { ButtonHTMLAttributes, ReactNode } from 'react';
 import { cn } from '@/lib/cn';
 
@@ -35,6 +36,8 @@ export type ButtonProps = Omit<ButtonHTMLAttributes<HTMLButtonElement>, 'type'> 
     icon?: ReactNode;
     /** Shows a spinner, disables the button and sets aria-busy. */
     loading?: boolean;
+    /** Renders a link that looks like a button, e.g. "Abbrechen" back to the job list. */
+    href?: string;
   };
 
 export function Button({
@@ -47,14 +50,24 @@ export function Button({
   disabled,
   className,
   children,
+  href,
   ...props
 }: ButtonProps) {
+  const classes = cn(buttonVariants({ variant, size, fullWidth }), className);
+  if (href !== undefined) {
+    return (
+      <Link href={href} className={classes}>
+        {icon}
+        {children}
+      </Link>
+    );
+  }
   return (
     <button
       type={type}
       disabled={disabled || loading}
       aria-busy={loading || undefined}
-      className={cn(buttonVariants({ variant, size, fullWidth }), className)}
+      className={classes}
       {...props}
     >
       {loading ? (

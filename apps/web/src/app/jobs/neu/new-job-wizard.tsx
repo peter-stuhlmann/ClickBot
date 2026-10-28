@@ -1,0 +1,237 @@
+'use client';
+
+import { useMemo, useState, useTransition, type ReactNode } from 'react';
+import { Button } from '@/components/atoms/Button';
+import { Icon } from '@/components/atoms/Icon';
+import { DevicePicker } from '@/components/organisms/DevicePicker';
+import { JobSummary } from '@/components/organisms/JobSummary';
+import { MethodPicker } from '@/components/organisms/MethodPicker';
+import { ScheduleForm } from '@/components/organisms/ScheduleForm';
+import { StepForm } from '@/components/organisms/StepForm';
+import { StepList } from '@/components/organisms/StepList';
+import { WebsiteForm } from '@/components/organisms/WebsiteForm';
+import { WizardStepper } from '@/components/organisms/WizardStepper';
+import { WizardLayout } from '@/components/templates/WizardLayout';
+import { DEVICE_OPTIONS, type DeviceKey } from '@/lib/devices';
+import {
+  describeRunTotal,
+  emptyDraft,
+  errorsByPath,
+  newStep,
+  scheduleErrors,
+  stepErrors,
+  summarise,
+  validateWizardStep,
+  WIZARD_STEPS,
+  wizardStepOf,
+  type Issue,
+  type StepDraft,
+  type WizardDraft,
+} from '@/lib/job-draft';
+import { describeStep } from '@/lib/step-view';
+
+export type NewJobWizardProps = {
+  customers: { id: string; name: string }[];
+  /** Server time of the request, so the defaults are the same on server and client. */
+  now: string;
+  createAction: (draft: WizardDraft) => Promise<{ issues: Issue[] }>;
+};
+
+const NOT_SAVED =
+  'Gespeichert wird erst am Ende. Bis dahin ist der Job ein Entwurf und läuft nicht.';
+
+/** State and navigation of the "Neuer Job" wizard (screens 05 and 05b). */
+export function NewJobWizard({ customers, now, createAction }: NewJobWizardProps) {
+  const renderedAt = useMemo(() => new Date(now), [now]);
+  const [draft, setDraft] = useState(() => emptyDraft(renderedAt));
+  const [current, setCurrent] = useState(0);
+  const [issues, setIssues] = useState<Issue[]>([]);
+  const [selected, setSelected] = useState<number | null>(null);
+  const [saving, startSaving] = useTransition();
+
+  const step = WIZARD_STEPS[current] ?? WIZARD_STEPS[0];
+  const isLast = current === WIZARD_STEPS.length - 1;
+  const errors = errorsByPath(issues);
+  const update = (patch: Partial<WizardDraft>) => setDraft((old) => ({ ...old, ...patch }));
+
+  function goTo(index: number) {
+    setIssues([]);
+    setCurrent(index);
+  }
+
+  /** Shows the problems and jumps to the step (and flow step) of the first one. */
+  function showIssues(found: Issue[]) {
+    setIssues(found);
+    const first = found[0];
+    if (!first) return;
+    setCurrent(WIZARD_STEPS.findIndex((wizardStep) => wizardStep.key === wizardStepOf(first.path)));
+    const flowStep = /^flow\.steps\.(\d+)/.exec(first.path)?.[1];
+    if (flowStep !== undefined) setSelected(Number(flowStep));
+  }
+
+  function save() {
+    setIssues([]);
+    startSaving(async () => {
+      // On success the action redirects to the job list.
+      const result = await createAction(draft);
+      if (result.issues.length > 0) showIssues(result.issues);
+    });
+  }
+
+  function next() {
+    const found = validateWizardStep(draft, step.key, new Date());
+    if (found.length > 0) return showIssues(found);
+    if (isLast) return save();
+    if (step.key === 'website' && draft.steps.length === 0) {
+      update({ steps: [newStep('open', [], draft.startUrl)] });
+      setSelected(0);
+    }
+    goTo(current + 1);
+  }
+
+  const setSteps = (steps: StepDraft[]) => update({ steps });
+
+  function addStep() {
+    setSteps([...draft.steps, newStep('click', draft.steps, draft.startUrl)]);
+    setSelected(draft.steps.length);
+  }
+
+  function moveStep(index: number, delta: -1 | 1) {
+    const steps = [...draft.steps];
+    const target = index + delta;
+    [steps[index], steps[target]] = [steps[target] as StepDraft, steps[index] as StepDraft];
+    setSteps(steps);
+    setSelected(target);
+    setIssues([]);
+  }
+
+  function removeStep(index: number) {
+    setSteps(draft.steps.filter((_, other) => other !== index));
+    const remaining = draft.steps.length - 1;
+    setSelected((old) => {
+      if (old === null || remaining === 0) return null;
+      if (old > index || old === remaining) return old - 1;
+      return old;
+    });
+    setIssues([]);
+  }
+
+  function toggleDevice(device: DeviceKey) {
+    const chosen = new Set(draft.devices);
+    if (chosen.has(device)) chosen.delete(device);
+    else chosen.add(device);
+    // Keep the order of the cards, so the summary reads the same way.
+    update({
+      devices: DEVICE_OPTIONS.map((option) => option.key).filter((key) => chosen.has(key)),
+    });
+  }
+
+  const selectedStep = selected === null ? undefined : draft.steps[selected];
+  const runTotal = describeRunTotal(draft, renderedAt);
+
+  let content: ReactNode;
+  switch (step.key) {
+    case 'website':
+      content = (
+        <WebsiteForm values={draft} customers={customers} errors={errors} onChange={update} />
+      );
+      break;
+    case 'flow':
+      content = (
+        <>
+          <MethodPicker />
+          <StepList
+            steps={draft.steps.map((flowStep, index) => ({
+              key: flowStep.id,
+              view: describeStep(flowStep),
+              invalid: Object.keys(stepErrors(issues, index)).length > 0,
+            }))}
+            selectedIndex={selected}
+            error={errors['flow.steps']}
+            onSelect={setSelected}
+            onAdd={addStep}
+            onMove={moveStep}
+            onRemove={removeStep}
+          />
+          {selected !== null && selectedStep && (
+            <StepForm
+              index={selected}
+              step={selectedStep}
+              errors={stepErrors(issues, selected)}
+              onChange={(changed) =>
+                setSteps(draft.steps.map((other, index) => (index === selected ? changed : other)))
+              }
+            />
+          )}
+        </>
+      );
+      break;
+    case 'schedule':
+      content = (
+        <ScheduleForm
+          schedule={draft.schedule}
+          errors={scheduleErrors(issues)}
+          note={runTotal}
+          onChange={(schedule) => update({ schedule })}
+        />
+      );
+      break;
+    case 'devices':
+      content = (
+        <DevicePicker selected={draft.devices} error={errors.devices} onToggle={toggleDevice} />
+      );
+      break;
+  }
+
+  return (
+    <WizardLayout
+      title="Neuer Job"
+      subtitle={`Schritt ${current + 1} von ${WIZARD_STEPS.length} · ${step.question}`}
+      actions={
+        <>
+          {current === 0 ? (
+            <Button variant="secondary" href="/">
+              Abbrechen
+            </Button>
+          ) : (
+            <Button
+              variant="secondary"
+              icon={<Icon name="arrowLeft" size={16} />}
+              onClick={() => goTo(current - 1)}
+            >
+              Zurück
+            </Button>
+          )}
+          {isLast ? (
+            <Button icon={<Icon name="check" size={16} />} loading={saving} onClick={next}>
+              Job anlegen
+            </Button>
+          ) : (
+            <Button onClick={next}>
+              Weiter
+              <Icon name="arrowRight" size={16} />
+            </Button>
+          )}
+        </>
+      }
+      stepper={<WizardStepper steps={WIZARD_STEPS} current={current} onSelect={goTo} />}
+      aside={
+        <JobSummary
+          rows={summarise(draft, customers, renderedAt)}
+          note={
+            current >= 2 && runTotal
+              ? `${runTotal}. Der Job startet direkt nach dem Anlegen.`
+              : NOT_SAVED
+          }
+        />
+      }
+    >
+      {issues.length > 0 && (
+        <p role="alert" className="rounded-input bg-danger-soft px-3 py-2.5 text-body text-danger">
+          Bitte die markierten Angaben prüfen.
+        </p>
+      )}
+      {content}
+    </WizardLayout>
+  );
+}

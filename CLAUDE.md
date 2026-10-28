@@ -4,15 +4,19 @@ Web-Tool zum automatisierten Testen von Websites (eigene Seiten und Kundenseiten
 Ein Bot öffnet eine Seite in einem echten Browser, führt einen Ablauf aus (klicken, Formulare
 ausfüllen, prüfen) und erstellt pro Lauf einen Report auf dem Bildschirm und als PDF.
 
-Status: Grundgerüst, Datenbank-Schicht, Worker mit Zeitplan und der erste Screen stehen.
+Status: Grundgerüst, Datenbank-Schicht, Worker mit Zeitplan, die Job-Liste und der Assistent
+„Neuer Job“ stehen.
 
 - **Fertig:**
   - das Design (Figma)
   - `packages/shared`: Ablauf-Schema, Variablen, Zeitplan, Domain-Regeln
   - `packages/db`: Schema, Migrationen, Jobs, Zugangsdaten, Verschlüsselung, Übersicht und
     Kennzahlen, Demo-Daten
-  - `apps/web`: App-Rahmen mit Sidebar und Screen 01 „Jobs“ mit echten Daten, inklusive
-    Pausieren und Fortsetzen
+  - `apps/web`:
+    - App-Rahmen mit Sidebar
+    - Screen 01 „Jobs“ mit echten Daten, inklusive Pausieren und Fortsetzen
+    - Screen 05 „Neuer Job“ (`/jobs/neu`): Assistent in vier Schritten (Website, Ablauf,
+      Zeitplan, Geräte). Am Ende wird der Job aktiv angelegt und läuft nach Zeitplan.
   - `apps/worker`:
     - plant fällige Termine ein und führt sie mit Playwright aus
     - speichert Ergebnis, Schritte und Bildschirmfotos
@@ -22,13 +26,17 @@ Status: Grundgerüst, Datenbank-Schicht, Worker mit Zeitplan und der erste Scree
   - im Worker: Proxies und Standort-Profile, echtes WebKit für iPhone/iPad, KI- und
     Code-Schritte, Live-Stream, Markierung der Bot-Läufe für Analytics
   - Login (bis dahin zeigt die Sidebar den ältesten Benutzer, siehe `src/server/session.ts`)
-  - alle übrigen Screens; „Neuer Job“ hat noch kein Ziel
+  - im Assistenten: Ablauf per KI, Aufnehmen und Code (nur „Schritte zusammenklicken“ geht),
+    Standort-Profile je Termin; Schritte vom Typ „auslesen“ lassen sich noch nicht anlegen
+  - alle übrigen Screens, auch der Editor (02) für bestehende Jobs
 
 Was als „geplant“ markiert ist, existiert noch nicht.
 
 ## Produktregeln (nicht verhandelbar)
 
 - Nur für eigene oder vom Kunden freigegebene Websites. Das Tool ist ein Testwerkzeug.
+  - Wer einen Job anlegt, bestätigt das im Assistenten. `createJobAction` prüft die
+    Bestätigung auf dem Server noch einmal.
 - Keine Umgehung von Captchas, Bot-Erkennung, Rate-Limits oder Ländersperren fremder Seiten.
   Kein Fingerprint-Spoofing und kein Captcha-Solving.
 - Kein künstlicher Traffic, der Kennzahlen aufbläht (Klick-KPIs, Werbeanzeigen, Analytics).
@@ -68,6 +76,10 @@ packages/db      Drizzle-Schema, SQL-Migrationen, Repository-Funktionen, Verschl
     Daraus baut die UI ihre Fehlermeldungen.
   - Zusätzlich sichern CHECK-, UNIQUE- und Fremdschlüssel-Regeln die Daten in der Datenbank
     selbst ab.
+  - Die Meldungen der Zod-Schemas in `packages/shared` sind deutsch und kurz, weil die UI sie
+    direkt am Feld zeigt (z. B. „Bitte ausfüllen.“).
+- **Jobs** legt `createJob` als Entwurf an. Mit `status: 'active'` (Assistent) plant der
+  Worker sie sofort ein.
 - **Zugangsdaten:**
   - Gespeichert wird nur der verschlüsselte Wert (`createCipher`: AES-256-GCM, Schlüssel aus
     `SECRETS_KEY`).
@@ -253,7 +265,11 @@ Regeln:
   - Atoms bis Templates sind rein darstellend: nur Props, kein fetch, kein DB-Import.
     Interaktivität (`"use client"`) so tief wie möglich ansetzen.
   - Server Actions bekommen Komponenten als Prop, z. B. `toggleAction`. Sie liegen in
-    `src/app/actions.ts`.
+    `src/app/actions.ts`. Sie prüfen Eingaben selbst noch einmal, denn jeder kann sie aufrufen.
+  - Formulare über mehrere Schritte: Der Zustand liegt in einer Client-Komponente neben der
+    Seite (z. B. `src/app/jobs/neu/new-job-wizard.tsx`), die nur Organisms zusammensteckt.
+    Umwandeln und Prüfen stehen als reine Funktionen mit Tests in `src/lib`
+    (`job-draft.ts`), weil `src/app` nicht in die Abdeckung zählt.
   - `src/server/` enthält den DB-Zugriff (`getDb`) und die Umwandlung von Datenbank-Zeilen in
     Anzeigedaten (`*-view.ts`). Die Datei beginnt mit `import 'server-only'`. Nur `src/app` darf
     sie importieren.
@@ -381,6 +397,9 @@ Design-Tokens:
 | text       | #101828 | danger / -soft         | #D92D20 / #FEF3F2 |
 | text-muted | #667085 | warning / -soft        | #B54708 / #FFFAEB |
 | sidebar    | #0F172A | sidebar-text / -active | #CBD5E1 / #1E293B |
+
+Im Code ergänzt (nicht in der Collection): `info` / `info-soft` #026AA2 / #E0F2FE für den
+Schritt-Typ „Ausfüllen“, `text-secondary` #344054 für die Schrittnummer.
 
 Schrift: Inter, für Code und Technisches Roboto Mono. Radien: Karten 12, Inputs 8, Chips 6.
 

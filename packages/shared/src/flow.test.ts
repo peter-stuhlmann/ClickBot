@@ -172,3 +172,55 @@ describe('flowSchema', () => {
     expect(flowSchema.safeParse({ version: 2, steps: [click('a')] }).success).toBe(false);
   });
 });
+
+describe('messages for the editor', () => {
+  const messageAt = (input: unknown, path: (string | number)[]) =>
+    flowSchema
+      .safeParse(input)
+      .error?.issues.find((issue) => JSON.stringify(issue.path) === JSON.stringify(path))?.message;
+
+  it('says in German what is missing in an empty field', () => {
+    const flow = {
+      version: 1,
+      steps: [
+        { id: 'a', type: 'click', target: { by: 'label', label: '' } },
+        { id: 'b', type: 'select', target: { by: 'css', selector: 'select' }, option: '' },
+        { id: 'c', type: 'assert', assertion: { kind: 'textVisible', text: '' } },
+        { id: 'd', type: 'analytics', provider: 'ga4', event: '' },
+      ],
+    };
+    expect(messageAt(flow, ['steps', 0, 'target', 'label'])).toBe('Bitte ausfüllen.');
+    expect(messageAt(flow, ['steps', 1, 'option'])).toBe('Bitte ausfüllen.');
+    expect(messageAt(flow, ['steps', 2, 'assertion', 'text'])).toBe('Bitte ausfüllen.');
+    expect(messageAt(flow, ['steps', 3, 'event'])).toBe('Bitte ausfüllen.');
+  });
+
+  it('explains which addresses an open step accepts', () => {
+    const flow = { version: 1, steps: [{ id: 'a', type: 'open', url: 'kontakt' }] };
+    expect(messageAt(flow, ['steps', 0, 'url'])).toBe(
+      'Adresse muss mit http://, https:// oder / beginnen.',
+    );
+  });
+
+  it('names the allowed range for timeouts and waits', () => {
+    const flow = {
+      version: 1,
+      steps: [
+        { id: 'a', type: 'click', target: { by: 'text', text: 'Los' }, timeoutMs: 50 },
+        { id: 'b', type: 'wait', until: { kind: 'duration', ms: 90_000 } },
+      ],
+    };
+    expect(messageAt(flow, ['steps', 0, 'timeoutMs'])).toBe(
+      'Timeout muss zwischen 0,1 und 120 Sekunden liegen.',
+    );
+    expect(messageAt(flow, ['steps', 1, 'until', 'ms'])).toBe(
+      'Wartezeit muss zwischen 0,001 und 60 Sekunden liegen.',
+    );
+  });
+
+  it('asks for at least one step', () => {
+    expect(messageAt({ version: 1, steps: [] }, ['steps'])).toBe(
+      'Der Ablauf braucht mindestens einen Schritt.',
+    );
+  });
+});
