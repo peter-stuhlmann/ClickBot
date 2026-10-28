@@ -17,7 +17,8 @@ export type JobRowView = {
   url: string;
   schedule: { primary: string; secondary: string };
   progress: { label: string; value: number };
-  lastRun: { tone: Tone; label: string; when: string } | null;
+  /** href leads to the report of that run. */
+  lastRun: { tone: Tone; label: string; when: string; href: string } | null;
   successRate: { text: string; tone: Tone } | null;
   status: { label: string; active: boolean; toggleable: boolean };
 };
@@ -30,3 +31,34 @@ export type StepTone = 'neutral' | 'primary' | 'info' | 'success' | 'warning';
 
 /** One step in the step list of the editor and the job wizard. */
 export type StepItemView = { typeLabel: string; tone: StepTone; title: string; detail: string };
+
+export type RunStepStatus = 'passed' | 'healed' | 'failed' | 'skipped' | 'pending';
+
+/** One step in the run report: what it did and how it went. */
+export type RunStepView = {
+  number: number;
+  status: RunStepStatus;
+  title: string;
+  /** Error message of a failed step, otherwise the locator in code style. */
+  detail: string;
+  duration: string;
+  screenshotUrl: string | null;
+};
+
+/** Screen 03 "Lauf-Report". */
+export type RunReportView = {
+  jobName: string;
+  /** "Lauf #7", for the breadcrumb. */
+  runLabel: string;
+  /** "Lauf #7 von 20" */
+  title: string;
+  status: { tone: Tone; label: string };
+  /** "Do., 05.11.2026 · 14:30:12 Uhr · ausgelöst durch Zeitplan" */
+  meta: string;
+  stats: StatCardView[];
+  /** "6 Schritte · 8,4 s" */
+  stepsSummary: string;
+  steps: RunStepView[];
+  failure: { title: string; message: string } | null;
+  screenshot: { url: string; caption: string } | null;
+};

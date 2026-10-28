@@ -6,6 +6,7 @@ export {
   allocateRunNumber,
   createJob,
   getJob,
+  plannedRunCount,
   type Device,
   type Job,
   type NewJobInput,
@@ -20,6 +21,7 @@ export {
   type JobOverviewRow,
 } from './overview';
 export { DEFAULT_DEMO_SITE_URL, seedDemoData } from './seed';
+export { getRunReport, type RunReport, type RunStepRow } from './reports';
 export {
   claimNextRun,
   completeRun,

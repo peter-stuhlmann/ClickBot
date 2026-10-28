@@ -1,4 +1,4 @@
-import type { Schedule } from '@click-bot/shared';
+import { DEFAULT_TIMEZONE, type Schedule } from '@click-bot/shared';
 
 const MINUTE = 60_000;
 const HOUR = 60 * MINUTE;
@@ -51,4 +51,45 @@ export function describeSchedule(schedule: Schedule): { primary: string; seconda
     primary: plural(schedule.slots.length, 'Termin', 'Termine'),
     secondary: plural(bots, 'Bot', 'Bots'),
   };
+}
+
+/** 34 → "34 ms", 8400 → "8,4 s", from one minute on "1:04 min". */
+export function formatDuration(ms: number): string {
+  // Local steps often take a few milliseconds; "0,0 s" would hide that they ran at all.
+  if (ms < 100) return `${Math.round(ms)} ms`;
+  if (ms < MINUTE) {
+    const seconds = (ms / 1000).toLocaleString('de-DE', {
+      minimumFractionDigits: 1,
+      maximumFractionDigits: 1,
+    });
+    return `${seconds} s`;
+  }
+  const totalSeconds = Math.round(ms / 1000);
+  const seconds = String(totalSeconds % 60).padStart(2, '0');
+  return `${Math.floor(totalSeconds / 60)}:${seconds} min`;
+}
+
+const clock = new Intl.DateTimeFormat('de-DE', {
+  timeZone: DEFAULT_TIMEZONE,
+  hour: '2-digit',
+  minute: '2-digit',
+  second: '2-digit',
+  hourCycle: 'h23',
+});
+const longDate = new Intl.DateTimeFormat('de-DE', {
+  timeZone: DEFAULT_TIMEZONE,
+  weekday: 'short',
+  day: '2-digit',
+  month: '2-digit',
+  year: 'numeric',
+});
+
+/** "14:30:12" in German time. */
+export function formatClock(date: Date): string {
+  return clock.format(date);
+}
+
+/** "Do., 05.11.2026" in German time. */
+export function formatDateLong(date: Date): string {
+  return longDate.format(date);
 }

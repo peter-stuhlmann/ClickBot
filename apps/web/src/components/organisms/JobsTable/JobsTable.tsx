@@ -1,3 +1,4 @@
+import Link from 'next/link';
 import { Badge } from '@/components/atoms/Badge';
 import { ProgressBar } from '@/components/atoms/ProgressBar';
 import { Toggle } from '@/components/atoms/Toggle';
@@ -108,10 +109,16 @@ export function JobsTable({ rows, toggleAction }: JobsTableProps) {
               </td>
               <td className="py-3.5">
                 {row.lastRun ? (
-                  <>
+                  <Link
+                    href={row.lastRun.href}
+                    aria-label={`Letzter Lauf von ${row.name}: ${row.lastRun.label}, ${row.lastRun.when}`}
+                    className="group inline-flex flex-col items-start rounded-input focus-visible:outline-2 focus-visible:outline-primary"
+                  >
                     <Badge tone={row.lastRun.tone}>{row.lastRun.label}</Badge>
-                    <div className="mt-1 text-small text-text-muted">{row.lastRun.when}</div>
-                  </>
+                    <span className="mt-1 text-small text-text-muted group-hover:underline">
+                      {row.lastRun.when}
+                    </span>
+                  </Link>
                 ) : (
                   <span className="text-small text-text-muted">noch kein Lauf</span>
                 )}

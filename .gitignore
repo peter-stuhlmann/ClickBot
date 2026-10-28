@@ -17,3 +17,5 @@ Thumbs.db
 next-env.d.ts
 .next-e2e/
 data/
+# JSON reports of the local rtk tool
+.vitest/

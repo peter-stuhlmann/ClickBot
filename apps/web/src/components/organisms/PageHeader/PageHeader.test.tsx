@@ -18,4 +18,16 @@ describe('PageHeader', () => {
     const { container } = render(<PageHeader title="Kalender" />);
     expect(container.querySelectorAll('p')).toHaveLength(0);
   });
+
+  it('shows the way back above the title and a status next to it', () => {
+    render(
+      <PageHeader
+        title="Lauf #7 von 20"
+        breadcrumb={[{ label: 'Jobs', href: '/' }, { label: 'Lauf #7' }]}
+        status={{ tone: 'danger', label: 'Fehlgeschlagen' }}
+      />,
+    );
+    expect(screen.getByRole('navigation', { name: 'Pfad' })).toHaveTextContent('Jobs/Lauf #7');
+    expect(screen.getByText('Fehlgeschlagen')).toHaveClass('text-danger');
+  });
 });

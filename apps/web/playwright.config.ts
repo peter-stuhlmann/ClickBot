@@ -1,4 +1,5 @@
 import { defineConfig, devices } from '@playwright/test';
+import { fileURLToPath } from 'node:url';
 
 const PORT = 3200;
 const TEST_DATABASE_URL =
@@ -39,6 +40,8 @@ export default defineConfig({
       DATABASE_URL: TEST_DATABASE_URL,
       // Separate build folder, so the e2e server can run next to `pnpm dev`.
       NEXT_DIST_DIR: '.next-e2e',
+      // A fixed screenshot for the tests of the artifacts route.
+      ARTIFACTS_DIR: fileURLToPath(new URL('./e2e/fixtures/artifacts', import.meta.url)),
     },
   },
 });

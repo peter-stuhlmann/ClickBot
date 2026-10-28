@@ -1,8 +1,9 @@
+import { eq } from 'drizzle-orm';
 import { describe, expect, it } from 'vitest';
 import { db, insertCustomer } from '../test/db';
 import { listJobOverview } from './overview';
 import { planDueRuns } from './queue';
-import { customers, jobs as jobsTable, runs } from './schema';
+import { customers, jobs as jobsTable, runSteps, runs } from './schema';
 import { seedDemoData } from './seed';
 
 const now = new Date('2026-11-05T12:30:00Z');
@@ -72,6 +73,25 @@ describe('seedDemoData', () => {
 
     expect(await planDueRuns(db, { now })).toEqual({ created: 0, finishedJobs: 0 });
     expect(await db.select().from(runs)).toHaveLength(before);
+  });
+
+  it('gives every demo run step results, so its report has something to show', async () => {
+    await seedDemoData(db, now);
+    const [failed] = await db.select().from(runs).where(eq(runs.status, 'failed')).limit(1);
+    const steps = await db
+      .select()
+      .from(runSteps)
+      .where(eq(runSteps.runId, failed?.id as string))
+      .orderBy(runSteps.stepIndex);
+
+    expect(steps.length).toBeGreaterThan(1);
+    expect(steps.slice(0, -1).every((step) => step.status === 'passed')).toBe(true);
+    expect(steps.at(-1)).toMatchObject({ status: 'failed', message: failed?.error });
+    // The steps fit into the run's duration.
+    const total = steps.reduce((sum, step) => sum + step.durationMs, 0);
+    expect(total).toBeLessThanOrEqual(
+      (failed?.finishedAt?.getTime() ?? 0) - (failed?.startedAt?.getTime() ?? 0),
+    );
   });
 
   it('never touches a database that already has data', async () => {

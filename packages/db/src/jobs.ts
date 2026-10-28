@@ -1,8 +1,9 @@
-import { flowSchema, scheduleSchema } from '@click-bot/shared';
+import { expandSchedule, flowSchema, scheduleSchema } from '@click-bot/shared';
 import { eq, sql } from 'drizzle-orm';
 import { z } from 'zod';
 import type { Database } from './client';
 import { NotFoundError, ValidationError, issuesFromZod, type ValidationIssue } from './errors';
+import { isUuid } from './ids';
 import { customers, device, jobs } from './schema';
 
 export type Job = typeof jobs.$inferSelect;
@@ -21,12 +22,10 @@ export type NewJobInput = {
   status?: 'draft' | 'active';
 };
 
-const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-
 async function checkCustomer(db: Database, customerId: string): Promise<ValidationIssue | null> {
   if (customerId === '') return { path: 'customerId', message: 'Bitte einen Kunden wählen.' };
   const exists =
-    UUID.test(customerId) &&
+    isUuid(customerId) &&
     (await db.query.customers.findFirst({
       where: eq(customers.id, customerId),
       columns: { id: true },
@@ -90,6 +89,11 @@ export async function createJob(db: Database, input: NewJobInput): Promise<Job> 
     })
     .returning();
   return job as Job;
+}
+
+/** Every start of the schedule runs once per device. */
+export function plannedRunCount(job: Pick<Job, 'schedule' | 'devices'>): number {
+  return expandSchedule(job.schedule).length * job.devices.length;
 }
 
 export async function getJob(db: Database, jobId: string): Promise<Job> {

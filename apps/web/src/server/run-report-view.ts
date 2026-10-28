@@ -1,0 +1,139 @@
+import 'server-only';
+import type { RunReport, RunStepRow } from '@click-bot/db';
+import type { Step } from '@click-bot/shared';
+import { deviceLabel } from '@/lib/devices';
+import { formatClock, formatDateLong, formatDuration, plural } from '@/lib/format';
+import { toStepDraft } from '@/lib/job-draft';
+import { describeStep } from '@/lib/step-view';
+import type { RunReportView, RunStepView, StatCardView } from '@/lib/views';
+import { RUN_BADGE } from './jobs-view';
+
+const DASH = '–';
+
+// Step types the forms cannot show yet still get a readable title.
+const OTHER_TITLES: Partial<Record<Step['type'], string>> = {
+  extract: 'Wert auslesen',
+  ai: 'KI-Schritt',
+  code: 'Code-Schritt',
+};
+
+function describe(step: Step | undefined, stepId: string): { title: string; detail: string } {
+  const draft = step ? toStepDraft(step) : null;
+  if (draft) {
+    const { title, detail } = describeStep(draft);
+    return { title, detail };
+  }
+  return { title: (step && OTHER_TITLES[step.type]) ?? `Schritt „${stepId}“`, detail: '' };
+}
+
+const artifactUrl = (path: string) => `/artifacts/${path}`;
+
+function stepViews(report: RunReport): RunStepView[] {
+  const { flow } = report.job;
+  if (report.steps.length === 0) {
+    return flow.steps.map((step, index) => ({
+      number: index + 1,
+      status: 'pending',
+      ...describe(step, step.id),
+      duration: DASH,
+      screenshotUrl: null,
+    }));
+  }
+  return report.steps.map((row) => {
+    const { title, detail } = describe(
+      flow.steps.find((step) => step.id === row.stepId),
+      row.stepId,
+    );
+    return {
+      number: row.stepIndex + 1,
+      status: row.status,
+      title,
+      detail: row.message ?? detail,
+      duration: row.status === 'skipped' ? DASH : formatDuration(row.durationMs),
+      screenshotUrl: row.screenshotPath ? artifactUrl(row.screenshotPath) : null,
+    };
+  });
+}
+
+function stepsHint(report: RunReport, failed: RunStepRow | undefined): string {
+  if (failed) return `Abbruch bei Schritt ${failed.stepIndex + 1}`;
+  if (report.steps.length > 0) return 'alle bestanden';
+  if (report.run.status === 'queued') return 'noch nicht gestartet';
+  if (report.run.status === 'running') return 'läuft gerade';
+  return 'keine Schritt-Ergebnisse';
+}
+
+function startHint(scheduledAt: Date, startedAt: Date | null): string {
+  const planned = `geplant ${formatClock(scheduledAt)}`;
+  if (!startedAt) return planned;
+  const late = Math.round((startedAt.getTime() - scheduledAt.getTime()) / 1000);
+  return `${planned} · ${late < 1 ? 'pünktlich' : `${late} s später`}`;
+}
+
+/** Screen 03: one run with its steps, timing and, if it failed, where and why. */
+export function toRunReportView(report: RunReport): RunReportView {
+  const { run, job } = report;
+  const steps = stepViews(report);
+  const failed = report.steps.find((step) => step.status === 'failed');
+  const succeeded = report.steps.filter(
+    (step) => step.status === 'passed' || step.status === 'healed',
+  ).length;
+  const durationMs =
+    run.startedAt && run.finishedAt ? run.finishedAt.getTime() - run.startedAt.getTime() : null;
+  const duration = durationMs === null ? null : formatDuration(durationMs);
+  const startedOrPlanned = run.startedAt ?? run.scheduledAt;
+  const lastScreenshot = report.steps.findLast((step) => step.screenshotPath);
+
+  const stats: StatCardView[] = [
+    { label: 'Schritte', value: `${succeeded} / ${steps.length}`, hint: stepsHint(report, failed) },
+    {
+      label: 'Dauer',
+      value: duration ?? DASH,
+      hint:
+        report.averageDurationMs === null
+          ? 'noch kein Vergleich'
+          : `Ø ${formatDuration(report.averageDurationMs)} bei diesem Job`,
+    },
+    {
+      label: 'Start',
+      value: run.startedAt ? formatClock(run.startedAt) : DASH,
+      hint: startHint(run.scheduledAt, run.startedAt),
+    },
+    { label: 'Gerät', value: deviceLabel(run.device), hint: `Bot #${run.botNr} · Chromium` },
+  ];
+
+  return {
+    jobName: job.name,
+    runLabel: `Lauf #${run.runNr}`,
+    title:
+      run.runNr <= job.runsPlanned
+        ? `Lauf #${run.runNr} von ${job.runsPlanned}`
+        : `Lauf #${run.runNr}`,
+    status: RUN_BADGE[run.status],
+    meta: [
+      formatDateLong(startedOrPlanned),
+      `${formatClock(startedOrPlanned)} Uhr`,
+      run.slotIndex === null ? 'manuell gestartet' : 'ausgelöst durch Zeitplan',
+    ].join(' · '),
+    stats,
+    stepsSummary: [plural(steps.length, 'Schritt', 'Schritte'), duration]
+      .filter(Boolean)
+      .join(' · '),
+    steps,
+    failure:
+      run.status === 'failed' && run.error
+        ? {
+            title: failed
+              ? `Schritt ${failed.stepIndex + 1} fehlgeschlagen`
+              : 'Lauf fehlgeschlagen',
+            message: run.error,
+          }
+        : null,
+    screenshot: lastScreenshot?.screenshotPath
+      ? {
+          url: artifactUrl(lastScreenshot.screenshotPath),
+          caption: `Bildschirmfoto · Schritt ${lastScreenshot.stepIndex + 1}`,
+        }
+      : null,
+  };
+}

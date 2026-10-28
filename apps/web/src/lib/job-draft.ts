@@ -1,4 +1,11 @@
-import { DEFAULT_TIMEZONE, flowSchema, localToUtc, scheduleSchema } from '@click-bot/shared';
+import {
+  DEFAULT_TIMEZONE,
+  flowSchema,
+  localToUtc,
+  scheduleSchema,
+  type Step,
+  type Target,
+} from '@click-bot/shared';
 import { deviceLabel, type DeviceKey } from './devices';
 import { describeSchedule, displayUrl, plural } from './format';
 import type { SummaryRowView } from './views';
@@ -260,6 +267,71 @@ function toStep(step: StepDraft): Record<string, unknown> {
     }
     case 'analytics':
       return { ...base, provider: 'ga4', event: step.value.trim() };
+  }
+}
+
+/** 2500 → "2,5": seconds as typed in the form, never with a thousands separator. */
+function secondsText(ms: number): string {
+  return (ms / 1000).toLocaleString('de-DE', { maximumFractionDigits: 3, useGrouping: false });
+}
+
+function targetFields(target: Target): Pick<StepDraft, 'targetBy' | 'targetRole' | 'targetValue'> {
+  switch (target.by) {
+    case 'role':
+      return { targetBy: 'role', targetRole: target.role, targetValue: target.name ?? '' };
+    case 'label':
+      return { targetBy: 'label', targetRole: 'button', targetValue: target.label };
+    case 'text':
+      return { targetBy: 'text', targetRole: 'button', targetValue: target.text };
+    case 'css':
+      return { targetBy: 'css', targetRole: 'button', targetValue: target.selector };
+    case 'testId':
+      return { targetBy: 'testId', targetRole: 'button', targetValue: target.testId };
+  }
+}
+
+/**
+ * A stored step as form fields, the reverse of the wizard's conversion. Null for step types
+ * the forms do not offer yet (extract, AI, code).
+ */
+export function toStepDraft(step: Step): StepDraft | null {
+  if (step.type === 'extract' || step.type === 'ai' || step.type === 'code') return null;
+  const draft: StepDraft = {
+    ...newStep(step.type, [], ''),
+    id: step.id,
+    timeoutSeconds: secondsText(step.timeoutMs),
+  };
+  switch (step.type) {
+    case 'open':
+      return { ...draft, url: step.url };
+    case 'click':
+      return { ...draft, ...targetFields(step.target) };
+    case 'fill':
+      return { ...draft, ...targetFields(step.target), value: step.value };
+    case 'select':
+      return { ...draft, ...targetFields(step.target), value: step.option };
+    case 'assert': {
+      const { assertion } = step;
+      if (assertion.kind === 'elementVisible') {
+        return { ...draft, assertKind: assertion.kind, ...targetFields(assertion.target) };
+      }
+      const value = assertion.kind === 'textVisible' ? assertion.text : assertion.value;
+      return { ...draft, assertKind: assertion.kind, value };
+    }
+    case 'wait': {
+      const { until } = step;
+      if (until.kind === 'duration') {
+        return { ...draft, waitKind: 'duration', waitSeconds: secondsText(until.ms) };
+      }
+      if (until.kind === 'element') {
+        return { ...draft, waitKind: 'element', ...targetFields(until.target) };
+      }
+      return { ...draft, waitKind: 'networkIdle' };
+    }
+    case 'screenshot':
+      return { ...draft, value: step.name ?? '', fullPage: step.fullPage };
+    case 'analytics':
+      return { ...draft, value: step.event };
   }
 }
 

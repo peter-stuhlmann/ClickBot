@@ -1,4 +1,5 @@
 import { existsSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
 import type { NextConfig } from 'next';
 
 // The monorepo keeps one .env in its root; Next itself only reads apps/web/.env. Loading it
@@ -6,6 +7,9 @@ import type { NextConfig } from 'next';
 // set (e.g. in production) are not overwritten.
 const rootEnv = new URL('../../.env', import.meta.url);
 if (existsSync(rootEnv)) process.loadEnvFile(rootEnv);
+
+// Screenshots of the worker, served by src/app/artifacts. Same default as apps/worker/src/main.ts.
+process.env.ARTIFACTS_DIR ||= fileURLToPath(new URL('../../data/artifacts', import.meta.url));
 
 const config: NextConfig = {
   reactStrictMode: true,

@@ -10,7 +10,7 @@ const row = (overrides: Partial<JobRowView> = {}): JobRowView => ({
   url: 'beispiel.de/kontakt',
   schedule: { primary: 'alle 15 Min.', secondary: 'max. 20 Läufe' },
   progress: { label: '7 / 20 Läufe', value: 0.35 },
-  lastRun: { tone: 'success', label: 'Erfolgreich', when: 'vor 3 Min.' },
+  lastRun: { tone: 'success', label: 'Erfolgreich', when: 'vor 3 Min.', href: '/laeufe/run-7' },
   successRate: { text: '100 %', tone: 'success' },
   status: { label: 'Aktiv', active: true, toggleable: true },
   ...overrides,
@@ -104,5 +104,14 @@ describe('JobsTable', () => {
   it('explains the empty state', () => {
     render(<JobsTable rows={[]} toggleAction={noop} />);
     expect(screen.getByText(/Noch keine Jobs/)).toBeInTheDocument();
+  });
+
+  it('links the last run to its report', () => {
+    render(<JobsTable rows={[row()]} toggleAction={noop} />);
+    expect(
+      screen.getByRole('link', {
+        name: 'Letzter Lauf von Kontaktformular-Test: Erfolgreich, vor 3 Min.',
+      }),
+    ).toHaveAttribute('href', '/laeufe/run-7');
   });
 });

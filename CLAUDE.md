@@ -4,8 +4,8 @@ Web-Tool zum automatisierten Testen von Websites (eigene Seiten und Kundenseiten
 Ein Bot öffnet eine Seite in einem echten Browser, führt einen Ablauf aus (klicken, Formulare
 ausfüllen, prüfen) und erstellt pro Lauf einen Report auf dem Bildschirm und als PDF.
 
-Status: Grundgerüst, Datenbank-Schicht, Worker mit Zeitplan, die Job-Liste und der Assistent
-„Neuer Job“ stehen.
+Status: Grundgerüst, Datenbank-Schicht, Worker mit Zeitplan, die Job-Liste, der Assistent
+„Neuer Job“ und der Lauf-Report stehen.
 
 - **Fertig:**
   - das Design (Figma)
@@ -17,6 +17,8 @@ Status: Grundgerüst, Datenbank-Schicht, Worker mit Zeitplan, die Job-Liste und 
     - Screen 01 „Jobs“ mit echten Daten, inklusive Pausieren und Fortsetzen
     - Screen 05 „Neuer Job“ (`/jobs/neu`): Assistent in vier Schritten (Website, Ablauf,
       Zeitplan, Geräte). Am Ende wird der Job aktiv angelegt und läuft nach Zeitplan.
+    - Screen 03 „Lauf-Report“ (`/laeufe/<id>`), erreichbar über „Letzter Lauf“ in der
+      Job-Liste: Kennzahlen, Schritte mit Ergebnis, Fehler und Bildschirmfoto
   - `apps/worker`:
     - plant fällige Termine ein und führt sie mit Playwright aus
     - speichert Ergebnis, Schritte und Bildschirmfotos
@@ -28,7 +30,9 @@ Status: Grundgerüst, Datenbank-Schicht, Worker mit Zeitplan, die Job-Liste und 
   - Login (bis dahin zeigt die Sidebar den ältesten Benutzer, siehe `src/server/session.ts`)
   - im Assistenten: Ablauf per KI, Aufnehmen und Code (nur „Schritte zusammenklicken“ geht),
     Standort-Profile je Termin; Schritte vom Typ „auslesen“ lassen sich noch nicht anlegen
-  - alle übrigen Screens, auch der Editor (02) für bestehende Jobs
+  - im Lauf-Report: PDF, „Erneut ausführen“, KI-Eingriffe, Konsolenfehler und ausgelesene
+    Werte (dafür speichert der Worker noch keine Daten)
+  - alle übrigen Screens, auch der Editor (02) für bestehende Jobs und der Welle-Report (03b)
 
 Was als „geplant“ markiert ist, existiert noch nicht.
 
@@ -170,6 +174,10 @@ Hochziehen erst, wenn beide Pakete die neue Version offiziell unterstützen.
   4. `completeRun` speichert Ergebnis und Schritte in einer Transaktion.
      - Bildschirmfotos liegen unter `ARTIFACTS_DIR` (Standard `data/artifacts/`), der Pfad
        steht in `run_steps.screenshot_path`.
+     - Die Web-App liefert sie über `/artifacts/<pfad>` aus (`src/app/artifacts`). Nur PNGs
+       unterhalb des Ordners, `resolveArtifact` weist alles andere ab. `next.config.ts` setzt
+       denselben Standard-Ordner wie der Worker. Ein eigener `ARTIFACTS_DIR` muss ein
+       absoluter Pfad sein, weil Worker und Web-App in verschiedenen Ordnern starten.
      - Fehler außerhalb des Ablaufs, z. B. bei Zugangsdaten oder Browser, beenden den Lauf als
        „Lauf konnte nicht ausgeführt werden: …“.
 - **Ein Worker:** Beim Start markiert er alle noch `running`-Läufe als abgebrochen
@@ -186,6 +194,8 @@ Hochziehen erst, wenn beide Pakete die neue Version offiziell unterstützen.
   - Die Demo-Jobs aus `pnpm db:seed` zeigen nur auf `127.0.0.1:4100`, nie auf echte fremde
     Domains. Ein Test in `seed.test.ts` sichert das ab.
   - Neue Demo-Jobs immer auf diese Website legen.
+  - Die Demo-Läufe haben Schritt-Ergebnisse, aber keine Bildschirmfotos. Ein fehlgeschlagener
+    Demo-Lauf scheitert an seinem letzten Schritt.
 - **Tests:**
   - Echtes Chromium gegen die lokalen Testseiten in `test/fixtures/site/`. Spezialpfade:
     `/fehler` liefert HTTP 500, `/haengt` antwortet nie.

@@ -14,7 +14,7 @@ const row = (overrides: Partial<JobOverviewRow> = {}): JobOverviewRow => ({
   schedule: { type: 'interval', everyMinutes: 15, maxRuns: 20, startAt: '2026-11-05T10:00:00Z' },
   runsDone: 7,
   runsPlanned: 20,
-  lastRun: { status: 'passed', finishedAt: new Date(now.getTime() - 3 * 60_000) },
+  lastRun: { id: 'run-7', status: 'passed', finishedAt: new Date(now.getTime() - 3 * 60_000) },
   successRate: 1,
   ...overrides,
 });
@@ -27,7 +27,12 @@ describe('toJobRow', () => {
       url: 'beispiel.de/kontakt',
       schedule: { primary: 'alle 15 Min.', secondary: 'max. 20 Läufe' },
       progress: { label: '7 / 20 Läufe', value: 0.35 },
-      lastRun: { tone: 'success', label: 'Erfolgreich', when: 'vor 3 Min.' },
+      lastRun: {
+        tone: 'success',
+        label: 'Erfolgreich',
+        when: 'vor 3 Min.',
+        href: '/laeufe/run-7',
+      },
       successRate: { text: '100 %', tone: 'success' },
       status: { label: 'Aktiv', active: true, toggleable: true },
     });
@@ -38,7 +43,7 @@ describe('toJobRow', () => {
     ['warning', 'warning', 'Mit Hinweis'],
     ['failed', 'danger', 'Fehlgeschlagen'],
   ] as const)('shows a %s run as %s badge', (status, tone, label) => {
-    const view = toJobRow(row({ lastRun: { status, finishedAt: now } }), now);
+    const view = toJobRow(row({ lastRun: { id: 'run-1', status, finishedAt: now } }), now);
     expect(view.lastRun).toMatchObject({ tone, label });
   });
 

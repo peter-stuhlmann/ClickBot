@@ -1,5 +1,13 @@
 import { describe, expect, it } from 'vitest';
-import { describeSchedule, displayUrl, formatPercent, formatRelative } from './format';
+import {
+  describeSchedule,
+  displayUrl,
+  formatClock,
+  formatDateLong,
+  formatDuration,
+  formatPercent,
+  formatRelative,
+} from './format';
 
 describe('formatPercent', () => {
   it.each([
@@ -85,5 +93,35 @@ describe('describeSchedule', () => {
         timezone: 'Europe/Berlin',
       }),
     ).toEqual({ primary: '1 Termin', secondary: '1 Bot' });
+  });
+});
+
+describe('formatDuration', () => {
+  it.each([
+    [0, '0 ms'],
+    [34, '34 ms'],
+    [99, '99 ms'],
+    [100, '0,1 s'],
+    [800, '0,8 s'],
+    [8_400, '8,4 s'],
+    [10_000, '10,0 s'],
+    [59_949, '59,9 s'],
+    [64_000, '1:04 min'],
+    [600_000, '10:00 min'],
+  ])('%d ms → %s', (ms, text) => {
+    expect(formatDuration(ms)).toBe(text);
+  });
+});
+
+describe('formatClock and formatDateLong', () => {
+  // 14:30:12 in Berlin (UTC+1 in November).
+  const instant = new Date('2026-11-05T13:30:12Z');
+
+  it('shows the Berlin wall-clock time with seconds', () => {
+    expect(formatClock(instant)).toBe('14:30:12');
+  });
+
+  it('shows weekday and date', () => {
+    expect(formatDateLong(instant)).toBe('Do., 05.11.2026');
   });
 });

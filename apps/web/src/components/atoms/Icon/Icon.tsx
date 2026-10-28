@@ -7,6 +7,7 @@ import {
   CalendarDays,
   Check,
   CircleDot,
+  Clock,
   Code,
   Copy,
   History,
@@ -20,6 +21,7 @@ import {
   Sparkles,
   Tablet,
   Trash2,
+  TriangleAlert,
   Users,
   X,
   type LucideIcon,
@@ -28,6 +30,7 @@ import { cn } from '@/lib/cn';
 
 // The icons used in the Figma design (lucide set). Add new ones here, not ad hoc in components.
 const ICONS = {
+  alert: TriangleAlert,
   arrowDown: ArrowDown,
   arrowLeft: ArrowLeft,
   arrowRight: ArrowRight,
@@ -35,6 +38,7 @@ const ICONS = {
   bot: Bot,
   calendar: CalendarDays,
   check: Check,
+  clock: Clock,
   close: X,
   code: Code,
   copy: Copy,

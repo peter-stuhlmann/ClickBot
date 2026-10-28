@@ -56,7 +56,7 @@ describe('listJobOverview', () => {
       customerName: 'Kunde Kontakt',
       runsDone: 3,
       runsPlanned: 20,
-      lastRun: { status: 'warning', finishedAt: minutesAgo(3) },
+      lastRun: { id: expect.any(String), status: 'warning', finishedAt: minutesAgo(3) },
     });
     // Warnings count as success: the site worked, the AI only had to help once.
     expect(row?.successRate).toBeCloseTo(2 / 3);

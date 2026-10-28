@@ -1,15 +1,15 @@
-import { DEFAULT_TIMEZONE, expandSchedule, localToUtc, type Schedule } from '@click-bot/shared';
+import { DEFAULT_TIMEZONE, localToUtc, type Schedule } from '@click-bot/shared';
 import { and, asc, desc, eq, gte, inArray, isNotNull, sql } from 'drizzle-orm';
 import type { Database } from './client';
 import { NotFoundError, ValidationError } from './errors';
-import type { Job } from './jobs';
+import { plannedRunCount, type Job } from './jobs';
 import { customers, jobs, runs } from './schema';
 
 type JobStatus = Job['status'];
 type RunStatus = (typeof runs.$inferSelect)['status'];
 
 /** Runs that reached a verdict. Cancelled runs say nothing about the website. */
-const FINISHED = ['passed', 'warning', 'failed'] as const;
+export const FINISHED = ['passed', 'warning', 'failed'] as const;
 /** A warning means the site worked but needed help (e.g. AI fallback): still a success. */
 const SUCCESSFUL = ['passed', 'warning'] as const;
 
@@ -24,7 +24,7 @@ export type JobOverviewRow = {
   schedule: Schedule;
   runsDone: number;
   runsPlanned: number;
-  lastRun: { status: RunStatus; finishedAt: Date } | null;
+  lastRun: { id: string; status: RunStatus; finishedAt: Date } | null;
   /** Share of successful finished runs, 0–1; null if the job never finished a run. */
   successRate: number | null;
 };
@@ -52,6 +52,7 @@ export async function listJobOverview(db: Database): Promise<JobOverviewRow[]> {
   const lastRuns = await db
     .selectDistinctOn([runs.jobId], {
       jobId: runs.jobId,
+      id: runs.id,
       status: runs.status,
       finishedAt: runs.finishedAt,
     })
@@ -70,9 +71,9 @@ export async function listJobOverview(db: Database): Promise<JobOverviewRow[]> {
       customerName,
       schedule: job.schedule,
       runsDone,
-      runsPlanned: expandSchedule(job.schedule).length * job.devices.length,
+      runsPlanned: plannedRunCount(job),
       lastRun: lastRun?.finishedAt
-        ? { status: lastRun.status, finishedAt: lastRun.finishedAt }
+        ? { id: lastRun.id, status: lastRun.status, finishedAt: lastRun.finishedAt }
         : null,
       successRate: runsDone > 0 ? successful / runsDone : null,
     };

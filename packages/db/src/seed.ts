@@ -1,7 +1,7 @@
 import { eq, sql } from 'drizzle-orm';
 import type { Database } from './client';
 import { createJob } from './jobs';
-import { customers, jobs, runs, users } from './schema';
+import { customers, jobs, runSteps, runs, users } from './schema';
 
 type DemoJob = {
   name: string;
@@ -152,22 +152,44 @@ export async function seedDemoData(
         },
       });
 
-      await tx.insert(runs).values(
-        demo.results.map((status, i) => {
-          const finishedAt = new Date(firstRunAt + i * intervalMs);
-          return {
-            jobId: job.id,
-            runNr: i + 1,
-            // The run of interval start i, so the planner sees it as done and never repeats it.
-            slotIndex: i,
-            device: 'desktop' as const,
-            status,
-            scheduledAt: new Date(finishedAt.getTime() - 9_000),
-            startedAt: new Date(finishedAt.getTime() - 8_400),
-            finishedAt,
-            error: status === 'failed' ? 'Element nicht gefunden (Demo-Daten).' : null,
-          };
-        }),
+      const history = await tx
+        .insert(runs)
+        .values(
+          demo.results.map((status, i) => {
+            const finishedAt = new Date(firstRunAt + i * intervalMs);
+            return {
+              jobId: job.id,
+              runNr: i + 1,
+              // The run of interval start i, so the planner sees it as done and never repeats it.
+              slotIndex: i,
+              device: 'desktop' as const,
+              status,
+              scheduledAt: new Date(finishedAt.getTime() - 9_000),
+              startedAt: new Date(finishedAt.getTime() - 8_400),
+              finishedAt,
+              error: status === 'failed' ? 'Element nicht gefunden (Demo-Daten).' : null,
+            };
+          }),
+        )
+        .returning({ id: runs.id, status: runs.status, error: runs.error });
+
+      // Step results for the reports: 8 of the 8.4 s, a failed run fails at its last step.
+      const flowSteps = job.flow.steps;
+      const stepMs = Math.floor(8_000 / flowSteps.length);
+      await tx.insert(runSteps).values(
+        history.flatMap((run) =>
+          flowSteps.map((step, index) => {
+            const failed = run.status === 'failed' && index === flowSteps.length - 1;
+            return {
+              runId: run.id,
+              stepIndex: index,
+              stepId: step.id,
+              status: failed ? ('failed' as const) : ('passed' as const),
+              durationMs: stepMs - ((index * 137) % 300),
+              message: failed ? run.error : null,
+            };
+          }),
+        ),
       );
       // All jobs share the transaction's timestamp; stagger them to keep the design's order.
       const createdAt = new Date(now.getTime() - 30 * 86_400_000 + index * 60_000);

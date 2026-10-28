@@ -1,9 +1,11 @@
 import 'server-only';
 import type { DashboardStats, JobOverviewRow } from '@click-bot/db';
+
+type RunStatus = NonNullable<JobOverviewRow['lastRun']>['status'];
 import { describeSchedule, displayUrl, formatPercent, formatRelative, plural } from '@/lib/format';
 import type { JobRowView, StatCardView, Tone } from '@/lib/views';
 
-const RUN_BADGE: Record<string, { tone: Tone; label: string }> = {
+export const RUN_BADGE: Record<RunStatus, { tone: Tone; label: string }> = {
   passed: { tone: 'success', label: 'Erfolgreich' },
   warning: { tone: 'warning', label: 'Mit Hinweis' },
   failed: { tone: 'danger', label: 'Fehlgeschlagen' },
@@ -35,8 +37,9 @@ export function toJobRow(row: JobOverviewRow, now: Date): JobRowView {
     progress: { label: `${row.runsDone} / ${row.runsPlanned} Läufe`, value: progress },
     lastRun: row.lastRun
       ? {
-          ...(RUN_BADGE[row.lastRun.status] ?? { tone: 'neutral', label: row.lastRun.status }),
+          ...RUN_BADGE[row.lastRun.status],
           when: formatRelative(row.lastRun.finishedAt, now),
+          href: `/laeufe/${row.lastRun.id}`,
         }
       : null,
     successRate:
