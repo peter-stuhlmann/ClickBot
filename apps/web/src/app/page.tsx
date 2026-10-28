@@ -14,12 +14,13 @@ import { toggleJobAction } from './actions';
 export const dynamic = 'force-dynamic';
 
 export default async function JobsPage() {
+  // Auth first: nothing is read for someone who is not signed in.
+  const user = await getCurrentUser();
   const db = getDb();
   const now = new Date();
-  const [rows, stats, user, worker] = await Promise.all([
+  const [rows, stats, worker] = await Promise.all([
     listJobOverview(db),
     getDashboardStats(db, now),
-    getCurrentUser(db),
     getWorkerStatus(db, now),
   ]);
 

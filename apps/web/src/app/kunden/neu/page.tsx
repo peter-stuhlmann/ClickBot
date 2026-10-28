@@ -12,8 +12,8 @@ export const dynamic = 'force-dynamic';
 export const metadata: Metadata = { title: 'Kunde anlegen · Click-Bot' };
 
 export default async function NewCustomerPage() {
-  const db = getDb();
-  const [user, worker] = await Promise.all([getCurrentUser(db), getWorkerStatus(db, new Date())]);
+  const user = await getCurrentUser();
+  const worker = await getWorkerStatus(getDb(), new Date());
 
   return (
     <AppShell active="kunden" user={user} worker={worker}>

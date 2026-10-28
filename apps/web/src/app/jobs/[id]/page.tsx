@@ -19,15 +19,16 @@ type Props = { params: Promise<{ id: string }> };
 
 /** Screen 02 "Editor": change an existing job. */
 export default async function JobEditorPage({ params }: Props) {
+  // Auth first: nothing is read for someone who is not signed in.
+  const user = await getCurrentUser();
   const { id } = await params;
   const db = getDb();
   const now = new Date();
-  const [job, user, worker] = await Promise.all([
+  const [job, worker] = await Promise.all([
     getJob(db, id).catch((error: unknown) => {
       if (error instanceof NotFoundError) return null;
       throw error;
     }),
-    getCurrentUser(db),
     getWorkerStatus(db, now),
   ]);
   if (!job) notFound();

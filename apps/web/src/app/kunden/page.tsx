@@ -16,12 +16,13 @@ export const metadata: Metadata = { title: 'Kunden · Click-Bot' };
 
 /** Screen 10 "Kunden". */
 export default async function CustomersPage() {
+  // Auth first: nothing is read for someone who is not signed in.
+  const user = await getCurrentUser();
   const db = getDb();
   const now = new Date();
-  const [rows, stats, user, worker] = await Promise.all([
+  const [rows, stats, worker] = await Promise.all([
     listCustomerOverview(db, now),
     getCustomerStats(db, now),
-    getCurrentUser(db),
     getWorkerStatus(db, now),
   ]);
 

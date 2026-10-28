@@ -5,7 +5,8 @@ Ein Bot öffnet eine Seite in einem echten Browser, führt einen Ablauf aus (kli
 ausfüllen, prüfen) und erstellt pro Lauf einen Report auf dem Bildschirm und als PDF.
 
 Status: Grundgerüst, Datenbank-Schicht, Worker mit Zeitplan, die Job-Liste, der Assistent
-„Neuer Job“, der Editor, der Lauf-Report, die Läufe-Übersicht und die Kunden stehen.
+„Neuer Job“, der Editor, der Lauf-Report, die Läufe-Übersicht, die Kunden und die Anmeldung
+stehen.
 
 - **Fertig:**
   - das Design (Figma)
@@ -38,7 +39,8 @@ Status: Grundgerüst, Datenbank-Schicht, Worker mit Zeitplan, die Job-Liste, der
 - **Noch nicht gebaut:**
   - im Worker: Proxies und Standort-Profile, echtes WebKit für iPhone/iPad, KI- und
     Code-Schritte, Live-Stream, Markierung der Bot-Läufe für Analytics
-  - Login (bis dahin zeigt die Sidebar den ältesten Benutzer, siehe `src/server/session.ts`)
+  - E-Mail-Versand (Einladungslinks werden angezeigt und von Hand weitergegeben), Konten
+    sperren oder löschen, Rate-Limit je IP-Adresse beim Login
   - im Assistenten: Ablauf per KI, Aufnehmen und Code (nur „Schritte zusammenklicken“ geht),
     Standort-Profile je Termin; Schritte vom Typ „auslesen“ lassen sich noch nicht anlegen
   - im Lauf-Report: PDF, „Erneut ausführen“, KI-Eingriffe, Konsolenfehler und ausgelesene
@@ -119,6 +121,21 @@ packages/db      Drizzle-Schema, SQL-Migrationen, Repository-Funktionen, Verschl
   - `resolveSecretsForRun` liefert pro Lauf nur die Secrets des Kunden und die allgemeinen,
     nicht abgelaufen und erlaubt auf der Domain der URL.
   - Ein Kunden-Secret überschreibt ein allgemeines mit gleichem Namen.
+- **Anmeldung** (`auth.ts`, `invitations.ts`, `passwords.ts`, `totp.ts`):
+  - Nur für das Team: `/registrieren` legt den ersten Admin an, solange es kein Konto gibt.
+    Danach nur per Einladungslink („Einstellungen → Team“ oder `pnpm auth:invite`).
+  - Ein Link für eine Adresse mit Konto setzt Passwort und 2FA neu und beendet alle
+    Sitzungen. Das ist der Weg zurück nach vergessenem Passwort oder verlorenem Handy.
+  - 2FA (TOTP, RFC 6238) ist Pflicht. Ein Code gilt einmal (`users.totp_last_step`). Der
+    Schlüssel liegt mit `SECRETS_KEY` verschlüsselt.
+  - Passwörter: scrypt wie in seo-analyse (`scrypt$salt$hash`), Regeln in
+    `packages/shared/src/password.ts`, dazu die Prüfung auf Datenlecks (Have I Been Pwned,
+    `apps/web/src/server/pwned.ts`). `PWNED_CHECK=off` schaltet sie in Tests ab.
+  - Nach 5 falschen Passwörtern ist ein Konto 15 Minuten gesperrt, nach 5 falschen Codes
+    beginnt die Anmeldung neu.
+  - Sitzungen: zufälliger Token im Cookie `clickbot_session` (httpOnly, SameSite=Lax),
+    in der Datenbank nur sein SHA-256. Nach dem Passwort 15 Minuten unvollständig, mit 2FA
+    14 Tage gültig. Der Token wechselt beim Abschluss der 2FA.
 - **Laufnummern** (`{{run_nr}}`) vergibt `allocateRunNumber` atomar per
   `UPDATE … RETURNING`, nie über `max()+1`.
 - **Löschregeln:**
@@ -256,12 +273,17 @@ Hochziehen erst, wenn beide Pakete die neue Version offiziell unterstützen.
   belegen. Andere Projekt-Container nicht anfassen.
 - **Umgebung:** `.env.example` nach `.env` kopieren und `SECRETS_KEY` mit
   `openssl rand -base64 32` setzen.
-  - Weitere Werte: `DATABASE_URL`, `DATABASE_URL_TEST`, `MAX_CONCURRENT_BROWSERS`.
+  - Weitere Werte: `DATABASE_URL`, `DATABASE_URL_TEST`, `MAX_CONCURRENT_BROWSERS`, `APP_URL`
+    (Adresse der Web-App für Einladungslinks).
   - `.env` wird nie committet.
   - Geht `SECRETS_KEY` verloren, lassen sich gespeicherte Zugangsdaten nicht mehr
     entschlüsseln.
 - **Alles lokal ausprobieren:** `pnpm db:up`, `pnpm db:reset`, dann in drei Terminals
   `pnpm demo-site`, `pnpm worker` und `pnpm dev`.
+  - Die Demo-Daten legen kein Konto an: Beim ersten Aufruf führt `/anmelden` zu
+    `/registrieren`, dort entsteht der erste Admin. Danach 2FA mit einer Authenticator-App.
+- **E2E-Anmeldung:** `e2e/global-setup.ts` legt einen Admin mit 2FA an und speichert seine
+  Sitzung (`e2e/.auth/`, nicht im Repo). Alle Specs nutzen sie, `auth.spec.ts` startet ohne.
 
 ## Hosting (geplant)
 
@@ -312,8 +334,12 @@ Regeln:
 - **Datenzugriff nur in Seiten.**
   - Atoms bis Templates sind rein darstellend: nur Props, kein fetch, kein DB-Import.
     Interaktivität (`"use client"`) so tief wie möglich ansetzen.
+  - Jede Seite prüft die Anmeldung zuerst (`getCurrentUser()` bzw. `requireUser()` aus
+    `src/server/auth.ts`), vor jedem Datenzugriff. Jede Server Action ruft selbst
+    `requireUser()` oder `requireAdmin()` auf.
   - Server Actions bekommen Komponenten als Prop, z. B. `toggleAction`. Sie liegen in
-    `src/app/actions.ts`. Sie prüfen Eingaben selbst noch einmal, denn jeder kann sie aufrufen.
+    `src/app/actions.ts`, die der Anmeldung in `src/app/auth-actions.ts`. Sie prüfen Eingaben
+    selbst noch einmal, denn jeder kann sie aufrufen.
   - Formulare über mehrere Schritte: Der Zustand liegt in einer Client-Komponente neben der
     Seite (z. B. `src/app/jobs/neu/new-job-wizard.tsx`), die nur Organisms zusammensteckt.
     Umwandeln und Prüfen stehen als reine Funktionen mit Tests in `src/lib`
@@ -404,6 +430,7 @@ Alle Befehle im Repo-Root ausführen.
 | `pnpm db:generate`                         | nach Schema-Änderung neue SQL-Migration erzeugen                            |
 | `pnpm db:seed`                             | Demo-Daten (4 Jobs aus dem Design) in eine leere Entwicklungs-DB schreiben  |
 | `pnpm db:reset`                            | Entwicklungs-DB löschen, neu migrieren und Demo-Daten anlegen               |
+| `pnpm auth:invite <email> [--admin]`       | Einladungslink ausgeben (neues Konto oder Zugang zurücksetzen)              |
 | `pnpm demo-site`                           | lokale Demo-Website für die Demo-Jobs auf http://127.0.0.1:4100             |
 | `pnpm worker`                              | Worker starten: plant und führt Läufe aus (liest `.env`)                    |
 | `pnpm test:e2e`                            | Playwright-Tests gegen echten Next-Server und Test-DB (nicht in `test`)     |

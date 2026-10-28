@@ -23,10 +23,13 @@ import {
   type WizardDraft,
 } from '@/lib/job-draft';
 import type { CustomerFormState } from '@/components/organisms/CustomerForm';
+import { requireUser } from '@/server/auth';
 import { getDb } from '@/server/db';
 
 /** Pauses or resumes a job from the status switch of the jobs table. */
 export async function toggleJobAction(formData: FormData): Promise<void> {
+  // Server actions are public endpoints: check the session here, not only on the page.
+  await requireUser();
   const jobId = formData.get('jobId');
   if (typeof jobId !== 'string' || jobId === '') throw new Error('jobId fehlt.');
 
@@ -41,6 +44,7 @@ export type CreateJobResult = { issues: Issue[] };
  * back as issues with field paths, so the wizard can show them at the right step.
  */
 export async function createJobAction(draft: WizardDraft): Promise<CreateJobResult> {
+  await requireUser();
   const now = new Date();
   // The wizard checks the same, but a server action can be called by anyone: check again,
   // including the confirmation that the website may be tested.
@@ -87,6 +91,7 @@ async function saveJob(jobId: string, draft: WizardDraft): Promise<Issue[]> {
 }
 
 export async function updateJobAction(jobId: string, draft: WizardDraft): Promise<UpdateJobResult> {
+  await requireUser();
   return { issues: await saveJob(jobId, draft) };
 }
 
@@ -100,6 +105,7 @@ export async function startTestRunAction(
   jobId: string,
   draft: WizardDraft | null,
 ): Promise<TestRunResult> {
+  await requireUser();
   if (draft) {
     const issues = await saveJob(jobId, draft);
     if (issues.length > 0) return { issues };
@@ -118,6 +124,7 @@ export async function createCustomerAction(
   _state: CustomerFormState,
   formData: FormData,
 ): Promise<CustomerFormState> {
+  await requireUser();
   const name = formData.get('name');
   if (typeof name !== 'string') return { error: 'Name fehlt.' };
   try {

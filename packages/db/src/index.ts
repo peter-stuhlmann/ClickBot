@@ -49,3 +49,35 @@ export {
   type RunOutcome,
   type StepRecord,
 } from './queue';
+export {
+  MAX_FAILED_CODES,
+  MAX_FAILED_LOGINS,
+  SESSION_DAYS,
+  confirmTotpSetup,
+  deleteExpiredSessions,
+  getSession,
+  hasUsers,
+  login,
+  logout,
+  registerFirstAdmin,
+  startTotpSetup,
+  verifyLoginCode,
+  type CodeResult,
+  type LoginResult,
+  type Role,
+  type SessionInfo,
+  type SessionUser,
+} from './auth';
+export {
+  INVITATION_DAYS,
+  acceptInvitation,
+  createInvitation,
+  getInvitation,
+  listOpenInvitations,
+  listUsers,
+  revokeInvitation,
+  type InvitationInfo,
+  type OpenInvitation,
+  type TeamMember,
+} from './invitations';
+export { otpauthUri, totpCode, totpStep } from './totp';

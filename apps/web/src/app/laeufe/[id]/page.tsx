@@ -21,15 +21,16 @@ type Props = { params: Promise<{ id: string }> };
 
 /** Screen 03 "Lauf-Report": one run of a job, step by step. */
 export default async function RunReportPage({ params }: Props) {
+  // Auth first: nothing is read for someone who is not signed in.
+  const user = await getCurrentUser();
   const { id } = await params;
   const db = getDb();
   const now = new Date();
-  const [report, user, worker] = await Promise.all([
+  const [report, worker] = await Promise.all([
     getRunReport(db, id).catch((error: unknown) => {
       if (error instanceof NotFoundError) return null;
       throw error;
     }),
-    getCurrentUser(db),
     getWorkerStatus(db, now),
   ]);
   if (!report) notFound();

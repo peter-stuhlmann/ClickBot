@@ -27,13 +27,14 @@ type Props = { searchParams: Promise<Record<string, string | string[] | undefine
 
 /** Screen 14 "Läufe": every run of every job, filtered by the address. */
 export default async function RunsPage({ searchParams }: Props) {
+  // Auth first: nothing is read for someone who is not signed in.
+  const user = await getCurrentUser();
   const filters = parseRunFilters(await searchParams);
   const db = getDb();
   const now = new Date();
-  const [{ rows, total }, customers, user, worker] = await Promise.all([
+  const [{ rows, total }, customers, worker] = await Promise.all([
     listRuns(db, toRunQuery(filters, now)),
     listCustomers(db),
-    getCurrentUser(db),
     getWorkerStatus(db, now),
   ]);
   const pages = Math.max(1, Math.ceil(total / PAGE_SIZE));

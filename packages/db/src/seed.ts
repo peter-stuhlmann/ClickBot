@@ -1,7 +1,7 @@
 import { eq, sql } from 'drizzle-orm';
 import type { Database } from './client';
 import { createJob } from './jobs';
-import { customers, jobs, runSteps, runs, users } from './schema';
+import { customers, jobs, runSteps, runs } from './schema';
 
 type DemoJob = {
   name: string;
@@ -116,13 +116,7 @@ export async function seedDemoData(
     const [existing] = await tx.select({ id: customers.id }).from(customers).limit(1);
     if (existing) return false;
 
-    await tx.insert(users).values({
-      email: 'admin@click-bot.local',
-      name: 'Peter Stuhlmann',
-      // Login does not exist yet; this hash matches no password.
-      passwordHash: '!demo-no-login',
-      role: 'admin',
-    });
+    // No user: the first account registers itself at /registrieren and becomes the admin.
 
     const [customer] = await tx
       .insert(customers)

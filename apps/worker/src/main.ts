@@ -1,4 +1,10 @@
-import { createCipher, createDb, parseKey, recoverStaleRuns } from '@click-bot/db';
+import {
+  createCipher,
+  createDb,
+  deleteExpiredSessions,
+  parseKey,
+  recoverStaleRuns,
+} from '@click-bot/db';
 import { hostname } from 'node:os';
 import { fileURLToPath } from 'node:url';
 import { chromium } from 'playwright';
@@ -63,8 +69,12 @@ const tick = async () => {
   }
 };
 const beat = () => worker.heartbeat().catch((error: unknown) => log(`Heartbeat: ${String(error)}`));
+// Every 15 minutes: runs a crashed worker left behind, and logins nobody finished.
 const stale = () =>
-  recoverStaleRuns(connection.db, { now: new Date(), staleAfterMs: STALE_RUN_MS }).catch(() => 0);
+  Promise.all([
+    recoverStaleRuns(connection.db, { now: new Date(), staleAfterMs: STALE_RUN_MS }),
+    deleteExpiredSessions(connection.db, new Date()),
+  ]).catch((error: unknown) => log(`Aufräumen: ${String(error)}`));
 
 await beat();
 const timers = [

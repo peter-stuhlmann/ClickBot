@@ -15,6 +15,7 @@ export default defineConfig({
         // Thin CLI wrappers around runMigrations and seedDemoData, which are tested.
         'packages/db/src/migrate-cli.ts',
         'packages/db/src/seed-cli.ts',
+        'packages/db/src/invite-cli.ts',
         // Process wiring (signals, timers) around createWorker, which is tested.
         'apps/worker/src/main.ts',
         'apps/worker/src/demo-site.ts',

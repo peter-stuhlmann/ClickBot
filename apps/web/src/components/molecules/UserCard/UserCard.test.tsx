@@ -9,4 +9,13 @@ describe('UserCard', () => {
     expect(screen.getByText('Peter Stuhlmann')).toBeInTheDocument();
     expect(screen.getByText('Admin')).toBeInTheDocument();
   });
+
+  it('logs out with a POST form, which works without JavaScript', () => {
+    render(<UserCard name="Peter Stuhlmann" role="Admin" />);
+    const button = screen.getByRole('button', { name: 'Abmelden' });
+    expect(button).toHaveAttribute('type', 'submit');
+    const form = button.closest('form');
+    expect(form).toHaveAttribute('method', 'post');
+    expect(form).toHaveAttribute('action', '/abmelden');
+  });
 });

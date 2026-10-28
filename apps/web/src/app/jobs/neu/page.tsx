@@ -11,13 +11,11 @@ export const dynamic = 'force-dynamic';
 export const metadata: Metadata = { title: 'Neuer Job · Click-Bot' };
 
 export default async function NewJobPage() {
+  // Auth first: nothing is read for someone who is not signed in.
+  const user = await getCurrentUser();
   const db = getDb();
   const now = new Date();
-  const [customers, user, worker] = await Promise.all([
-    listCustomers(db),
-    getCurrentUser(db),
-    getWorkerStatus(db, now),
-  ]);
+  const [customers, worker] = await Promise.all([listCustomers(db), getWorkerStatus(db, now)]);
 
   return (
     <AppShell active="jobs" user={user} worker={worker}>

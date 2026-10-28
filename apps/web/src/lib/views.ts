@@ -103,3 +103,31 @@ export type RunListRowView = {
   status: { tone: Tone; label: string };
   failed: boolean;
 };
+
+/** Answer of a server action to a form (login, registration, invitation). */
+export type FormState = {
+  /** About the form as a whole. */
+  error?: string;
+  /** By field name. */
+  fieldErrors?: Partial<Record<string, string>>;
+  /** What was typed, so the form keeps it (never passwords). */
+  values?: Record<string, string>;
+  /** The login has to start over, e.g. after too many wrong codes. */
+  restart?: boolean;
+  /** A created invitation link, shown once. */
+  link?: string;
+};
+
+export type FormAction = (state: FormState, formData: FormData) => Promise<FormState>;
+
+/** One account in "Einstellungen → Team". */
+export type TeamMemberView = {
+  id: string;
+  name: string;
+  email: string;
+  role: string;
+  twoFactor: boolean;
+};
+
+/** An invitation link that can still be used. */
+export type InvitationView = { id: string; email: string; role: string; expires: string };

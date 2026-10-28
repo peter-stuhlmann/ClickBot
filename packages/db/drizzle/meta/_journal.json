@@ -15,6 +15,13 @@
       "when": 1793214692180,
       "tag": "0001_worker_queue",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1793229203002,
+      "tag": "0002_auth",
+      "breakpoints": true
     }
   ]
 }

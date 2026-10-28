@@ -19,3 +19,5 @@ next-env.d.ts
 data/
 # JSON reports of the local rtk tool
 .vitest/
+# Session and 2FA secret of the e2e admin (test database only)
+apps/web/e2e/.auth/

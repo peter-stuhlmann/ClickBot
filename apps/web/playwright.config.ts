@@ -1,5 +1,6 @@
 import { defineConfig, devices } from '@playwright/test';
 import { fileURLToPath } from 'node:url';
+import { E2E_SECRETS_KEY, STORAGE_STATE } from './e2e/auth-setup';
 
 const PORT = 3200;
 const TEST_DATABASE_URL =
@@ -24,6 +25,8 @@ export default defineConfig({
     locale: 'de-DE',
     timezoneId: 'Europe/Berlin',
     trace: 'retain-on-failure',
+    // Signed in as the admin from global-setup; auth.spec.ts starts without a session.
+    storageState: STORAGE_STATE,
   },
   projects: [
     {
@@ -42,6 +45,11 @@ export default defineConfig({
       NEXT_DIST_DIR: '.next-e2e',
       // A fixed screenshot for the tests of the artifacts route.
       ARTIFACTS_DIR: fileURLToPath(new URL('./e2e/fixtures/artifacts', import.meta.url)),
+      // The key of the test database (2FA secrets of the e2e admin).
+      SECRETS_KEY: E2E_SECRETS_KEY,
+      // Tests never reach outside services, also not the leak check of passwords.
+      PWNED_CHECK: 'off',
+      APP_URL: `http://localhost:${PORT}`,
     },
   },
 });

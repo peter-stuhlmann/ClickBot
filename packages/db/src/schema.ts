@@ -43,10 +43,50 @@ export const users = pgTable(
     passwordHash: text('password_hash').notNull(),
     /** Encrypted TOTP secret; null until 2FA is set up. */
     totpSecretEnc: text('totp_secret_enc'),
+    /** Time step of the last accepted 2FA code: a code works only once. */
+    totpLastStep: integer('totp_last_step'),
     role: userRole('role').notNull().default('member'),
+    /** Wrong passwords in a row; resets on success. */
+    failedLogins: integer('failed_logins').notNull().default(0),
+    lockedUntil: timestamp('locked_until', { withTimezone: true }),
     createdAt: createdAt(),
   },
   (t) => [uniqueIndex('users_email_unique').on(sql`lower(${t.email})`)],
+);
+
+export const sessions = pgTable(
+  'sessions',
+  {
+    /** SHA-256 of the cookie value: the database alone never yields a valid session. */
+    id: text('id').primaryKey(),
+    userId: uuid('user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    /** False after the password, true after the 2FA code (or 2FA setup). */
+    complete: boolean('complete').notNull().default(false),
+    /** Encrypted TOTP secret while 2FA is being set up. */
+    pendingTotpEnc: text('pending_totp_enc'),
+    failedCodes: integer('failed_codes').notNull().default(0),
+    createdAt: createdAt(),
+    expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
+  },
+  (t) => [index('sessions_user_idx').on(t.userId)],
+);
+
+export const invitations = pgTable(
+  'invitations',
+  {
+    id: id(),
+    /** SHA-256 of the token in the link. */
+    tokenHash: text('token_hash').notNull(),
+    email: text('email').notNull(),
+    role: userRole('role').notNull().default('member'),
+    createdBy: uuid('created_by').references(() => users.id, { onDelete: 'set null' }),
+    createdAt: createdAt(),
+    expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
+    acceptedAt: timestamp('accepted_at', { withTimezone: true }),
+  },
+  (t) => [uniqueIndex('invitations_token_unique').on(t.tokenHash)],
 );
 
 export const customers = pgTable(

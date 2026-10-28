@@ -20,7 +20,7 @@ export const db = testConnection.db;
 export async function resetDb(): Promise<void> {
   await testConnection.pool.query(`
     TRUNCATE run_steps, runs, jobs, secrets, proxies, location_profiles, customers, users,
-      worker_heartbeats
+      worker_heartbeats, sessions, invitations
     RESTART IDENTITY CASCADE
   `);
 }
