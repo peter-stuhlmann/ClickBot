@@ -219,6 +219,9 @@ Hochziehen erst, wenn beide Pakete die neue Version offiziell unterstützen.
   (`recoverStaleRuns`).
   - Danach alle 15 Min. nur noch Läufe, die länger als 15 Min. laufen.
   - Mehrere Worker parallel bräuchten vorher eine Absprache über diesen Schritt.
+- **Browser:** Alle Läufe teilen ein Chromium (`createBrowserManager`). Stürzt es ab, scheitern
+  nur die Läufe darin, mit der Meldung des Browsers. Der nächste Lauf startet ein neues Chromium.
+  Ein gescheiterter Start wird beim nächsten Lauf erneut versucht.
 - **Lebenszeichen:** Alle 10 s schreibt der Worker in `worker_heartbeats`. Die Web-App zeigt
   „online“, wenn der letzte Eintrag höchstens 30 s alt ist.
 - **Geräte** (`contextOptionsFor`):

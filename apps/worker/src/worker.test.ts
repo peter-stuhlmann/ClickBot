@@ -13,9 +13,11 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { randomBytes } from 'node:crypto';
 import { afterAll, afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { useBrowser } from '../test/browser';
+import { chromium } from 'playwright';
+import { guardContext, useBrowser } from '../test/browser';
 import { db, resetDb, testConnection } from '../test/db';
 import { createFileArtifactStore } from './artifacts';
+import { createBrowserManager } from './browser-manager';
 import { createWorker, type Worker } from './worker';
 
 const browser = useBrowser();
@@ -244,5 +246,35 @@ describe('worker', () => {
     const w = startWorker();
     await w.heartbeat();
     expect((await getWorkerStatus(db, new Date())).online).toBe(true);
+  });
+
+  it('gets a new browser after a crash, so the next run works again', async () => {
+    await dueJob(contactSteps, 2);
+    const browsers = createBrowserManager(() => chromium.launch());
+    try {
+      const w = createWorker({
+        db,
+        cipher,
+        newContext: async () =>
+          guardContext(await (await browsers.get()).newContext(), browser.origin()),
+        artifacts: createFileArtifactStore(artifactsDir),
+        maxConcurrent: 1,
+        workerId: 'test-worker',
+      });
+      worker = w;
+      await w.tick();
+      await w.idle();
+
+      // From the outside, like a crash of Chromium between two runs.
+      await (await browsers.get()).close();
+      await w.tick();
+      await w.idle();
+
+      expect((await allRuns()).map((r) => r.status)).toEqual(['passed', 'passed']);
+    } finally {
+      await worker?.stop();
+      worker = undefined;
+      await browsers.close();
+    }
   });
 });

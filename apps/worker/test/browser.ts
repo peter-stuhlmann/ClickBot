@@ -5,6 +5,23 @@ import { startFixtureServer, type FixtureServer } from './fixture-server';
 const GA_HOST = /(^|\.)google-analytics\.com$|(^|\.)analytics\.google\.com$/;
 
 /**
+ * Lets a context reach only the fixture site at `origin`: GA4 requests are answered locally with
+ * 204, every other outside request is aborted.
+ */
+export async function guardContext(
+  context: BrowserContext,
+  origin: string,
+): Promise<BrowserContext> {
+  await context.route('**/*', (route) => {
+    const url = new URL(route.request().url());
+    if (url.origin === origin) return route.continue();
+    if (GA_HOST.test(url.hostname)) return route.fulfill({ status: 204 });
+    return route.abort('blockedbyclient');
+  });
+  return context;
+}
+
+/**
  * Starts Chromium and the fixture site once per test file. Contexts created through
  * `newContext` can only reach the fixture site; GA4 requests are answered locally with 204,
  * every other outside request is aborted, so no test ever touches the internet.
@@ -24,14 +41,7 @@ export function useBrowser() {
   return {
     origin: () => site.origin,
     async newContext(): Promise<BrowserContext> {
-      const context = await browser.newContext();
-      await context.route('**/*', (route) => {
-        const url = new URL(route.request().url());
-        if (url.origin === site.origin) return route.continue();
-        if (GA_HOST.test(url.hostname)) return route.fulfill({ status: 204 });
-        return route.abort('blockedbyclient');
-      });
-      return context;
+      return guardContext(await browser.newContext(), site.origin);
     },
   };
 }
