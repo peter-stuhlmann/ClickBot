@@ -1,0 +1,69 @@
+<!doctype html>
+<html lang="de">
+  <head>
+    <meta charset="utf-8" />
+    <title>Kontakt – Beispiel GmbH</title>
+  </head>
+  <body>
+    <div id="cookie-banner" role="dialog" aria-label="Cookie-Einstellungen">
+      <p>Wir verwenden Cookies für Statistik.</p>
+      <button type="button" id="accept">Alle akzeptieren</button>
+      <button type="button" id="reject">Ablehnen</button>
+    </div>
+
+    <h1>Kontakt aufnehmen</h1>
+    <form id="contact" novalidate>
+      <label for="name">Name</label>
+      <input id="name" name="name" />
+
+      <label for="email">E-Mail</label>
+      <input id="email" name="email" type="email" />
+
+      <label for="topic">Anliegen</label>
+      <select id="topic" name="topic">
+        <option value="">Bitte wählen</option>
+        <option value="offer">Angebot</option>
+        <option value="support">Support</option>
+      </select>
+
+      <p id="error" role="alert" hidden>Bitte Namen angeben.</p>
+      <button type="submit">Absenden</button>
+    </form>
+
+    <script>
+      // Simulates gtag: only sends after consent, like a real GA4 setup with a cookie banner.
+      let consent = false;
+      const ga = (event) =>
+        fetch(
+          'https://region1.google-analytics.com/g/collect?v=2&tid=G-TEST&en=' +
+            encodeURIComponent(event),
+          { method: 'POST', mode: 'no-cors', keepalive: true },
+        );
+
+      document.getElementById('accept').addEventListener('click', () => {
+        consent = true;
+        document.getElementById('cookie-banner').remove();
+        ga('page_view');
+      });
+      document.getElementById('reject').addEventListener('click', () => {
+        document.getElementById('cookie-banner').remove();
+      });
+
+      document.getElementById('contact').addEventListener('submit', async (event) => {
+        event.preventDefault();
+        const name = document.getElementById('name').value.trim();
+        if (!name) {
+          document.getElementById('error').hidden = false;
+          return;
+        }
+        if (consent) await ga('generate_lead');
+        const params = new URLSearchParams({
+          ticket: 'A-20931',
+          topic: document.getElementById('topic').value,
+          name,
+        });
+        location.href = '/danke.html?' + params;
+      });
+    </script>
+  </body>
+</html>

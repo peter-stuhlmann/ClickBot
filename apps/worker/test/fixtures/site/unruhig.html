@@ -1,0 +1,14 @@
+<!doctype html>
+<html lang="de">
+  <head>
+    <meta charset="utf-8" />
+    <title>Unruhige Seite</title>
+  </head>
+  <body>
+    <h1>Live-Ticker</h1>
+    <script>
+      // Polls all the time, so the network never becomes idle.
+      setInterval(() => fetch('/ping').catch(() => {}), 100);
+    </script>
+  </body>
+</html>

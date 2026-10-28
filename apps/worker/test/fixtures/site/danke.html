@@ -1,0 +1,17 @@
+<!doctype html>
+<html lang="de">
+  <head>
+    <meta charset="utf-8" />
+    <title>Danke – Beispiel GmbH</title>
+  </head>
+  <body>
+    <h1>Vielen Dank für Ihre Nachricht!</h1>
+    <p>Ihre Ticket-Nr.: <span data-testid="ticket" id="ticket"></span></p>
+    <p id="greeting"></p>
+    <script>
+      const params = new URLSearchParams(location.search);
+      document.getElementById('ticket').textContent = params.get('ticket');
+      document.getElementById('greeting').textContent = 'Hallo ' + params.get('name');
+    </script>
+  </body>
+</html>

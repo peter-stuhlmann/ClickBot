@@ -4,14 +4,18 @@ Web-Tool zum automatisierten Testen von Websites (eigene Seiten und Kundenseiten
 Ein Bot öffnet eine Seite in einem echten Browser, führt einen Ablauf aus (klicken, Formulare
 ausfüllen, prüfen) und erstellt pro Lauf einen Report auf dem Bildschirm und als PDF.
 
-Status: Grundgerüst und Datenbank-Schicht stehen.
+Status: Grundgerüst, Datenbank-Schicht und Ablauf-Ausführung stehen.
 
 - **Fertig:**
   - das Design (Figma)
   - `packages/shared`: Ablauf-Schema, Variablen, Zeitplan, Domain-Regeln
   - `packages/db`: Schema, Migrationen, Jobs, Zugangsdaten, Verschlüsselung
   - `apps/web`: Tailwind-Tokens, Atomic-Design-Lint und das Atom `Button`
-- **Noch nicht gebaut:** `apps/worker`, Login und alle Screens.
+  - `apps/worker`: führt einen Ablauf mit Playwright aus (`runFlow`)
+- **Noch nicht gebaut:**
+  - im Worker: Queue (pg-boss), Speichern der Ergebnisse, Proxies und Geräte, KI- und
+    Code-Schritte, Live-Stream
+  - Login und alle Screens
 
 Was als „geplant“ markiert ist, existiert noch nicht.
 
@@ -33,7 +37,7 @@ pnpm-Monorepo, Node 22, TypeScript überall.
 
 ```
 apps/web         Next.js 16 (App Router): UI, API-Routen, Login, PDF-Erzeugung
-apps/worker      (geplant) Node-Prozess mit Playwright/Chromium: führt Läufe aus, Live-Stream via CDP
+apps/worker      Node-Prozess mit Playwright/Chromium: führt Läufe aus (Live-Stream via CDP geplant)
 packages/shared  Zod-Schemas und reine Logik: flow.ts, variables.ts, schedule.ts, domains.ts
 packages/db      Drizzle-Schema, SQL-Migrationen, Repository-Funktionen, Verschlüsselung (nur Server)
 ```
@@ -107,6 +111,37 @@ Hochziehen erst, wenn beide Pakete die neue Version offiziell unterstützen.
   Kundenlogo im Kopf.
 - **Gleichzeitigkeit:** Limit über `MAX_CONCURRENT_BROWSERS`. Bots über dem Limit warten in
   der Queue.
+
+## Worker (`apps/worker`)
+
+- **`runFlow(context, flow, options)`** führt einen Ablauf in einer neuen Seite des
+  Browser-Contexts aus.
+  - Beim ersten fehlgeschlagenen Schritt hört er auf. Die übrigen Schritte gelten als
+    `skipped`.
+  - Ein fehlgeschlagener Schritt bekommt ein Bildschirmfoto. Das Foto hat ein eigenes kurzes
+    Zeitlimit, damit eine hängende Seite den Browser-Platz nicht blockiert.
+- **Variablen** werden vor der Aktion aufgelöst. Eine unbekannte Variable bricht den Schritt
+  ab, ohne dass die Seite angefasst wird.
+- **Meldungen:**
+  - Sie sind deutsch und für den Report formuliert (`StepError`), z. B.
+    „Element nicht gefunden: Rolle „button“ mit Name „Absenden“ (nach 10 s).“
+  - Unbekannte Browserfehler werden auf ihre erste Zeile gekürzt.
+  - Werte von Zugangsdaten werden überall maskiert: in Meldungen und ausgelesenen Werten.
+- **Elemente:** Namen und Labels werden exakt gesucht. Passt ein Ziel auf mehrere Elemente,
+  schlägt der Schritt fehl („Mehrdeutig …“), statt zu raten.
+- **Testdaten** für `{{faker.*}}` (`createTestData`):
+  - Sie werden je Lauf und Bot fest geseedet. Ein erneuter Lauf erzeugt dieselben Daten.
+  - E-Mail-Adressen gehen nur an `example.com`/`.org`/`.net`.
+- **GA4:** Der Worker schneidet die Anfragen an `/g/collect` mit. Der Schritt `analytics`
+  wartet, bis das Event gesendet wurde.
+- **Noch nicht verfügbar:** KI- und Code-Schritte schlagen mit klarer Meldung fehl, bis sie
+  gebaut sind.
+- **Tests:**
+  - Echtes Chromium gegen die lokalen Testseiten in `test/fixtures/site/`. Spezialpfade:
+    `/fehler` liefert HTTP 500, `/haengt` antwortet nie.
+  - `useBrowser()` (`test/browser.ts`) lässt nur die Testseite durch, beantwortet GA4 lokal
+    und blockiert alles andere.
+  - Chromium installieren: `pnpm --filter @click-bot/worker browsers`.
 
 ## Lokale Entwicklung
 
@@ -245,21 +280,22 @@ Tests ist nicht fertig.
 
 Alle Befehle im Repo-Root ausführen.
 
-| Befehl                               | Zweck                                                                       |
-| ------------------------------------ | --------------------------------------------------------------------------- |
-| `pnpm install`                       | Abhängigkeiten installieren                                                 |
-| `pnpm db:up` / `pnpm db:down`        | lokale Datenbanken starten / stoppen (Docker)                               |
-| `pnpm db:migrate`                    | Migrationen auf die Entwicklungs-Datenbank anwenden (liest `.env`)          |
-| `pnpm db:generate`                   | nach Schema-Änderung neue SQL-Migration erzeugen                            |
-| `pnpm dev`                           | Web-App auf http://localhost:3000                                           |
-| `pnpm test`                          | alle Tests (Vitest-Projekte `shared` und `web`)                             |
-| `pnpm vitest run --project shared`   | nur ein Projekt testen                                                      |
-| `pnpm test:coverage`                 | Tests mit Abdeckung; scheitert unter den Grenzwerten aus `vitest.config.ts` |
-| `pnpm lint`                          | ESLint in allen Paketen, inklusive Atomic-Design-Regeln                     |
-| `pnpm typecheck`                     | TypeScript in allen Paketen                                                 |
-| `pnpm format` / `pnpm format:check`  | Prettier schreiben / prüfen                                                 |
-| `pnpm check`                         | format:check, lint, typecheck und test in einem Lauf                        |
-| `pnpm --filter @click-bot/web build` | Produktions-Build der Web-App                                               |
+| Befehl                                     | Zweck                                                                       |
+| ------------------------------------------ | --------------------------------------------------------------------------- |
+| `pnpm install`                             | Abhängigkeiten installieren                                                 |
+| `pnpm db:up` / `pnpm db:down`              | lokale Datenbanken starten / stoppen (Docker)                               |
+| `pnpm db:migrate`                          | Migrationen auf die Entwicklungs-Datenbank anwenden (liest `.env`)          |
+| `pnpm db:generate`                         | nach Schema-Änderung neue SQL-Migration erzeugen                            |
+| `pnpm --filter @click-bot/worker browsers` | Chromium für Playwright installieren (einmalig, nötig für die Worker-Tests) |
+| `pnpm dev`                                 | Web-App auf http://localhost:3000                                           |
+| `pnpm test`                                | alle Tests (Vitest-Projekte `shared` und `web`)                             |
+| `pnpm vitest run --project shared`         | nur ein Projekt testen                                                      |
+| `pnpm test:coverage`                       | Tests mit Abdeckung; scheitert unter den Grenzwerten aus `vitest.config.ts` |
+| `pnpm lint`                                | ESLint in allen Paketen, inklusive Atomic-Design-Regeln                     |
+| `pnpm typecheck`                           | TypeScript in allen Paketen                                                 |
+| `pnpm format` / `pnpm format:check`        | Prettier schreiben / prüfen                                                 |
+| `pnpm check`                               | format:check, lint, typecheck und test in einem Lauf                        |
+| `pnpm --filter @click-bot/web build`       | Produktions-Build der Web-App                                               |
 
 pnpm führt Build-Skripte von Abhängigkeiten nur aus, wenn sie in `pnpm-workspace.yaml` unter
 `onlyBuiltDependencies` freigegeben sind.

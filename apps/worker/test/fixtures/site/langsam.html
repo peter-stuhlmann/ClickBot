@@ -1,0 +1,22 @@
+<!doctype html>
+<html lang="de">
+  <head>
+    <meta charset="utf-8" />
+    <title>Langsame Seite</title>
+  </head>
+  <body>
+    <h1>Lädt …</h1>
+    <ul>
+      <li><a href="/kontakt.html">Kontakt</a></li>
+      <li><a href="/kontakt.html">Kontakt</a></li>
+    </ul>
+    <script>
+      // The button shows up late, like content that is rendered after an API call.
+      setTimeout(() => {
+        const button = document.createElement('button');
+        button.textContent = 'Weiter';
+        document.body.append(button);
+      }, 800);
+    </script>
+  </body>
+</html>

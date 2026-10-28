@@ -1,0 +1,19 @@
+{
+  "name": "@click-bot/worker",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "lint": "eslint .",
+    "typecheck": "tsc -p tsconfig.json",
+    "browsers": "playwright install chromium"
+  },
+  "dependencies": {
+    "@click-bot/shared": "workspace:*",
+    "@faker-js/faker": "10.6.0",
+    "playwright": "1.64.1"
+  }
+}
