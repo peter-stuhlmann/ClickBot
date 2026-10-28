@@ -4,6 +4,7 @@ import {
   createJob,
   getJob,
   NotFoundError,
+  queueTestRun,
   setJobActive,
   updateJob,
   ValidationError,
@@ -59,26 +60,53 @@ export type UpdateJobResult = { issues: Issue[] };
 const GONE: Issue = { path: 'job', message: 'Diesen Job gibt es nicht mehr.' };
 
 /**
- * Saves the editor. Starts in the past are only accepted if they were already stored, so the
- * stored job is loaded here as the reference, not taken from the browser.
+ * Saves the editor's draft. Starts in the past are only accepted if they were already stored,
+ * so the stored job is loaded here as the reference, not taken from the browser.
  */
-export async function updateJobAction(jobId: string, draft: WizardDraft): Promise<UpdateJobResult> {
+async function saveJob(jobId: string, draft: WizardDraft): Promise<Issue[]> {
   const db = getDb();
   const now = new Date();
   try {
     const loaded = jobToDraft(await getJob(db, jobId), now);
-    if (!('draft' in loaded)) return { issues: [{ path: 'job', message: loaded.notEditable }] };
+    if (!('draft' in loaded)) return [{ path: 'job', message: loaded.notEditable }];
 
     const issues = validateJobEdit(draft, loaded.draft, now);
-    if (issues.length > 0) return { issues };
+    if (issues.length > 0) return issues;
 
     await updateJob(db, jobId, toJobUpdateInput(draft, now));
   } catch (error) {
-    if (error instanceof ValidationError) return { issues: error.issues };
-    if (error instanceof NotFoundError) return { issues: [GONE] };
+    if (error instanceof ValidationError) return error.issues;
+    if (error instanceof NotFoundError) return [GONE];
     throw error;
   }
   revalidatePath('/');
   revalidatePath(`/jobs/${jobId}`);
-  return { issues: [] };
+  return [];
+}
+
+export async function updateJobAction(jobId: string, draft: WizardDraft): Promise<UpdateJobResult> {
+  return { issues: await saveJob(jobId, draft) };
+}
+
+export type TestRunResult = { issues: Issue[]; runId?: string };
+
+/**
+ * "Testlauf starten": saves unsaved changes first (`draft`), because the worker runs the stored
+ * job, then queues one test run. Returns the run to show, or why nothing was started.
+ */
+export async function startTestRunAction(
+  jobId: string,
+  draft: WizardDraft | null,
+): Promise<TestRunResult> {
+  if (draft) {
+    const issues = await saveJob(jobId, draft);
+    if (issues.length > 0) return { issues };
+  }
+  try {
+    const { runId } = await queueTestRun(getDb(), jobId, new Date());
+    return { issues: [], runId };
+  } catch (error) {
+    if (error instanceof NotFoundError) return { issues: [GONE] };
+    throw error;
+  }
 }

@@ -25,6 +25,7 @@ export {
 } from './overview';
 export { DEFAULT_DEMO_SITE_URL, seedDemoData } from './seed';
 export { getRunReport, type RunReport, type RunStepRow } from './reports';
+export { queueTestRun } from './test-runs';
 export {
   claimNextRun,
   completeRun,

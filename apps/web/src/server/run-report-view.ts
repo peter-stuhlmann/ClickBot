@@ -70,8 +70,25 @@ function startHint(scheduledAt: Date, startedAt: Date | null): string {
   return `${planned} · ${late < 1 ? 'pünktlich' : `${late} s später`}`;
 }
 
+/** "Lauf #7 von 20"; a test run is no part of the schedule and says so instead. */
+function runTitle(runNr: number, slotIndex: number | null, planned: number): string {
+  if (slotIndex === null) return `Lauf #${runNr} · Testlauf`;
+  return runNr <= planned ? `Lauf #${runNr} von ${planned}` : `Lauf #${runNr}`;
+}
+
+function liveHint(status: RunReport['run']['status'], workerOnline: boolean): string | null {
+  if (status === 'running') return 'Läuft gerade. Der Report aktualisiert sich selbst.';
+  if (status !== 'queued') return null;
+  return workerOnline
+    ? 'Wartet auf den Worker. Der Report aktualisiert sich selbst.'
+    : 'Der Worker ist offline. Der Lauf startet, sobald er wieder läuft.';
+}
+
 /** Screen 03: one run with its steps, timing and, if it failed, where and why. */
-export function toRunReportView(report: RunReport): RunReportView {
+export function toRunReportView(
+  report: RunReport,
+  { workerOnline = true }: { workerOnline?: boolean } = {},
+): RunReportView {
   const { run, job } = report;
   const steps = stepViews(report);
   const failed = report.steps.find((step) => step.status === 'failed');
@@ -106,10 +123,7 @@ export function toRunReportView(report: RunReport): RunReportView {
     jobName: job.name,
     jobHref: `/jobs/${job.id}`,
     runLabel: `Lauf #${run.runNr}`,
-    title:
-      run.runNr <= job.runsPlanned
-        ? `Lauf #${run.runNr} von ${job.runsPlanned}`
-        : `Lauf #${run.runNr}`,
+    title: runTitle(run.runNr, run.slotIndex, job.runsPlanned),
     status: RUN_BADGE[run.status],
     meta: [
       formatDateLong(startedOrPlanned),
@@ -130,6 +144,7 @@ export function toRunReportView(report: RunReport): RunReportView {
             message: run.error,
           }
         : null,
+    live: liveHint(run.status, workerOnline),
     screenshot: lastScreenshot?.screenshotPath
       ? {
           url: artifactUrl(lastScreenshot.screenshotPath),

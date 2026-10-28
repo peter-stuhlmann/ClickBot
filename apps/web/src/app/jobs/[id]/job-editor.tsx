@@ -1,5 +1,6 @@
 'use client';
 
+import { useRouter } from 'next/navigation';
 import { useMemo, useState, useTransition } from 'react';
 import { Button } from '@/components/atoms/Button';
 import { Icon } from '@/components/atoms/Icon';
@@ -10,7 +11,7 @@ import { ScheduleForm } from '@/components/organisms/ScheduleForm';
 import { StepForm } from '@/components/organisms/StepForm';
 import { StepList } from '@/components/organisms/StepList';
 import { EditorLayout } from '@/components/templates/EditorLayout';
-import { toggleDevice } from '@/lib/devices';
+import { deviceLabel, toggleDevice } from '@/lib/devices';
 import {
   appendStep,
   describeRunTotal,
@@ -37,6 +38,11 @@ export type JobEditorProps = {
   /** Positions of the dates that already have runs; they cannot move. */
   startedSlots: number[];
   saveAction: (jobId: string, draft: WizardDraft) => Promise<{ issues: Issue[] }>;
+  /** Saves `draft` first if given, then queues a test run. */
+  testRunAction: (
+    jobId: string,
+    draft: WizardDraft | null,
+  ) => Promise<{ issues: Issue[]; runId?: string }>;
 };
 
 /** State of the editor (screen 02): settings, schedule, devices and flow of one job. */
@@ -47,7 +53,9 @@ export function JobEditor({
   now,
   startedSlots,
   saveAction,
+  testRunAction,
 }: JobEditorProps) {
+  const router = useRouter();
   const renderedAt = useMemo(() => new Date(now), [now]);
   const [draft, setDraft] = useState(initial);
   // Last saved state: decides whether there is anything to save, and which past starts may stay.
@@ -56,6 +64,7 @@ export function JobEditor({
   const [issues, setIssues] = useState<Issue[]>([]);
   const [justSaved, setJustSaved] = useState(false);
   const [saving, startSaving] = useTransition();
+  const [testing, startTesting] = useTransition();
 
   // Dates are locked by their key, so they stay locked when other dates move around them.
   const lockedKeys = useMemo(
@@ -98,6 +107,20 @@ export function JobEditor({
     });
   }
 
+  /** Saves unsaved changes, then starts one bot and opens its report. */
+  function testRun() {
+    const found = dirty ? validateJobEdit(draft, saved, new Date()) : [];
+    setIssues(found);
+    if (found.length > 0) return selectStepOf(found);
+    startTesting(async () => {
+      const result = await testRunAction(jobId, dirty ? draft : null);
+      setIssues(result.issues);
+      if (result.issues.length > 0) return selectStepOf(result.issues);
+      setSaved(draft);
+      if (result.runId) router.push(`/laeufe/${result.runId}`);
+    });
+  }
+
   /** Opens the first flow step with a problem, so its form shows the message. */
   function selectStepOf(found: Issue[]) {
     const index = found
@@ -117,14 +140,26 @@ export function JobEditor({
           status={header.status}
           breadcrumb={[{ label: 'Jobs', href: '/' }, { label: header.title }]}
           actions={
-            <Button
-              icon={<Icon name="check" size={16} />}
-              loading={saving}
-              disabled={!dirty}
-              onClick={save}
-            >
-              Speichern
-            </Button>
+            <>
+              <Button
+                variant="secondary"
+                icon={<Icon name="play" size={16} />}
+                loading={testing}
+                disabled={saving}
+                onClick={testRun}
+                title={`Ein Bot auf ${deviceLabel(draft.devices[0] ?? 'desktop')}, sofort. Ungespeicherte Änderungen werden vorher gespeichert.`}
+              >
+                Testlauf starten
+              </Button>
+              <Button
+                icon={<Icon name="check" size={16} />}
+                loading={saving}
+                disabled={!dirty || testing}
+                onClick={save}
+              >
+                Speichern
+              </Button>
+            </>
           }
         />
       }

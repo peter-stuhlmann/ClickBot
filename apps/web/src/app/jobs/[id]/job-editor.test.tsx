@@ -5,11 +5,15 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { jobToDraft, type Issue, type WizardDraft } from '@/lib/job-draft';
 import { JobEditor } from './job-editor';
 
+const push = vi.fn();
+vi.mock('next/navigation', () => ({ useRouter: () => ({ push }) }));
+
 // 13:30 in Berlin. Only Date is faked, so user-event's timers keep working.
 const NOW = '2026-11-05T12:30:00.000Z';
 
 beforeEach(() => {
   vi.useFakeTimers({ toFake: ['Date'], now: new Date(NOW) });
+  push.mockClear();
 });
 
 afterEach(() => {
@@ -54,11 +58,16 @@ function draftOf(schedule: Schedule = interval): WizardDraft {
 }
 
 type SaveAction = (jobId: string, draft: WizardDraft) => Promise<{ issues: Issue[] }>;
+type TestRunAction = (
+  jobId: string,
+  draft: WizardDraft | null,
+) => Promise<{ issues: Issue[]; runId?: string }>;
 
 function renderEditor({
   initial = draftOf(),
   startedSlots = [] as number[],
   saveAction = vi.fn<SaveAction>(async () => ({ issues: [] })),
+  testRunAction = vi.fn<TestRunAction>(async () => ({ issues: [], runId: 'run-9' })),
 } = {}) {
   render(
     <JobEditor
@@ -72,9 +81,10 @@ function renderEditor({
       now={NOW}
       startedSlots={startedSlots}
       saveAction={saveAction}
+      testRunAction={testRunAction}
     />,
   );
-  return saveAction;
+  return { saveAction, testRunAction };
 }
 
 const saveButton = () => screen.getByRole('button', { name: 'Speichern' });
@@ -94,7 +104,7 @@ describe('JobEditor', () => {
 
   it('saves a change and says so', async () => {
     const user = userEvent.setup();
-    const saveAction = renderEditor();
+    const { saveAction } = renderEditor();
 
     fireEvent.change(screen.getByRole('textbox', { name: 'Job-Name' }), {
       target: { value: 'Kontakt neu' },
@@ -120,7 +130,7 @@ describe('JobEditor', () => {
 
   it('keeps a stored start in the past, but checks everything else before saving', async () => {
     const user = userEvent.setup();
-    const saveAction = renderEditor();
+    const { saveAction } = renderEditor();
 
     fireEvent.change(screen.getByRole('textbox', { name: 'Job-Name' }), {
       target: { value: ' ' },
@@ -213,5 +223,65 @@ describe('JobEditor', () => {
     });
     expect(screen.getByRole('button', { name: 'Schritt 2: Klicke auf „Senden“' })).toBeVisible();
     expect(saveButton()).toBeEnabled();
+  });
+
+  describe('Testlauf starten', () => {
+    const testButton = () => screen.getByRole('button', { name: 'Testlauf starten' });
+
+    it('starts the stored job and opens the report of the run', async () => {
+      const user = userEvent.setup();
+      const { testRunAction } = renderEditor();
+
+      await user.click(testButton());
+
+      expect(testRunAction).toHaveBeenCalledWith('job-1', null);
+      expect(push).toHaveBeenCalledWith('/laeufe/run-9');
+    });
+
+    it('saves unsaved changes first, because the worker runs the stored job', async () => {
+      const user = userEvent.setup();
+      const { testRunAction } = renderEditor();
+      fireEvent.change(screen.getByRole('textbox', { name: 'Job-Name' }), {
+        target: { value: 'Kontakt neu' },
+      });
+
+      await user.click(testButton());
+
+      expect(testRunAction.mock.calls[0]?.[1]).toMatchObject({ name: 'Kontakt neu' });
+      expect(saveButton()).toBeDisabled();
+      expect(push).toHaveBeenCalledWith('/laeufe/run-9');
+    });
+
+    it('starts nothing while the changes are invalid', async () => {
+      const user = userEvent.setup();
+      const { testRunAction } = renderEditor();
+      fireEvent.change(screen.getByRole('textbox', { name: 'Job-Name' }), {
+        target: { value: '' },
+      });
+
+      await user.click(testButton());
+
+      expect(testRunAction).not.toHaveBeenCalled();
+      expect(screen.getByRole('alert')).toHaveTextContent('Nicht gespeichert');
+    });
+
+    it('stays in the editor and shows why when the server refuses', async () => {
+      const user = userEvent.setup();
+      renderEditor({
+        testRunAction: vi.fn<TestRunAction>(async () => ({
+          issues: [{ path: 'job', message: 'Diesen Job gibt es nicht mehr.' }],
+        })),
+      });
+
+      await user.click(testButton());
+
+      expect(await screen.findByRole('alert')).toHaveTextContent('Diesen Job gibt es nicht mehr.');
+      expect(push).not.toHaveBeenCalled();
+    });
+
+    it('names the device it will use', () => {
+      renderEditor();
+      expect(testButton()).toHaveAttribute('title', expect.stringContaining('Ein Bot auf Desktop'));
+    });
   });
 });

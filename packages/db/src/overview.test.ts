@@ -34,6 +34,8 @@ async function finishedRun(
   await db.insert(runs).values({
     jobId,
     runNr,
+    // A scheduled run: one start of the interval each.
+    slotIndex: runNr,
     device: 'desktop',
     status,
     scheduledAt: finishedAt,

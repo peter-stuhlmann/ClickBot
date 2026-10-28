@@ -11,6 +11,7 @@ import { ReportLayout } from '@/components/templates/ReportLayout';
 import { getDb } from '@/server/db';
 import { toRunReportView } from '@/server/run-report-view';
 import { getCurrentUser } from '@/server/session';
+import { AutoRefresh } from './auto-refresh';
 
 export const dynamic = 'force-dynamic';
 
@@ -32,7 +33,7 @@ export default async function RunReportPage({ params }: Props) {
     getWorkerStatus(db, now),
   ]);
   if (!report) notFound();
-  const view = toRunReportView(report);
+  const view = toRunReportView(report, { workerOnline: worker.online });
 
   const aside =
     view.failure || view.screenshot ? (
@@ -64,6 +65,15 @@ export default async function RunReportPage({ params }: Props) {
         stats={<StatGrid cards={view.stats} />}
         aside={aside}
       >
+        <AutoRefresh active={view.live !== null} />
+        {view.live && (
+          <p
+            role="status"
+            className="rounded-input bg-primary-soft px-3 py-2.5 text-body text-primary"
+          >
+            {view.live}
+          </p>
+        )}
         <RunStepList steps={view.steps} summary={view.stepsSummary} />
       </ReportLayout>
     </AppShell>

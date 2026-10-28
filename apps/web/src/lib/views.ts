@@ -63,6 +63,8 @@ export type RunReportView = {
   steps: RunStepView[];
   failure: { title: string; message: string } | null;
   screenshot: { url: string; caption: string } | null;
+  /** While the run waits or runs: what it is waiting for. The page then refreshes itself. */
+  live: string | null;
 };
 
 /** Title line of the editor: name, status badge, schedule and devices. */

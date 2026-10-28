@@ -1,5 +1,5 @@
 import { expandSchedule, type BotStart } from '@click-bot/shared';
-import { and, asc, count, eq, inArray, isNotNull, lt, lte, max } from 'drizzle-orm';
+import { and, asc, count, eq, inArray, isNotNull, isNull, lt, lte, max, or } from 'drizzle-orm';
 import type { Database } from './client';
 import type { Job } from './jobs';
 import { jobs, runSteps, runs, workerHeartbeats } from './schema';
@@ -123,7 +123,14 @@ export async function claimNextRun(db: Database, now: Date): Promise<ClaimedRun 
       .select({ id: runs.id })
       .from(runs)
       .innerJoin(jobs, eq(jobs.id, runs.jobId))
-      .where(and(eq(runs.status, 'queued'), lte(runs.scheduledAt, now), eq(jobs.status, 'active')))
+      .where(
+        and(
+          eq(runs.status, 'queued'),
+          lte(runs.scheduledAt, now),
+          // Scheduled runs only while the job is active; a test run because someone asked for it.
+          or(eq(jobs.status, 'active'), isNull(runs.slotIndex)),
+        ),
+      )
       .orderBy(asc(runs.scheduledAt), asc(runs.runNr))
       .limit(1)
       .for('update', { of: runs, skipLocked: true });

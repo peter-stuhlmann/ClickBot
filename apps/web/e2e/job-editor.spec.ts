@@ -47,4 +47,28 @@ test.describe('Job-Editor', () => {
     const response = await page.goto('/jobs/00000000-0000-0000-0000-000000000000');
     expect(response?.status()).toBe(404);
   });
+
+  test('starts a test run and shows it while it waits, without queuing it twice', async ({
+    page,
+  }) => {
+    await page.goto('/');
+    await page.getByRole('link', { name: 'Newsletter-Anmeldung', exact: true }).click();
+    await page.getByRole('button', { name: 'Testlauf starten' }).click();
+
+    await expect(page).toHaveURL(/\/laeufe\//);
+    const reportUrl = page.url();
+    await expect(page.getByRole('heading', { level: 1, name: /^Lauf #\d+/ })).toBeVisible();
+    await expect(page.getByText('manuell gestartet', { exact: false })).toBeVisible();
+    // No worker runs during the e2e tests.
+    await expect(
+      page.getByRole('status').filter({ hasText: 'Der Worker ist offline.' }),
+    ).toBeVisible();
+
+    await page
+      .getByRole('navigation', { name: 'Pfad' })
+      .getByRole('link', { name: 'Newsletter-Anmeldung' })
+      .click();
+    await page.getByRole('button', { name: 'Testlauf starten' }).click();
+    await expect(page).toHaveURL(reportUrl);
+  });
 });

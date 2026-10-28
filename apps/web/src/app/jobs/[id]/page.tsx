@@ -8,7 +8,7 @@ import { jobToDraft } from '@/lib/job-draft';
 import { getDb } from '@/server/db';
 import { toJobHeader } from '@/server/job-editor-view';
 import { getCurrentUser } from '@/server/session';
-import { updateJobAction } from '../../actions';
+import { startTestRunAction, updateJobAction } from '../../actions';
 import { JobEditor } from './job-editor';
 
 export const dynamic = 'force-dynamic';
@@ -46,6 +46,7 @@ export default async function JobEditorPage({ params }: Props) {
           now={now.toISOString()}
           startedSlots={startedSlots}
           saveAction={updateJobAction}
+          testRunAction={startTestRunAction}
         />
       ) : (
         <>

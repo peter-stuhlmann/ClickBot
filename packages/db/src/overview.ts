@@ -25,7 +25,7 @@ export type JobOverviewRow = {
   runsDone: number;
   runsPlanned: number;
   lastRun: { id: string; status: RunStatus; finishedAt: Date } | null;
-  /** Share of successful finished runs, 0–1; null if the job never finished a run. */
+  /** Share of successful finished runs including test runs, 0–1; null without any. */
   successRate: number | null;
 };
 
@@ -34,7 +34,12 @@ export async function listJobOverview(db: Database): Promise<JobOverviewRow[]> {
     .select({
       job: jobs,
       customerName: customers.name,
+      // Progress of the schedule: test runs (no slot) do not count, they are extra.
       runsDone:
+        sql<number>`count(${runs.id}) filter (where ${and(inArray(runs.status, FINISHED), isNotNull(runs.slotIndex))})`.mapWith(
+          Number,
+        ),
+      finished:
         sql<number>`count(${runs.id}) filter (where ${inArray(runs.status, FINISHED)})`.mapWith(
           Number,
         ),
@@ -61,7 +66,7 @@ export async function listJobOverview(db: Database): Promise<JobOverviewRow[]> {
     .orderBy(runs.jobId, desc(runs.finishedAt));
   const lastRunByJob = new Map(lastRuns.map((run) => [run.jobId, run]));
 
-  return rows.map(({ job, customerName, runsDone, successful }) => {
+  return rows.map(({ job, customerName, runsDone, finished, successful }) => {
     const lastRun = lastRunByJob.get(job.id);
     return {
       id: job.id,
@@ -75,7 +80,7 @@ export async function listJobOverview(db: Database): Promise<JobOverviewRow[]> {
       lastRun: lastRun?.finishedAt
         ? { id: lastRun.id, status: lastRun.status, finishedAt: lastRun.finishedAt }
         : null,
-      successRate: runsDone > 0 ? successful / runsDone : null,
+      successRate: finished > 0 ? successful / finished : null,
     };
   });
 }

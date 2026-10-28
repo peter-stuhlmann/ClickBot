@@ -94,7 +94,7 @@ function report(
 
 describe('toRunReportView', () => {
   it('describes a passed run like the design', () => {
-    const view = toRunReportView(report());
+    const view = toRunReportView(report(), { workerOnline: true });
 
     expect(view).toMatchObject({
       jobName: 'Kontaktformular-Test',
@@ -204,13 +204,17 @@ describe('toRunReportView', () => {
     expect(view.failure).toEqual({ title: 'Lauf fehlgeschlagen', message: error });
   });
 
-  it('marks a manual run and one beyond the planned count', () => {
+  it('marks a test run, which is not one of the planned runs', () => {
     const view = toRunReportView(
-      report({ run: { slotIndex: null, runNr: 21, startedAt: scheduled } }),
+      report({ run: { slotIndex: null, runNr: 5, startedAt: scheduled } }),
     );
-    expect(view.title).toBe('Lauf #21');
+    expect(view.title).toBe('Lauf #5 · Testlauf');
     expect(view.meta).toContain('manuell gestartet');
     expect(view.stats[2]?.hint).toBe('geplant 14:30:00 · pünktlich');
+  });
+
+  it('leaves out the planned count for a run numbered beyond it', () => {
+    expect(toRunReportView(report({ run: { runNr: 21 } })).title).toBe('Lauf #21');
   });
 
   it('names steps that are missing from the flow or have no form yet', () => {
@@ -238,5 +242,14 @@ describe('toRunReportView', () => {
       detail: 'KI hat „Jetzt senden“ gewählt',
     });
     expect(view.stats[0]).toMatchObject({ value: '1 / 1', hint: 'alle bestanden' });
+  });
+
+  it.each([
+    ['queued', true, 'Wartet auf den Worker. Der Report aktualisiert sich selbst.'],
+    ['queued', false, 'Der Worker ist offline. Der Lauf startet, sobald er wieder läuft.'],
+    ['running', true, 'Läuft gerade. Der Report aktualisiert sich selbst.'],
+    ['passed', true, null],
+  ] as const)('tells what a %s run is waiting for (worker online: %s)', (status, online, live) => {
+    expect(toRunReportView(report({ run: { status } }), { workerOnline: online }).live).toBe(live);
   });
 });

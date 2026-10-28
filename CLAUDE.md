@@ -20,6 +20,9 @@ Status: Grundgerüst, Datenbank-Schicht, Worker mit Zeitplan, die Job-Liste, der
     - Screen 02 „Editor“ (`/jobs/<id>`, über den Job-Namen in der Liste): Name, Start-URL,
       Zeitplan, Geräte und Ablauf eines bestehenden Jobs ändern. Zwei Spalten statt der drei
       aus dem Design, weil die Terminzeilen sonst zu schmal werden.
+    - „Testlauf starten“ im Editor: speichert offene Änderungen, startet einen Bot auf dem
+      ersten Gerät und öffnet dessen Report. Der Report lädt sich alle 2 s neu, solange der
+      Lauf wartet oder läuft.
     - Screen 03 „Lauf-Report“ (`/laeufe/<id>`), erreichbar über „Letzter Lauf“ in der
       Job-Liste: Kennzahlen, Schritte mit Ergebnis, Fehler und Bildschirmfoto
   - `apps/worker`:
@@ -35,7 +38,7 @@ Status: Grundgerüst, Datenbank-Schicht, Worker mit Zeitplan, die Job-Liste, der
     Standort-Profile je Termin; Schritte vom Typ „auslesen“ lassen sich noch nicht anlegen
   - im Lauf-Report: PDF, „Erneut ausführen“, KI-Eingriffe, Konsolenfehler und ausgelesene
     Werte (dafür speichert der Worker noch keine Daten)
-  - im Editor: „Testlauf starten“, KI-Box, „Erfolg & Daten“ und Variablen-Liste aus dem Design
+  - im Editor: KI-Box, „Erfolg & Daten“ und Variablen-Liste aus dem Design
   - alle übrigen Screens, auch der Welle-Report (03b)
 
 Was als „geplant“ markiert ist, existiert noch nicht.
@@ -198,6 +201,12 @@ Hochziehen erst, wenn beide Pakete die neue Version offiziell unterstützen.
        absoluter Pfad sein, weil Worker und Web-App in verschiedenen Ordnern starten.
      - Fehler außerhalb des Ablaufs, z. B. bei Zugangsdaten oder Browser, beenden den Lauf als
        „Lauf konnte nicht ausgeführt werden: …“.
+- **Testläufe** (`queueTestRun`) sind Läufe ohne Termin (`slot_index` NULL):
+  - `claimNextRun` nimmt sie auch bei pausierten, beendeten oder Entwurfs-Jobs an. Geplante
+    Läufe nur bei aktiven Jobs.
+  - Wartet oder läuft schon ein Testlauf des Jobs, gibt `queueTestRun` diesen zurück statt
+    einen weiteren anzulegen.
+  - Sie zählen nicht zum Fortschritt des Zeitplans (`runsDone`), aber zur Erfolgsquote.
 - **Ein Worker:** Beim Start markiert er alle noch `running`-Läufe als abgebrochen
   (`recoverStaleRuns`).
   - Danach alle 15 Min. nur noch Läufe, die länger als 15 Min. laufen.
