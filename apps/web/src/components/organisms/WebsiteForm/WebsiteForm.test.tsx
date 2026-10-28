@@ -58,7 +58,11 @@ describe('WebsiteForm', () => {
   it('says so when there are no customers yet', () => {
     render(<WebsiteForm values={empty} customers={[]} errors={{}} onChange={vi.fn()} />);
     expect(screen.getByRole('combobox', { name: 'Kunde' })).toHaveAccessibleDescription(
-      'Noch keine Kunden angelegt.',
+      'Noch keine Kunden angelegt. Kunde anlegen',
+    );
+    expect(screen.getByRole('link', { name: 'Kunde anlegen' })).toHaveAttribute(
+      'href',
+      '/kunden/neu',
     );
   });
 });

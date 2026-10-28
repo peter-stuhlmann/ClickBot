@@ -53,7 +53,8 @@ describe('NewJobWizard', () => {
     );
   });
 
-  it('walks through all four steps and saves the job', async () => {
+  // Clicks through all four steps; with coverage instrumentation that takes longer than 5 s.
+  it('walks through all four steps and saves the job', { timeout: 20_000 }, async () => {
     const user = userEvent.setup();
     const createAction = renderWizard();
 

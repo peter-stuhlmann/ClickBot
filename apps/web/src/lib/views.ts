@@ -73,3 +73,16 @@ export type JobHeaderView = {
   status: { tone: Tone; label: string };
   description: string;
 };
+
+/** One row of the customer table (screen 10). */
+export type CustomerRowView = {
+  id: string;
+  name: string;
+  /** "beispiel.de · 3 Websites" */
+  websites: string;
+  jobs: { primary: string; secondary: string };
+  /** Runs of the last 30 days; `value` is the share of successful ones, 0–1. */
+  runs: { label: string; value: number };
+  lastRun: JobRowView['lastRun'];
+  successRate: { text: string; tone: Tone } | null;
+};

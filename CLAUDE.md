@@ -5,7 +5,7 @@ Ein Bot öffnet eine Seite in einem echten Browser, führt einen Ablauf aus (kli
 ausfüllen, prüfen) und erstellt pro Lauf einen Report auf dem Bildschirm und als PDF.
 
 Status: Grundgerüst, Datenbank-Schicht, Worker mit Zeitplan, die Job-Liste, der Assistent
-„Neuer Job“, der Editor und der Lauf-Report stehen.
+„Neuer Job“, der Editor, der Lauf-Report und die Kunden stehen.
 
 - **Fertig:**
   - das Design (Figma)
@@ -23,6 +23,8 @@ Status: Grundgerüst, Datenbank-Schicht, Worker mit Zeitplan, die Job-Liste, der
     - „Testlauf starten“ im Editor: speichert offene Änderungen, startet einen Bot auf dem
       ersten Gerät und öffnet dessen Report. Der Report lädt sich alle 2 s neu, solange der
       Lauf wartet oder läuft.
+    - Screen 10 „Kunden“ (`/kunden`) mit Kennzahlen und „Kunde anlegen“ (`/kunden/neu`). Die
+      Spalte „Wochen-PDF“ fehlt, bis es das PDF gibt.
     - Screen 03 „Lauf-Report“ (`/laeufe/<id>`), erreichbar über „Letzter Lauf“ in der
       Job-Liste: Kennzahlen, Schritte mit Ergebnis, Fehler und Bildschirmfoto
   - `apps/worker`:
@@ -89,6 +91,9 @@ packages/db      Drizzle-Schema, SQL-Migrationen, Repository-Funktionen, Verschl
     selbst ab.
   - Die Meldungen der Zod-Schemas in `packages/shared` sind deutsch und kurz, weil die UI sie
     direkt am Feld zeigt (z. B. „Bitte ausfüllen.“).
+- **Kunden** (`createCustomer`): Namen sind eindeutig, ohne Groß- und Kleinschreibung. Das
+  Kürzel (`slug`) entsteht aus dem Namen („Müller Shop“ → `mueller-shop`), bei Bedarf mit
+  `-2`, `-3`. Bearbeiten und Löschen gibt es noch nicht.
 - **Jobs** legt `createJob` als Entwurf an. Mit `status: 'active'` (Assistent) plant der
   Worker sie sofort ein.
 - **Jobs ändern** (`updateJob`, Editor):

@@ -1,3 +1,4 @@
+import Link from 'next/link';
 import { Card } from '@/components/atoms/Card';
 import { Checkbox } from '@/components/atoms/Checkbox';
 import { Input } from '@/components/atoms/Input';
@@ -30,7 +31,16 @@ export function WebsiteForm({ values, customers, errors, onChange }: WebsiteForm
         id="job-customer"
         label="Kunde"
         error={errors.customerId}
-        hint={customers.length === 0 ? 'Noch keine Kunden angelegt.' : undefined}
+        hint={
+          customers.length === 0 ? (
+            <>
+              Noch keine Kunden angelegt.{' '}
+              <Link href="/kunden/neu" className="font-medium text-primary hover:underline">
+                Kunde anlegen
+              </Link>
+            </>
+          ) : undefined
+        }
       >
         {(control) => (
           <Select

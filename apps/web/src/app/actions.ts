@@ -1,6 +1,7 @@
 'use server';
 
 import {
+  createCustomer,
   createJob,
   getJob,
   NotFoundError,
@@ -21,6 +22,7 @@ import {
   type Issue,
   type WizardDraft,
 } from '@/lib/job-draft';
+import type { CustomerFormState } from '@/components/organisms/CustomerForm';
 import { getDb } from '@/server/db';
 
 /** Pauses or resumes a job from the status switch of the jobs table. */
@@ -109,4 +111,21 @@ export async function startTestRunAction(
     if (error instanceof NotFoundError) return { issues: [GONE] };
     throw error;
   }
+}
+
+/** "Kunde anlegen" (screen 10): back to the customer list, or the reason it did not work. */
+export async function createCustomerAction(
+  _state: CustomerFormState,
+  formData: FormData,
+): Promise<CustomerFormState> {
+  const name = formData.get('name');
+  if (typeof name !== 'string') return { error: 'Name fehlt.' };
+  try {
+    await createCustomer(getDb(), { name });
+  } catch (error) {
+    if (error instanceof ValidationError) return { error: error.issues[0]?.message, name };
+    throw error;
+  }
+  revalidatePath('/kunden');
+  redirect('/kunden');
 }

@@ -21,7 +21,7 @@ const JOB_STATUS: Record<JobOverviewRow['status'], JobRowView['status']> = {
   finished: { label: 'Beendet', active: false, toggleable: false },
 };
 
-function successTone(rate: number): Tone {
+export function successTone(rate: number): Tone {
   if (rate >= 0.95) return 'success';
   if (rate >= 0.85) return 'warning';
   return 'danger';

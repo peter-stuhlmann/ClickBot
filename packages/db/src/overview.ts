@@ -94,13 +94,13 @@ export type DashboardStats = {
   failures24h: { count: number; jobNames: string[] };
 };
 
-function localDate(instant: Date, timeZone: string): string {
+export function localDate(instant: Date, timeZone: string): string {
   // en-CA formats as YYYY-MM-DD.
   return new Intl.DateTimeFormat('en-CA', { timeZone }).format(instant);
 }
 
 /** Midnight of a local date; in the rare zones that skip midnight, 01:00. */
-function startOfLocalDay(date: string, timeZone: string): Date {
+export function startOfLocalDay(date: string, timeZone: string): Date {
   return (localToUtc(date, '00:00', timeZone) ?? localToUtc(date, '01:00', timeZone)) as Date;
 }
 
