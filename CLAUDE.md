@@ -4,9 +4,15 @@ Web-Tool zum automatisierten Testen von Websites (eigene Seiten und Kundenseiten
 Ein Bot öffnet eine Seite in einem echten Browser, führt einen Ablauf aus (klicken, Formulare
 ausfüllen, prüfen) und erstellt pro Lauf einen Report auf dem Bildschirm und als PDF.
 
-Status: Grundgerüst steht. Fertig sind das Design (Figma), `packages/shared` (Ablauf-Schema,
-Variablen, Zeitplan) und `apps/web` mit Tailwind-Tokens, Atomic-Design-Lint und dem Atom
-`Button`. Noch nicht gebaut sind `apps/worker`, die Datenbank-Schicht, Login und alle Screens.
+Status: Grundgerüst und Datenbank-Schicht stehen.
+
+- **Fertig:**
+  - das Design (Figma)
+  - `packages/shared`: Ablauf-Schema, Variablen, Zeitplan, Domain-Regeln
+  - `packages/db`: Schema, Migrationen, Jobs, Zugangsdaten, Verschlüsselung
+  - `apps/web`: Tailwind-Tokens, Atomic-Design-Lint und das Atom `Button`
+- **Noch nicht gebaut:** `apps/worker`, Login und alle Screens.
+
 Was als „geplant“ markiert ist, existiert noch nicht.
 
 ## Produktregeln (nicht verhandelbar)
@@ -28,11 +34,45 @@ pnpm-Monorepo, Node 22, TypeScript überall.
 ```
 apps/web         Next.js 16 (App Router): UI, API-Routen, Login, PDF-Erzeugung
 apps/worker      (geplant) Node-Prozess mit Playwright/Chromium: führt Läufe aus, Live-Stream via CDP
-packages/shared  Zod-Schemas und reine Logik: flow.ts, variables.ts, schedule.ts
+packages/shared  Zod-Schemas und reine Logik: flow.ts, variables.ts, schedule.ts, domains.ts
+packages/db      Drizzle-Schema, SQL-Migrationen, Repository-Funktionen, Verschlüsselung (nur Server)
 ```
 
-`packages/shared` liefert TypeScript-Quelltext aus, ohne eigenen Build. Next kompiliert ihn
-über `transpilePackages` mit.
+`packages/shared` und `packages/db` liefern TypeScript-Quelltext aus, ohne eigenen Build.
+
+- Next kompiliert sie über `transpilePackages` in `apps/web/next.config.ts` mit.
+- `packages/db` wird dort eingetragen, sobald die Web-App es nutzt.
+- `packages/shared` muss browsertauglich bleiben: kein `node:`-Import, keine Datenbank.
+
+## Datenbank (`packages/db`)
+
+- **Drizzle ORM** mit `pg`.
+  - Das Schema steht in `src/schema.ts`.
+  - Migrationen liegen als SQL in `packages/db/drizzle/`. Sie werden mit `pnpm db:generate`
+    erzeugt und ins Repo committet.
+  - Eine bereits angewendete Migration nie ändern, sondern eine neue erzeugen.
+- **Validierung vor jedem Schreiben** in den Repository-Funktionen, z. B. `createJob` und
+  `createSecret`.
+  - Alle Fehler kommen gesammelt als `ValidationError` mit Feldpfaden wie `flow.steps.1.id`.
+    Daraus baut die UI ihre Fehlermeldungen.
+  - Zusätzlich sichern CHECK-, UNIQUE- und Fremdschlüssel-Regeln die Daten in der Datenbank
+    selbst ab.
+- **Zugangsdaten:**
+  - Gespeichert wird nur der verschlüsselte Wert (`createCipher`: AES-256-GCM, Schlüssel aus
+    `SECRETS_KEY`).
+  - `resolveSecretsForRun` liefert pro Lauf nur die Secrets des Kunden und die allgemeinen,
+    nicht abgelaufen und erlaubt auf der Domain der URL.
+  - Ein Kunden-Secret überschreibt ein allgemeines mit gleichem Namen.
+- **Laufnummern** (`{{run_nr}}`) vergibt `allocateRunNumber` atomar per
+  `UPDATE … RETURNING`, nie über `max()+1`.
+- **Löschregeln:**
+  - Ein Kunde mit Jobs lässt sich nicht löschen.
+  - Ein Job nimmt seine Läufe und Schritte mit.
+- **Tests:**
+  - Laufen gegen `db-test`. Vor jedem Testlauf wird die Datenbank aus den Migrationen neu
+    aufgebaut (`test/global-setup.ts`), vor jedem Test werden alle Tabellen geleert.
+  - Die Testdateien laufen nacheinander (`fileParallelism: false`).
+  - Wer eine neue Tabelle anlegt, ergänzt sie in `resetDb` (`test/db.ts`).
 
 Bewusst festgehaltene Versionen:
 
@@ -78,8 +118,12 @@ Hochziehen erst, wenn beide Pakete die neue Version offiziell unterstützen.
     leer und für Integrationstests gedacht.
 - **Eigene Ports:** 5442 und 5443 statt 5432, weil auf diesem Rechner andere Projekte Port 5432
   belegen. Andere Projekt-Container nicht anfassen.
-- **Umgebung:** `.env.example` nach `.env` kopieren. Darin stehen `DATABASE_URL`,
-  `DATABASE_URL_TEST` und `MAX_CONCURRENT_BROWSERS`. `.env` wird nie committet.
+- **Umgebung:** `.env.example` nach `.env` kopieren und `SECRETS_KEY` mit
+  `openssl rand -base64 32` setzen.
+  - Weitere Werte: `DATABASE_URL`, `DATABASE_URL_TEST`, `MAX_CONCURRENT_BROWSERS`.
+  - `.env` wird nie committet.
+  - Geht `SECRETS_KEY` verloren, lassen sich gespeicherte Zugangsdaten nicht mehr
+    entschlüsseln.
 - **pg-boss** nutzt dieselbe Datenbank, im eigenen Schema `pgboss`.
 
 ## Hosting (geplant)
@@ -205,6 +249,8 @@ Alle Befehle im Repo-Root ausführen.
 | ------------------------------------ | --------------------------------------------------------------------------- |
 | `pnpm install`                       | Abhängigkeiten installieren                                                 |
 | `pnpm db:up` / `pnpm db:down`        | lokale Datenbanken starten / stoppen (Docker)                               |
+| `pnpm db:migrate`                    | Migrationen auf die Entwicklungs-Datenbank anwenden (liest `.env`)          |
+| `pnpm db:generate`                   | nach Schema-Änderung neue SQL-Migration erzeugen                            |
 | `pnpm dev`                           | Web-App auf http://localhost:3000                                           |
 | `pnpm test`                          | alle Tests (Vitest-Projekte `shared` und `web`)                             |
 | `pnpm vitest run --project shared`   | nur ein Projekt testen                                                      |

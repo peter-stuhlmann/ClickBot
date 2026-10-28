@@ -6,10 +6,21 @@ export default defineConfig({
     coverage: {
       provider: 'v8',
       include: ['packages/*/src/**', 'apps/*/src/**'],
-      // Next.js routes and layouts are covered by the Playwright end-to-end tests.
-      exclude: ['**/*.test.{ts,tsx}', '**/index.ts', '**/*.d.ts', 'apps/web/src/app/**'],
+      exclude: [
+        '**/*.test.{ts,tsx}',
+        '**/index.ts',
+        '**/*.d.ts',
+        // Next.js routes and layouts are covered by the Playwright end-to-end tests.
+        'apps/web/src/app/**',
+        // Thin CLI wrapper around runMigrations, which is tested.
+        'packages/db/src/migrate-cli.ts',
+        // Declarative table definitions; their callbacks only run in drizzle-kit. The resulting
+        // constraints are tested against the real database in schema.test.ts.
+        'packages/db/src/schema.ts',
+      ],
       thresholds: {
         'packages/shared/src/**': { branches: 95, functions: 95, lines: 95, statements: 95 },
+        'packages/db/src/**': { branches: 90, functions: 90, lines: 90, statements: 90 },
         'apps/*/src/**': { branches: 90, functions: 90, lines: 90, statements: 90 },
       },
     },
