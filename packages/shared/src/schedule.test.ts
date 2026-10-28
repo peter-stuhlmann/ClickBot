@@ -71,6 +71,18 @@ describe('scheduleSchema', () => {
     expect(scheduleSchema.safeParse(times([{ date, time, bots: 1 }])).success).toBe(false);
   });
 
+  it('reports only the broken field, without follow-up errors about the clock change', () => {
+    const result = scheduleSchema.safeParse(
+      times([{ date: '2026-02-30', time: '13:24', bots: 1 }]),
+    );
+    expect(result.error?.issues.map((issue) => issue.path)).toEqual([['slots', 0, 'date']]);
+
+    const badTime = scheduleSchema.safeParse(
+      times([{ date: '2026-11-05', time: '25:00', bots: 1 }]),
+    );
+    expect(badTime.error?.issues.map((issue) => issue.path)).toEqual([['slots', 0, 'time']]);
+  });
+
   it.each([0, 51, 1.5])('rejects %s bots per slot', (bots) => {
     const slot = { date: '2026-11-05', time: '13:24', bots };
     expect(scheduleSchema.safeParse(times([slot])).success).toBe(false);
@@ -101,9 +113,8 @@ describe('scheduleSchema', () => {
 
   it('rejects an unknown time zone', () => {
     const slot = { date: '2026-11-05', time: '13:24', bots: 1 };
-    expect(scheduleSchema.safeParse(times([slot], { timezone: 'Europe/Atlantis' })).success).toBe(
-      false,
-    );
+    const result = scheduleSchema.safeParse(times([slot], { timezone: 'Europe/Atlantis' }));
+    expect(result.error?.issues.map((issue) => issue.path)).toEqual([['timezone']]);
   });
 
   it('accepts an interval schedule and rejects a start time without offset', () => {

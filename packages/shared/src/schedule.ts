@@ -85,7 +85,11 @@ const timesScheduleSchema = z
       }
       seen.add(key);
 
-      if (localToUtc(slot.date, slot.time, schedule.timezone) === null) {
+      // The field checks above have already reported broken input; checking the clock change
+      // on top would only add a misleading second message.
+      const checkable =
+        isCalendarDate(slot.date) && TIME_PATTERN.test(slot.time) && isTimeZone(schedule.timezone);
+      if (checkable && localToUtc(slot.date, slot.time, schedule.timezone) === null) {
         ctx.addIssue({
           code: 'custom',
           path: ['slots', index, 'time'],
