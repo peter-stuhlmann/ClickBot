@@ -23,7 +23,9 @@
     "db:generate": "pnpm --filter @click-bot/db generate",
     "db:seed": "pnpm --filter @click-bot/db seed",
     "db:reset": "docker compose rm -sfv db && docker volume rm -f click-bot_db-data && pnpm db:up && pnpm db:migrate && pnpm db:seed",
-    "test:e2e": "pnpm --filter @click-bot/web test:e2e"
+    "test:e2e": "pnpm --filter @click-bot/web test:e2e",
+    "worker": "pnpm --filter @click-bot/worker start",
+    "demo-site": "pnpm --filter @click-bot/worker demo-site"
   },
   "devDependencies": {
     "@eslint/js": "9.39.5",

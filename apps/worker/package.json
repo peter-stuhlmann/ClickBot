@@ -9,11 +9,18 @@
   "scripts": {
     "lint": "eslint .",
     "typecheck": "tsc -p tsconfig.json",
-    "browsers": "playwright install chromium"
+    "browsers": "playwright install chromium",
+    "start": "tsx --env-file-if-exists=../../.env src/main.ts",
+    "demo-site": "tsx src/demo-site.ts"
   },
   "dependencies": {
     "@click-bot/shared": "workspace:*",
     "@faker-js/faker": "10.6.0",
-    "playwright": "1.64.1"
+    "playwright": "1.64.1",
+    "@click-bot/db": "workspace:*"
+  },
+  "devDependencies": {
+    "tsx": "4.23.15",
+    "drizzle-orm": "0.45.4"
   }
 }

@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import { db, insertCustomer } from '../test/db';
 import { listJobOverview } from './overview';
-import { customers } from './schema';
+import { planDueRuns } from './queue';
+import { customers, jobs as jobsTable, runs } from './schema';
 import { seedDemoData } from './seed';
 
 const now = new Date('2026-11-05T12:30:00Z');
@@ -41,6 +42,36 @@ describe('seedDemoData', () => {
       Math.round((row.successRate ?? 0) * 100),
     );
     expect(rates).toEqual([100, 94, 87, 100]);
+  });
+
+  it('points every demo job at the local demo website, never at a real third-party site', async () => {
+    await seedDemoData(db, now);
+    const urls = (await listJobOverview(db)).map((row) => new URL(row.startUrl));
+    expect(urls.map((url) => url.host)).toEqual([
+      '127.0.0.1:4100',
+      '127.0.0.1:4100',
+      '127.0.0.1:4100',
+      '127.0.0.1:4100',
+    ]);
+    const jobs = await db.select().from(jobsTable);
+    for (const job of jobs) {
+      const openSteps = job.flow.steps.filter((step) => step.type === 'open');
+      expect(openSteps.every((step) => step.url.startsWith('http://127.0.0.1:4100/'))).toBe(true);
+    }
+  });
+
+  it('can use another address for the demo website', async () => {
+    await seedDemoData(db, now, 'http://127.0.0.1:4200');
+    const [row] = await listJobOverview(db);
+    expect(row?.startUrl).toBe('http://127.0.0.1:4200/kontakt.html');
+  });
+
+  it('records the demo history as done, so the planner does not repeat a start', async () => {
+    await seedDemoData(db, now);
+    const before = (await db.select().from(runs)).length;
+
+    expect(await planDueRuns(db, { now })).toEqual({ created: 0, finishedJobs: 0 });
+    expect(await db.select().from(runs)).toHaveLength(before);
   });
 
   it('never touches a database that already has data', async () => {

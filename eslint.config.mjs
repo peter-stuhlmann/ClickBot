@@ -25,7 +25,11 @@ export const baseConfig = tseslint.config(
     },
     rules: {
       '@typescript-eslint/consistent-type-imports': 'error',
-      '@typescript-eslint/no-unused-vars': ['error', { argsIgnorePattern: '^_' }],
+      // ignoreRestSiblings: `const { omitted, ...rest } = obj` is the idiom for leaving out fields.
+      '@typescript-eslint/no-unused-vars': [
+        'error',
+        { argsIgnorePattern: '^_', ignoreRestSiblings: true },
+      ],
       'no-console': ['error', { allow: ['warn', 'error'] }],
     },
   },

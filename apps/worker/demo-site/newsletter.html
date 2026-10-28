@@ -1,0 +1,22 @@
+<!doctype html>
+<html lang="de">
+  <head>
+    <meta charset="utf-8" />
+    <title>Newsletter – Demo-Website</title>
+  </head>
+  <body>
+    <h1>Newsletter abonnieren</h1>
+    <form id="newsletter">
+      <label for="email">E-Mail</label>
+      <input id="email" type="email" required />
+      <button type="submit">Anmelden</button>
+    </form>
+    <p id="done" role="status" hidden>Bitte bestätige deine E-Mail-Adresse.</p>
+    <script>
+      document.getElementById('newsletter').addEventListener('submit', (event) => {
+        event.preventDefault();
+        document.getElementById('done').hidden = false;
+      });
+    </script>
+  </body>
+</html>

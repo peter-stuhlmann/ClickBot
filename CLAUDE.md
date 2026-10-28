@@ -4,7 +4,7 @@ Web-Tool zum automatisierten Testen von Websites (eigene Seiten und Kundenseiten
 Ein Bot öffnet eine Seite in einem echten Browser, führt einen Ablauf aus (klicken, Formulare
 ausfüllen, prüfen) und erstellt pro Lauf einen Report auf dem Bildschirm und als PDF.
 
-Status: Grundgerüst, Datenbank-Schicht, Ablauf-Ausführung und der erste Screen stehen.
+Status: Grundgerüst, Datenbank-Schicht, Worker mit Zeitplan und der erste Screen stehen.
 
 - **Fertig:**
   - das Design (Figma)
@@ -13,10 +13,14 @@ Status: Grundgerüst, Datenbank-Schicht, Ablauf-Ausführung und der erste Screen
     Kennzahlen, Demo-Daten
   - `apps/web`: App-Rahmen mit Sidebar und Screen 01 „Jobs“ mit echten Daten, inklusive
     Pausieren und Fortsetzen
-  - `apps/worker`: führt einen Ablauf mit Playwright aus (`runFlow`)
+  - `apps/worker`:
+    - plant fällige Termine ein und führt sie mit Playwright aus
+    - speichert Ergebnis, Schritte und Bildschirmfotos
+    - meldet seinen Status an die Web-App
+    - emuliert Geräte in Chromium
 - **Noch nicht gebaut:**
-  - im Worker: Queue (pg-boss), Speichern der Ergebnisse, Status an die Web-App, Proxies und
-    Geräte, KI- und Code-Schritte, Live-Stream
+  - im Worker: Proxies und Standort-Profile, echtes WebKit für iPhone/iPad, KI- und
+    Code-Schritte, Live-Stream, Markierung der Bot-Läufe für Analytics
   - Login (bis dahin zeigt die Sidebar den ältesten Benutzer, siehe `src/server/session.ts`)
   - alle übrigen Screens; „Neuer Job“ hat noch kein Ziel
 
@@ -88,7 +92,8 @@ Bewusst festgehaltene Versionen:
 
 Hochziehen erst, wenn beide Pakete die neue Version offiziell unterstützen.
 
-- **Datenbank und Queue:** Postgres, Jobs über pg-boss (keine separate Redis-Instanz).
+- **Datenbank und Queue:** Postgres. Die Tabelle `runs` ist selbst die Warteschlange, ohne
+  pg-boss und ohne Redis. So gibt es nur eine Quelle der Wahrheit (siehe Abschnitt Worker).
 - **Ablauf:** wird als JSON-Schrittliste gespeichert, validiert mit Zod aus `packages/shared`.
   - Schritt-Typen: öffnen, klicken, ausfüllen, auswählen, prüfen, auslesen, warten,
     screenshot, analytics, KI-Schritt, Code.
@@ -139,11 +144,44 @@ Hochziehen erst, wenn beide Pakete die neue Version offiziell unterstützen.
   wartet, bis das Event gesendet wurde.
 - **Noch nicht verfügbar:** KI- und Code-Schritte schlagen mit klarer Meldung fehl, bis sie
   gebaut sind.
+- **Warteschlange** (`packages/db/src/queue.ts`), pro Takt (1 s) in `createWorker`:
+  1. `planDueRuns` legt für aktive Jobs die fälligen Starts als `queued`-Läufe an.
+     - Ein Start ist Termin × Bot × Gerät.
+     - Vorlauf 60 s. Verpasste Starts älter als 5 Min. werden übersprungen, nicht nachgeholt.
+     - Doppelte Planung ist ausgeschlossen: Zeilensperre auf dem Job plus eindeutiger Index
+       `runs_scheduled_start_unique`.
+     - Ist der letzte Start vorbei und nichts mehr offen, wird der Job `finished`.
+  2. `claimNextRun` holt mit `FOR UPDATE SKIP LOCKED` den frühesten fälligen Lauf eines aktiven
+     Jobs. Jeder Lauf geht so an genau einen Worker.
+  3. Höchstens `MAX_CONCURRENT_BROWSERS` Läufe laufen gleichzeitig. Jeder Lauf bekommt einen
+     eigenen Browser-Context.
+  4. `completeRun` speichert Ergebnis und Schritte in einer Transaktion.
+     - Bildschirmfotos liegen unter `ARTIFACTS_DIR` (Standard `data/artifacts/`), der Pfad
+       steht in `run_steps.screenshot_path`.
+     - Fehler außerhalb des Ablaufs, z. B. bei Zugangsdaten oder Browser, beenden den Lauf als
+       „Lauf konnte nicht ausgeführt werden: …“.
+- **Ein Worker:** Beim Start markiert er alle noch `running`-Läufe als abgebrochen
+  (`recoverStaleRuns`).
+  - Danach alle 15 Min. nur noch Läufe, die länger als 15 Min. laufen.
+  - Mehrere Worker parallel bräuchten vorher eine Absprache über diesen Schritt.
+- **Lebenszeichen:** Alle 10 s schreibt der Worker in `worker_heartbeats`. Die Web-App zeigt
+  „online“, wenn der letzte Eintrag höchstens 30 s alt ist.
+- **Geräte** (`contextOptionsFor`):
+  - Desktop 1440 × 900, iPhone 15, Pixel 8, iPad (gen 11), alle in Chromium mit Deutsch und
+    Europe/Berlin.
+  - Viewport, User-Agent und Touch sind echt, die Safari-Engine nicht.
+- **Demo-Website** (`apps/worker/demo-site/`, `pnpm demo-site`, Port 4100):
+  - Die Demo-Jobs aus `pnpm db:seed` zeigen nur auf `127.0.0.1:4100`, nie auf echte fremde
+    Domains. Ein Test in `seed.test.ts` sichert das ab.
+  - Neue Demo-Jobs immer auf diese Website legen.
 - **Tests:**
   - Echtes Chromium gegen die lokalen Testseiten in `test/fixtures/site/`. Spezialpfade:
     `/fehler` liefert HTTP 500, `/haengt` antwortet nie.
   - `useBrowser()` (`test/browser.ts`) lässt nur die Testseite durch, beantwortet GA4 lokal
     und blockiert alles andere.
+  - Die Worker-Tests mit Datenbank nutzen eine eigene Datenbank `clickbot_worker_test` im
+    `db-test`-Container. Sie wird in `test/global-setup.ts` angelegt und laufen deshalb parallel
+    zu den Tests von `packages/db`.
   - Chromium installieren: `pnpm --filter @click-bot/worker browsers`.
 
 ## Lokale Entwicklung
@@ -162,7 +200,8 @@ Hochziehen erst, wenn beide Pakete die neue Version offiziell unterstützen.
   - `.env` wird nie committet.
   - Geht `SECRETS_KEY` verloren, lassen sich gespeicherte Zugangsdaten nicht mehr
     entschlüsseln.
-- **pg-boss** nutzt dieselbe Datenbank, im eigenen Schema `pgboss`.
+- **Alles lokal ausprobieren:** `pnpm db:up`, `pnpm db:reset`, dann in drei Terminals
+  `pnpm demo-site`, `pnpm worker` und `pnpm dev`.
 
 ## Hosting (geplant)
 
@@ -301,6 +340,8 @@ Alle Befehle im Repo-Root ausführen.
 | `pnpm db:generate`                         | nach Schema-Änderung neue SQL-Migration erzeugen                            |
 | `pnpm db:seed`                             | Demo-Daten (4 Jobs aus dem Design) in eine leere Entwicklungs-DB schreiben  |
 | `pnpm db:reset`                            | Entwicklungs-DB löschen, neu migrieren und Demo-Daten anlegen               |
+| `pnpm demo-site`                           | lokale Demo-Website für die Demo-Jobs auf http://127.0.0.1:4100             |
+| `pnpm worker`                              | Worker starten: plant und führt Läufe aus (liest `.env`)                    |
 | `pnpm test:e2e`                            | Playwright-Tests gegen echten Next-Server und Test-DB (nicht in `test`)     |
 | `pnpm --filter @click-bot/worker browsers` | Chromium für Playwright installieren (einmalig, nötig für die Worker-Tests) |
 | `pnpm dev`                                 | Web-App auf http://localhost:3000                                           |

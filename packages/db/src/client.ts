@@ -12,5 +12,10 @@ export type DbConnection = {
 
 export function createDb(connectionString: string): DbConnection {
   const pool = new pg.Pool({ connectionString, max: 10 });
+  // Without a listener, a dropped idle connection (e.g. database restart) crashes the process.
+  // The pool replaces the client on the next query.
+  pool.on('error', (error) => {
+    console.error('Datenbank-Verbindung unterbrochen, sie wird neu aufgebaut:', error.message);
+  });
   return { db: drizzle(pool, { schema }), pool, close: () => pool.end() };
 }

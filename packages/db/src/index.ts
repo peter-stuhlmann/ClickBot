@@ -18,4 +18,17 @@ export {
   type DashboardStats,
   type JobOverviewRow,
 } from './overview';
-export { seedDemoData } from './seed';
+export { DEFAULT_DEMO_SITE_URL, seedDemoData } from './seed';
+export {
+  claimNextRun,
+  completeRun,
+  getWorkerStatus,
+  planDueRuns,
+  recordHeartbeat,
+  recoverStaleRuns,
+  type ClaimedRun,
+  type PlanOptions,
+  type Run,
+  type RunOutcome,
+  type StepRecord,
+} from './queue';

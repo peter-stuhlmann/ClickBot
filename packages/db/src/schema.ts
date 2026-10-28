@@ -180,6 +180,11 @@ export const runs = pgTable(
   },
   (t) => [
     uniqueIndex('runs_job_run_nr_unique').on(t.jobId, t.runNr),
+    // A scheduled start (slot × bot × device) becomes exactly one run, even if two
+    // schedulers plan at the same time. Manual test runs have no slot and are not affected.
+    uniqueIndex('runs_scheduled_start_unique')
+      .on(t.jobId, t.slotIndex, t.botNr, t.device)
+      .where(sql`${t.slotIndex} IS NOT NULL`),
     index('runs_status_scheduled_idx').on(t.status, t.scheduledAt),
     check('runs_bot_nr_positive', sql`${t.botNr} > 0`),
     check(
@@ -210,3 +215,10 @@ export const runSteps = pgTable(
     check('run_steps_duration_positive', sql`${t.durationMs} >= 0`),
   ],
 );
+
+/** Sign of life of a worker process; the web app shows "Worker online" from it. */
+export const workerHeartbeats = pgTable('worker_heartbeats', {
+  workerId: text('worker_id').primaryKey(),
+  startedAt: timestamp('started_at', { withTimezone: true }).notNull(),
+  lastSeenAt: timestamp('last_seen_at', { withTimezone: true }).notNull(),
+});

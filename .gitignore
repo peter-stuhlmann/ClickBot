@@ -16,3 +16,4 @@ test-results/
 Thumbs.db
 next-env.d.ts
 .next-e2e/
+data/

@@ -5,7 +5,9 @@ import { customers, jobs, runs, users } from './schema';
 
 type DemoJob = {
   name: string;
-  startUrl: string;
+  /** Page of the local demo website (apps/worker/demo-site). */
+  path: string;
+  steps: unknown[];
   everyMinutes: number;
   maxRuns: number;
   status: 'active' | 'finished';
@@ -18,11 +20,35 @@ type DemoJob = {
 const runsOf = (count: number, exceptions: Record<number, 'warning' | 'failed'> = {}) =>
   Array.from({ length: count }, (_, i) => exceptions[i] ?? 'passed');
 
-// The four jobs of screen "01 Jobs" in Figma.
+const fill = (id: string, label: string, value: string) => ({
+  id,
+  type: 'fill',
+  target: { by: 'label', label },
+  value,
+});
+const click = (id: string, name: string) => ({
+  id,
+  type: 'click',
+  target: { by: 'role', role: 'button', name },
+});
+const seeText = (id: string, text: string) => ({
+  id,
+  type: 'assert',
+  assertion: { kind: 'textVisible', text },
+});
+
+// The four jobs of screen "01 Jobs" in Figma. They target the local demo website, never a real
+// third-party site: a running worker executes them for real.
 const DEMO_JOBS: DemoJob[] = [
   {
     name: 'Kontaktformular-Test',
-    startUrl: 'https://beispiel.de/kontakt',
+    path: '/kontakt.html',
+    steps: [
+      fill('name', 'Name', '{{faker.name}}'),
+      fill('mail', 'E-Mail', '{{faker.email}}'),
+      click('send', 'Absenden'),
+      seeText('thanks', 'Vielen Dank'),
+    ],
     everyMinutes: 15,
     maxRuns: 20,
     status: 'active',
@@ -31,7 +57,12 @@ const DEMO_JOBS: DemoJob[] = [
   },
   {
     name: 'Newsletter-Anmeldung',
-    startUrl: 'https://shop.beispiel.de/newsletter',
+    path: '/newsletter.html',
+    steps: [
+      fill('mail', 'E-Mail', '{{faker.email}}'),
+      click('subscribe', 'Anmelden'),
+      seeText('confirm', 'Bitte bestätige'),
+    ],
     everyMinutes: 60,
     maxRuns: 24,
     status: 'active',
@@ -40,7 +71,13 @@ const DEMO_JOBS: DemoJob[] = [
   },
   {
     name: 'Login & Bestellstatus',
-    startUrl: 'https://portal.beispiel.de/login',
+    path: '/login.html',
+    steps: [
+      fill('user', 'Benutzername', 'demo'),
+      fill('password', 'Passwort', 'demo'),
+      click('login', 'Anmelden'),
+      seeText('orders', 'Bestellstatus'),
+    ],
     everyMinutes: 30,
     maxRuns: 48,
     status: 'active',
@@ -49,7 +86,11 @@ const DEMO_JOBS: DemoJob[] = [
   },
   {
     name: 'Preis-Check Produktseite',
-    startUrl: 'https://preise.beispiel.de/p/4711',
+    path: '/preis.html',
+    steps: [
+      { id: 'price', type: 'extract', target: { by: 'testId', testId: 'price' }, saveAs: 'preis' },
+      seeText('expected', '49,90 €'),
+    ],
     everyMinutes: 120,
     maxRuns: 10,
     status: 'finished',
@@ -58,11 +99,17 @@ const DEMO_JOBS: DemoJob[] = [
   },
 ];
 
+export const DEFAULT_DEMO_SITE_URL = 'http://127.0.0.1:4100';
+
 /**
  * Demo data for local development (`pnpm db:seed`). Writes only into a database without
  * customers and returns false otherwise, so it can never mix with real data.
  */
-export async function seedDemoData(db: Database, now: Date): Promise<boolean> {
+export async function seedDemoData(
+  db: Database,
+  now: Date,
+  demoSiteUrl = DEFAULT_DEMO_SITE_URL,
+): Promise<boolean> {
   return db.transaction(async (tx) => {
     // Serialise concurrent seeds: the emptiness check and the inserts must not interleave.
     await tx.execute(sql`LOCK TABLE customers IN EXCLUSIVE MODE`);
@@ -88,16 +135,14 @@ export async function seedDemoData(db: Database, now: Date): Promise<boolean> {
       const lastRunAt = now.getTime() - demo.lastRunMinutesAgo * 60_000;
       const firstRunAt = lastRunAt - (demo.results.length - 1) * intervalMs;
 
+      const startUrl = new URL(demo.path, demoSiteUrl).href;
       const job = await createJob(tx, {
         customerId: customer.id,
         name: demo.name,
-        startUrl: demo.startUrl,
+        startUrl,
         flow: {
           version: 1,
-          steps: [
-            { id: 'open', type: 'open', url: demo.startUrl },
-            { id: 'check', type: 'assert', assertion: { kind: 'urlContains', value: '/' } },
-          ],
+          steps: [{ id: 'open', type: 'open', url: startUrl }, ...demo.steps],
         },
         schedule: {
           type: 'interval',
@@ -113,6 +158,8 @@ export async function seedDemoData(db: Database, now: Date): Promise<boolean> {
           return {
             jobId: job.id,
             runNr: i + 1,
+            // The run of interval start i, so the planner sees it as done and never repeats it.
+            slotIndex: i,
             device: 'desktop' as const,
             status,
             scheduledAt: new Date(finishedAt.getTime() - 9_000),

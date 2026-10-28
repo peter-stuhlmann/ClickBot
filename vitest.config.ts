@@ -15,6 +15,9 @@ export default defineConfig({
         // Thin CLI wrappers around runMigrations and seedDemoData, which are tested.
         'packages/db/src/migrate-cli.ts',
         'packages/db/src/seed-cli.ts',
+        // Process wiring (signals, timers) around createWorker, which is tested.
+        'apps/worker/src/main.ts',
+        'apps/worker/src/demo-site.ts',
         // Declarative table definitions; their callbacks only run in drizzle-kit. The resulting
         // constraints are tested against the real database in schema.test.ts.
         'packages/db/src/schema.ts',

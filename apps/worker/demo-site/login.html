@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="de">
+  <head>
+    <meta charset="utf-8" />
+    <title>Login – Demo-Website</title>
+  </head>
+  <body>
+    <h1>Kundenportal</h1>
+    <form id="login">
+      <label for="user">Benutzername</label>
+      <input id="user" required />
+      <label for="password">Passwort</label>
+      <input id="password" type="password" required />
+      <button type="submit">Anmelden</button>
+    </form>
+    <section id="orders" hidden>
+      <h2>Bestellstatus</h2>
+      <p>Bestellung 4711: unterwegs</p>
+    </section>
+    <p id="error" role="alert" hidden>Benutzername oder Passwort falsch.</p>
+    <script>
+      document.getElementById('login').addEventListener('submit', (event) => {
+        event.preventDefault();
+        const ok =
+          document.getElementById('user').value === 'demo' &&
+          document.getElementById('password').value === 'demo';
+        document.getElementById(ok ? 'orders' : 'error').hidden = false;
+        document.getElementById('login').hidden = ok;
+      });
+    </script>
+  </body>
+</html>

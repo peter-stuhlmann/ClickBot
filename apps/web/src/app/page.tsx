@@ -1,4 +1,4 @@
-import { getDashboardStats, listJobOverview } from '@click-bot/db';
+import { getDashboardStats, getWorkerStatus, listJobOverview } from '@click-bot/db';
 import { Button } from '@/components/atoms/Button';
 import { Icon } from '@/components/atoms/Icon';
 import { JobsTable } from '@/components/organisms/JobsTable';
@@ -16,15 +16,15 @@ export const dynamic = 'force-dynamic';
 export default async function JobsPage() {
   const db = getDb();
   const now = new Date();
-  const [rows, stats, user] = await Promise.all([
+  const [rows, stats, user, worker] = await Promise.all([
     listJobOverview(db),
     getDashboardStats(db, now),
     getCurrentUser(db),
+    getWorkerStatus(db, now),
   ]);
 
   return (
-    // The worker does not report its status yet, so the shell shows it as offline.
-    <AppShell active="jobs" user={user} worker={{ online: false, activeRuns: 0 }}>
+    <AppShell active="jobs" user={user} worker={worker}>
       <PageHeader
         title="Jobs"
         description="Automatisierte Browser-Abläufe, die nach Zeitplan laufen."
