@@ -30,6 +30,37 @@ test.describe('Job-Editor', () => {
     );
   });
 
+  test('saves an .htaccess password without ever sending it back to the browser', async ({
+    page,
+  }) => {
+    await page.goto('/');
+    await page.getByRole('link', { name: 'Newsletter-Anmeldung', exact: true }).click();
+    await expect(
+      page.getByRole('heading', { level: 1, name: 'Newsletter-Anmeldung' }),
+    ).toBeVisible();
+    const steps = page.getByRole('button', { name: /^Schritt \d+:/ });
+    const before = await steps.count();
+
+    await page.getByRole('button', { name: 'Schritt hinzufügen' }).click();
+    await page
+      .getByRole('combobox', { name: 'Aktion' })
+      .selectOption({ label: 'Passwortschutz (.htaccess)' });
+    await page.getByRole('textbox', { name: 'Benutzername' }).fill('kunde');
+    await page.getByLabel('Passwort', { exact: true }).fill('e2e-geheim-4711');
+    await page.getByRole('button', { name: 'Speichern' }).click();
+    await expect(page.getByRole('status').filter({ hasText: 'Gespeichert.' })).toBeVisible();
+
+    await page.reload();
+    await expect(steps).toHaveCount(before + 1);
+    await steps.last().click();
+    await expect(page.getByLabel('Passwort', { exact: true })).toHaveValue('');
+    await expect(page.getByLabel('Passwort', { exact: true })).toHaveAttribute(
+      'placeholder',
+      'Gespeichert – leer lassen, um es zu behalten',
+    );
+    expect(await page.content()).not.toContain('e2e-geheim-4711');
+  });
+
   test('does not save an invalid job', async ({ page }) => {
     await page.goto('/');
     await page.getByRole('link', { name: 'Newsletter-Anmeldung', exact: true }).click();

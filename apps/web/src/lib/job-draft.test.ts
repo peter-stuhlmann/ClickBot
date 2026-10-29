@@ -377,9 +377,13 @@ describe('stepErrors', () => {
       { path: 'flow.steps.1.timeoutMs', message: 'E' },
       { path: 'flow.steps.1.target.role', message: 'F' },
       { path: 'flow.steps.1.id', message: 'G' },
+      { path: 'flow.steps.1.username', message: 'H' },
+      { path: 'flow.steps.1.password', message: 'I' },
       { path: 'flow.steps.2.url', message: 'other step' },
     ];
     expect(stepErrors(issues, 1)).toEqual({
+      username: 'H',
+      password: 'I',
       url: 'A',
       targetValue: 'B',
       value: 'C',
@@ -557,5 +561,25 @@ describe('GA4 marking in the wizard', () => {
       now,
     );
     expect(rows.at(-1)).toEqual({ label: 'GA4-Markierung', value: 'Aus: Debug-Modus' });
+  });
+});
+
+describe('.htaccess steps in the wizard', () => {
+  it('need a user name and a password', () => {
+    const issues = validateWizardStep(draft({ steps: [step('basicAuth')] }), 'flow', now);
+    expect(issues).toEqual([
+      { path: 'flow.steps.0.username', message: 'Bitte ausfüllen.' },
+      { path: 'flow.steps.0.password', message: 'Bitte ausfüllen.' },
+    ]);
+  });
+
+  it('send user name and password to the server, which stores the password encrypted', () => {
+    const auth = step('basicAuth', { username: ' kunde ', password: 'geheim 123' });
+    expect(toNewJobInput(draft({ steps: [auth] }), now).flow.steps[0]).toMatchObject({
+      type: 'basicAuth',
+      username: 'kunde',
+      // Spaces may belong to a password: sent exactly as typed.
+      password: 'geheim 123',
+    });
   });
 });

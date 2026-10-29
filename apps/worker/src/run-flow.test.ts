@@ -182,6 +182,95 @@ describe('runFlow – happy path', () => {
   });
 });
 
+describe('runFlow – elements in iframes, e.g. cookie banners', () => {
+  it('clicks a button inside an iframe that loads late', async () => {
+    const result = await run([
+      step('open', { type: 'open', url: '/consent-iframe.html' }),
+      step('consent', { type: 'click', target: role('button', 'Einwilligen und weiter') }),
+      step('done', {
+        type: 'assert',
+        assertion: { kind: 'textVisible', text: 'Einwilligung gespeichert.' },
+      }),
+    ]);
+    expect(result.steps.map((s) => [s.stepId, s.status, s.message])).toEqual([
+      ['open', 'passed', undefined],
+      ['consent', 'passed', undefined],
+      ['done', 'passed', undefined],
+    ]);
+  });
+
+  it('sees text inside an iframe', async () => {
+    const result = await run([
+      step('open', { type: 'open', url: '/consent-iframe.html' }),
+      step('banner', {
+        type: 'assert',
+        assertion: { kind: 'textVisible', text: 'Herzlich willkommen!' },
+      }),
+    ]);
+    expect(result.status).toBe('passed');
+  });
+
+  it('refuses to guess when the page and an iframe both have the element', async () => {
+    const result = await run([
+      step('open', { type: 'open', url: '/consent-iframe.html' }),
+      step('wait', {
+        type: 'wait',
+        until: { kind: 'element', target: role('button', 'Einwilligen und weiter') },
+      }),
+      step('both', { type: 'click', target: { by: 'text', text: 'Kontakt', exact: true } }),
+    ]);
+    expect(result.steps[2]).toMatchObject({
+      status: 'failed',
+      message: 'Mehrdeutig: Text „Kontakt“ passt auf 2 Elemente.',
+    });
+  });
+});
+
+describe('runFlow – .htaccess password protection', () => {
+  const protectedPage = [
+    step('auth', { type: 'basicAuth', username: 'demo', password: '{{secret.staging}}' }),
+    step('open', { type: 'open', url: '/geschuetzt' }),
+    step('see', {
+      type: 'assert',
+      assertion: { kind: 'textVisible', text: 'Geschützter Bereich' },
+    }),
+  ];
+
+  it('opens a protected page with user name and password', async () => {
+    const result = await run(protectedPage, { secrets: { staging: 'geheim-123' } });
+    expect(result.status).toBe('passed');
+  });
+
+  it('explains a wrong password, without showing it', async () => {
+    const result = await run(protectedPage, { secrets: { staging: 'falsch-falsch' } });
+    expect(result.steps[1]).toMatchObject({
+      status: 'failed',
+      message:
+        'Seite antwortet mit HTTP 401: Sie ist passwortgeschützt, Benutzername oder Passwort stimmen nicht.',
+    });
+    expect(JSON.stringify(result)).not.toContain('falsch-falsch');
+  });
+
+  it('says what is missing when a protected page is opened without the step', async () => {
+    const result = await run([step('open', { type: 'open', url: '/geschuetzt' })]);
+    expect(result.steps[0]?.message).toBe(
+      'Seite antwortet mit HTTP 401: Sie ist passwortgeschützt. Davor gehört ein Schritt „Passwortschutz“.',
+    );
+  });
+
+  it('uses the newest credentials when the step comes twice', async () => {
+    const result = await run(
+      [
+        step('auth-old', { type: 'basicAuth', username: 'demo', password: 'alt-passwort' }),
+        step('auth', { type: 'basicAuth', username: 'demo', password: '{{secret.staging}}' }),
+        ...protectedPage.slice(1),
+      ],
+      { secrets: { staging: 'geheim-123' } },
+    );
+    expect(result.status).toBe('passed');
+  });
+});
+
 describe('runFlow – failures', () => {
   it('stops at a missing element, explains it and skips the remaining steps', async () => {
     const result = await run([

@@ -217,3 +217,50 @@ describe('StepForm', () => {
     expect(screen.getByText('Schritt-ID „open-1“ ist doppelt.')).toBeVisible();
   });
 });
+
+describe('StepForm for .htaccess password protection', () => {
+  it('asks for user name and password only', () => {
+    render(<Harness initial={step('basicAuth')} />);
+    expect(labels()).toEqual(['Aktion', 'Benutzername', 'Passwort']);
+    expect(screen.getByLabelText('Passwort')).toHaveAttribute('type', 'password');
+    expect(screen.getByLabelText('Passwort')).toHaveAttribute('autocomplete', 'new-password');
+    expect(screen.getByText(/verschlüsselt als Zugangsdaten/)).toBeInTheDocument();
+  });
+
+  it('passes what is typed on', async () => {
+    const user = userEvent.setup();
+    const onChange = vi.fn();
+    render(<Harness initial={step('basicAuth')} onChange={onChange} />);
+    await user.type(screen.getByRole('textbox', { name: 'Benutzername' }), 'kunde');
+    await user.type(screen.getByLabelText('Passwort'), 'geheim');
+    expect(onChange).toHaveBeenLastCalledWith(
+      expect.objectContaining({ username: 'kunde', password: 'geheim' }),
+    );
+  });
+
+  it('leaves the field empty for a stored password and says that it is kept', () => {
+    render(
+      <Harness
+        initial={step('basicAuth', { storedPassword: '{{secret.htaccess-beispiel-de}}' })}
+      />,
+    );
+    expect(screen.getByLabelText('Passwort')).toHaveValue('');
+    expect(screen.getByLabelText('Passwort')).toHaveAttribute(
+      'placeholder',
+      'Gespeichert – leer lassen, um es zu behalten',
+    );
+  });
+
+  it('shows the errors at the fields', () => {
+    render(
+      <Harness
+        initial={step('basicAuth')}
+        errors={{ username: 'Bitte ausfüllen.', password: 'Bitte ausfüllen.' }}
+      />,
+    );
+    expect(screen.getByRole('textbox', { name: 'Benutzername' })).toHaveAccessibleDescription(
+      /Bitte ausfüllen/,
+    );
+    expect(screen.getByLabelText('Passwort')).toHaveAccessibleDescription(/Bitte ausfüllen/);
+  });
+});

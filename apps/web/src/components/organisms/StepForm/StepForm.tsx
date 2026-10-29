@@ -111,6 +111,40 @@ export function StepForm({ index, step, errors, onChange }: StepFormProps) {
         </Field>
       )}
 
+      {step.type === 'basicAuth' && (
+        <>
+          <Field id="step-username" label="Benutzername" error={errors.username}>
+            {(control) => (
+              <Input
+                {...control}
+                autoComplete="off"
+                value={step.username}
+                onChange={(event) => set({ username: event.target.value })}
+              />
+            )}
+          </Field>
+          <Field
+            id="step-password"
+            label="Passwort"
+            hint="Wird verschlüsselt als Zugangsdaten des Kunden gespeichert und erscheint nie im Report."
+            error={errors.password}
+          >
+            {(control) => (
+              <Input
+                {...control}
+                type="password"
+                autoComplete="new-password"
+                placeholder={
+                  step.storedPassword ? 'Gespeichert – leer lassen, um es zu behalten' : undefined
+                }
+                value={step.password}
+                onChange={(event) => set({ password: event.target.value })}
+              />
+            )}
+          </Field>
+        </>
+      )}
+
       {step.type === 'assert' && (
         <Field id="step-assert" label="Prüfung">
           {(control) => (
@@ -231,21 +265,23 @@ export function StepForm({ index, step, errors, onChange }: StepFormProps) {
         </Field>
       )}
 
-      <Field
-        id="step-timeout"
-        label="Timeout (Sekunden)"
-        hint="So lange wartet der Bot auf die Seite oder das Element."
-        error={errors.timeoutSeconds}
-      >
-        {(control) => (
-          <Input
-            {...control}
-            inputMode="decimal"
-            value={step.timeoutSeconds}
-            onChange={(event) => set({ timeoutSeconds: event.target.value })}
-          />
-        )}
-      </Field>
+      {step.type !== 'basicAuth' && (
+        <Field
+          id="step-timeout"
+          label="Timeout (Sekunden)"
+          hint="So lange wartet der Bot auf die Seite oder das Element."
+          error={errors.timeoutSeconds}
+        >
+          {(control) => (
+            <Input
+              {...control}
+              inputMode="decimal"
+              value={step.timeoutSeconds}
+              onChange={(event) => set({ timeoutSeconds: event.target.value })}
+            />
+          )}
+        </Field>
+      )}
 
       {errors.general && <p className="text-small text-danger">{errors.general}</p>}
     </Card>

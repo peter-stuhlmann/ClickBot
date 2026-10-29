@@ -13,6 +13,7 @@ export const STEP_TYPE_OPTIONS: readonly Option<EditableStepType>[] = [
   { value: 'wait', label: 'Warten' },
   { value: 'screenshot', label: 'Bildschirmfoto' },
   { value: 'analytics', label: 'Analytics-Event prüfen' },
+  { value: 'basicAuth', label: 'Passwortschutz (.htaccess)' },
 ];
 
 export const TARGET_OPTIONS: readonly Option<TargetBy>[] = [
@@ -57,6 +58,7 @@ const TYPE_BADGE: Record<EditableStepType, { typeLabel: string; tone: StepTone }
   wait: { typeLabel: 'Warten', tone: 'neutral' },
   screenshot: { typeLabel: 'Screenshot', tone: 'neutral' },
   analytics: { typeLabel: 'Analytics', tone: 'warning' },
+  basicAuth: { typeLabel: 'Passwortschutz', tone: 'neutral' },
 };
 
 const EMPTY = '…';
@@ -143,6 +145,15 @@ function describeContent(step: StepDraft): Content {
       };
     case 'analytics':
       return { title: `GA4-Event „${or(value)}“`, detail: `ga4 event = "${value}"` };
+    case 'basicAuth': {
+      // Never the password itself, not even its length.
+      const user = step.username.trim();
+      const hasPassword = step.password !== '' || step.storedPassword !== '';
+      return {
+        title: `Passwortschutz als „${or(user)}“`,
+        detail: `basic auth, user = "${user}", ${hasPassword ? 'password = ••••••' : 'password fehlt'}`,
+      };
+    }
   }
 }
 

@@ -1,0 +1,17 @@
+<!doctype html>
+<html lang="de">
+  <head>
+    <meta charset="utf-8" />
+    <title>Einwilligung</title>
+  </head>
+  <body>
+    <p>Herzlich willkommen! Wir nutzen Cookies.</p>
+    <button type="button" id="agree">Einwilligen und weiter</button>
+    <button type="button">Kontakt</button>
+    <script>
+      document.getElementById('agree').addEventListener('click', () => {
+        parent.postMessage('consent-given', '*');
+      });
+    </script>
+  </body>
+</html>

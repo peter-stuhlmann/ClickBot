@@ -24,7 +24,8 @@ export {
   type NewJobInput,
 } from './jobs';
 export * as schema from './schema';
-export { createSecret, resolveSecretsForRun, type NewSecretInput } from './secrets';
+export { createSecret, resolveSecretsForRun, saveSecret, type NewSecretInput } from './secrets';
+export { secureStepPasswords } from './step-secrets';
 export {
   getDashboardStats,
   listJobOverview,

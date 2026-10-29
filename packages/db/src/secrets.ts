@@ -17,7 +17,7 @@ export type NewSecretInput = {
 // Same rule as the secrets_name_format check; used in flows as {{secret.<name>}}.
 const SECRET_NAME = /^[a-z0-9]+([-_][a-z0-9]+)*$/;
 
-export async function createSecret(db: Database, cipher: Cipher, input: NewSecretInput) {
+function secretIssues(input: NewSecretInput): ValidationIssue[] {
   const issues: ValidationIssue[] = [];
   if (!SECRET_NAME.test(input.name)) {
     issues.push({
@@ -37,6 +37,11 @@ export async function createSecret(db: Database, cipher: Cipher, input: NewSecre
       });
     }
   });
+  return issues;
+}
+
+export async function createSecret(db: Database, cipher: Cipher, input: NewSecretInput) {
+  const issues = secretIssues(input);
   if (issues.length > 0) throw new ValidationError(issues);
 
   const [secret] = await db
@@ -48,6 +53,23 @@ export async function createSecret(db: Database, cipher: Cipher, input: NewSecre
       allowedDomains: input.allowedDomains,
       expiresAt: input.expiresAt ?? null,
     })
+    .returning({ id: secrets.id, name: secrets.name });
+  return secret;
+}
+
+/** Creates the secret, or replaces value and domains of the customer's secret with that name. */
+export async function saveSecret(db: Database, cipher: Cipher, input: NewSecretInput) {
+  const issues = secretIssues(input);
+  if (issues.length > 0) throw new ValidationError(issues);
+  const values = {
+    valueEnc: cipher.encrypt(input.value),
+    allowedDomains: input.allowedDomains,
+    expiresAt: input.expiresAt ?? null,
+  };
+  const [secret] = await db
+    .insert(secrets)
+    .values({ customerId: input.customerId ?? null, name: input.name, ...values })
+    .onConflictDoUpdate({ target: [secrets.customerId, secrets.name], set: values })
     .returning({ id: secrets.id, name: secrets.name });
   return secret;
 }

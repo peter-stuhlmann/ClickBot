@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="de">
+  <head>
+    <meta charset="utf-8" />
+    <title>Nachrichten – Beispiel GmbH</title>
+  </head>
+  <body>
+    <h1>Nachrichten</h1>
+    <p id="state">Noch keine Einwilligung.</p>
+    <a href="/kontakt.html">Kontakt</a>
+
+    <!-- Like many consent tools: the banner lives in its own iframe and is loaded a bit later. -->
+    <script>
+      setTimeout(() => {
+        const frame = document.createElement('iframe');
+        frame.id = 'consent';
+        frame.title = 'Einwilligung';
+        frame.src = '/consent-frame.html';
+        document.body.append(frame);
+      }, 300);
+      window.addEventListener('message', (event) => {
+        if (event.data !== 'consent-given') return;
+        document.getElementById('consent').remove();
+        document.getElementById('state').textContent = 'Einwilligung gespeichert.';
+      });
+    </script>
+  </body>
+</html>

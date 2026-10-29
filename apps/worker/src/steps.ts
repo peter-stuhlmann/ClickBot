@@ -1,8 +1,9 @@
 import { interpolate, type Step, type Target, type VariableContext } from '@click-bot/shared';
 import type { Locator, Page } from 'playwright';
 import type { Ga4Recorder } from './analytics';
+import { basicAuthHeader, hasBasicAuth, useBasicAuth } from './basic-auth';
 import { StepError, ambiguousCount, formatSeconds, isTimeout } from './errors';
-import { describeTarget, locate } from './targets';
+import { describeTarget, findTarget, waitForVisibleText } from './targets';
 
 export type StepContext = {
   vars: VariableContext;
@@ -15,15 +16,21 @@ export type StepOutcome = {
   screenshot?: Buffer;
 };
 
-/** Runs `action` on the target's locator and translates Playwright errors into report text. */
+/**
+ * Finds the target (also in iframes), runs `action` on it with the time that is left, and
+ * translates Playwright errors into report text.
+ */
 async function onTarget<T>(
   page: Page,
   target: Target,
   timeoutMs: number,
-  action: (locator: Locator) => Promise<T>,
+  action: (locator: Locator, timeout: number) => Promise<T>,
 ): Promise<T> {
+  const started = Date.now();
+  const locator = await findTarget(page, target, timeoutMs);
+  const left = Math.max(1, timeoutMs - (Date.now() - started));
   try {
-    return await action(locate(page, target));
+    return await action(locator, left);
   } catch (error) {
     const count = ambiguousCount(error);
     if (count !== null) {
@@ -63,6 +70,13 @@ export async function executeStep(page: Page, step: Step, ctx: StepContext): Pro
         page.goto(url, { timeout }),
         () => `Seite lädt nicht (nach ${after}).`,
       );
+      if (response?.status() === 401) {
+        throw new StepError(
+          hasBasicAuth(page.context())
+            ? 'Seite antwortet mit HTTP 401: Sie ist passwortgeschützt, Benutzername oder Passwort stimmen nicht.'
+            : 'Seite antwortet mit HTTP 401: Sie ist passwortgeschützt. Davor gehört ein Schritt „Passwortschutz“.',
+        );
+      }
       if (response && response.status() >= 400) {
         throw new StepError(`Seite antwortet mit HTTP ${response.status()}.`);
       }
@@ -70,24 +84,27 @@ export async function executeStep(page: Page, step: Step, ctx: StepContext): Pro
     }
 
     case 'click':
-      await onTarget(page, step.target, timeout, (l) => l.click({ timeout }));
+      await onTarget(page, step.target, timeout, (l, left) => l.click({ timeout: left }));
       return {};
 
     case 'fill': {
       const value = text(step.value);
-      await onTarget(page, step.target, timeout, (l) => l.fill(value, { timeout }));
+      await onTarget(page, step.target, timeout, (l, left) => l.fill(value, { timeout: left }));
       return {};
     }
 
     case 'select': {
       const option = text(step.option);
-      const field = locate(page, step.target);
+      const started = Date.now();
+      const field = await findTarget(page, step.target, timeout);
       try {
-        await onTarget(page, step.target, timeout, (l) => l.selectOption(option, { timeout }));
+        await field.selectOption(option, {
+          timeout: Math.max(1, timeout - (Date.now() - started)),
+        });
       } catch (error) {
-        // selectOption also times out when the field exists but the option does not; say so
-        // instead of claiming the field is missing.
-        if ((await field.count()) !== 1) throw error;
+        // The field exists (findTarget found it), so a timeout here means the option is missing;
+        // say so instead of claiming the field is missing.
+        if (!isTimeout(error)) throw error;
         const options = (await field.locator('option').allTextContents()).map((o) => o.trim());
         throw new StepError(
           `Option „${option}“ gibt es in ${describeTarget(step.target)} nicht. ` +
@@ -102,15 +119,14 @@ export async function executeStep(page: Page, step: Step, ctx: StepContext): Pro
       switch (assertion.kind) {
         case 'textVisible': {
           const expected = text(assertion.text);
-          await onTimeout(
-            page.getByText(expected).first().waitFor({ state: 'visible', timeout }),
-            () => `Text „${expected}“ ist nicht sichtbar (nach ${after}).`,
-          );
+          if (!(await waitForVisibleText(page, expected, timeout))) {
+            throw new StepError(`Text „${expected}“ ist nicht sichtbar (nach ${after}).`);
+          }
           return {};
         }
         case 'elementVisible':
-          await onTarget(page, assertion.target, timeout, (l) =>
-            l.waitFor({ state: 'visible', timeout }),
+          await onTarget(page, assertion.target, timeout, (l, left) =>
+            l.waitFor({ state: 'visible', timeout: left }),
           );
           return {};
         case 'urlContains': {
@@ -135,7 +151,9 @@ export async function executeStep(page: Page, step: Step, ctx: StepContext): Pro
     }
 
     case 'extract': {
-      const value = await onTarget(page, step.target, timeout, (l) => l.textContent({ timeout }));
+      const value = await onTarget(page, step.target, timeout, (l, left) =>
+        l.textContent({ timeout: left }),
+      );
       return { extracted: (value ?? '').trim() };
     }
 
@@ -144,8 +162,8 @@ export async function executeStep(page: Page, step: Step, ctx: StepContext): Pro
       if (until.kind === 'duration') {
         await page.waitForTimeout(until.ms);
       } else if (until.kind === 'element') {
-        await onTarget(page, until.target, timeout, (l) =>
-          l.waitFor({ state: 'visible', timeout }),
+        await onTarget(page, until.target, timeout, (l, left) =>
+          l.waitFor({ state: 'visible', timeout: left }),
         );
       } else {
         await onTimeout(
@@ -168,6 +186,13 @@ export async function executeStep(page: Page, step: Step, ctx: StepContext): Pro
             `Gesendet: ${sent.length > 0 ? sent.join(', ') : 'keine'}.`,
         );
       }
+      return {};
+    }
+
+    case 'basicAuth': {
+      // Only to the job's own domain; the password is a secret, so it is masked everywhere.
+      const header = basicAuthHeader(text(step.username), text(step.password));
+      await useBasicAuth(page.context(), new URL(ctx.baseUrl).origin, header);
       return {};
     }
 

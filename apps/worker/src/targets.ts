@@ -1,27 +1,87 @@
 import type { Target } from '@click-bot/shared';
-import type { Locator, Page } from 'playwright';
+import type { Frame, Locator, Page } from 'playwright';
+import { StepError, formatSeconds } from './errors';
 
 type AriaRole = Parameters<Page['getByRole']>[0];
 
+const POLL_MS = 100;
+
 /**
- * Turns a step target into a Playwright locator. Names and labels match exactly, so
- * „Absenden“ never hits a button called „Absenden und weiter“.
+ * Turns a step target into a Playwright locator within one document. Names and labels match
+ * exactly, so „Absenden“ never hits a button called „Absenden und weiter“.
  */
-export function locate(page: Page, target: Target): Locator {
+export function locate(scope: Page | Frame, target: Target): Locator {
   switch (target.by) {
     case 'role':
-      return page.getByRole(
+      return scope.getByRole(
         target.role as AriaRole,
         target.name ? { name: target.name, exact: true } : {},
       );
     case 'label':
-      return page.getByLabel(target.label, { exact: true });
+      return scope.getByLabel(target.label, { exact: true });
     case 'text':
-      return page.getByText(target.text, { exact: target.exact });
+      return scope.getByText(target.text, { exact: target.exact });
     case 'css':
-      return page.locator(target.selector);
+      return scope.locator(target.selector);
     case 'testId':
-      return page.getByTestId(target.testId);
+      return scope.getByTestId(target.testId);
+  }
+}
+
+const pause = () => new Promise((resolve) => setTimeout(resolve, POLL_MS));
+
+/** Matches in a frame; 0 for a frame that went away in the meantime. */
+const countIn = (locator: Locator) => locator.count().catch(() => 0);
+
+/**
+ * Finds the target in the page and in all its iframes: cookie banners and other overlays often
+ * live in an iframe. Waits until exactly one element matches. More than one, in one document or
+ * across several, is ambiguous: the step fails instead of guessing.
+ */
+export async function findTarget(page: Page, target: Target, timeoutMs: number): Promise<Locator> {
+  const deadline = Date.now() + timeoutMs;
+  for (;;) {
+    const matches = await Promise.all(
+      page.frames().map(async (frame) => {
+        const locator = locate(frame, target);
+        return { locator, count: await countIn(locator) };
+      }),
+    );
+    const total = matches.reduce((sum, match) => sum + match.count, 0);
+    if (total > 1) {
+      throw new StepError(`Mehrdeutig: ${describeTarget(target)} passt auf ${total} Elemente.`);
+    }
+    const found = matches.find((match) => match.count === 1);
+    if (found) return found.locator;
+    if (Date.now() >= deadline) {
+      throw new StepError(
+        `Element nicht gefunden: ${describeTarget(target)} (nach ${formatSeconds(timeoutMs)}).`,
+      );
+    }
+    await pause();
+  }
+}
+
+/** Waits until `text` is visible in the page or one of its iframes. */
+export async function waitForVisibleText(
+  page: Page,
+  text: string,
+  timeoutMs: number,
+): Promise<boolean> {
+  const deadline = Date.now() + timeoutMs;
+  for (;;) {
+    const visible = await Promise.all(
+      page.frames().map((frame) =>
+        frame
+          .getByText(text)
+          .first()
+          .isVisible()
+          .catch(() => false),
+      ),
+    );
+    if (visible.includes(true)) return true;
+    if (Date.now() >= deadline) return false;
+    await pause();
   }
 }
 

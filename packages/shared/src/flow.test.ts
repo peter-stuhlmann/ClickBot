@@ -224,3 +224,28 @@ describe('messages for the editor', () => {
     );
   });
 });
+
+describe('basicAuth steps (.htaccess password protection)', () => {
+  it('take a user name and a password', () => {
+    const step = stepSchema.parse({
+      id: 'auth',
+      type: 'basicAuth',
+      username: 'kunde',
+      password: '{{secret.htaccess-beispiel-de}}',
+    });
+    expect(step).toMatchObject({ type: 'basicAuth', username: 'kunde' });
+  });
+
+  it('need both', () => {
+    const result = stepSchema.safeParse({
+      id: 'auth',
+      type: 'basicAuth',
+      username: '',
+      password: '',
+    });
+    expect(result.error?.issues.map((issue) => [issue.path.join('.'), issue.message])).toEqual([
+      ['username', 'Bitte ausfüllen.'],
+      ['password', 'Bitte ausfüllen.'],
+    ]);
+  });
+});

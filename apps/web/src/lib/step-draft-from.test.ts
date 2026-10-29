@@ -50,6 +50,13 @@ const STORED: Step[] = [
     target: { by: 'text', text: 'Mehr', exact: false },
     timeoutMs: 2_500,
   },
+  {
+    ...base,
+    id: 'auth',
+    type: 'basicAuth',
+    username: 'kunde',
+    password: '{{secret.htaccess-beispiel-de}}',
+  },
 ];
 
 describe('toStepDraft', () => {
@@ -84,5 +91,35 @@ describe('toStepDraft', () => {
     { ...base, id: 'p', type: 'code', source: 'await page.reload();' },
   ] as Step[])('has no form for $type steps yet', (step) => {
     expect(toStepDraft(step)).toBeNull();
+  });
+});
+
+describe('.htaccess steps in the form', () => {
+  const stored: Step = {
+    ...base,
+    id: 'auth',
+    type: 'basicAuth',
+    username: 'kunde',
+    password: '{{secret.htaccess-beispiel-de}}',
+  };
+  const rebuild = (draft: NonNullable<ReturnType<typeof toStepDraft>>) =>
+    toNewJobInput({ ...emptyDraft(new Date()), steps: [draft] }, new Date()).flow.steps[0];
+
+  it('never put the stored password into the password field', () => {
+    expect(toStepDraft(stored)).toMatchObject({
+      username: 'kunde',
+      password: '',
+      storedPassword: '{{secret.htaccess-beispiel-de}}',
+    });
+  });
+
+  it('keep the stored password while the field stays empty', () => {
+    const draft = toStepDraft(stored) as NonNullable<ReturnType<typeof toStepDraft>>;
+    expect(rebuild(draft)).toMatchObject({ password: '{{secret.htaccess-beispiel-de}}' });
+  });
+
+  it('send a newly typed password, which the server then stores encrypted', () => {
+    const draft = toStepDraft(stored) as NonNullable<ReturnType<typeof toStepDraft>>;
+    expect(rebuild({ ...draft, password: 'neu-123' })).toMatchObject({ password: 'neu-123' });
   });
 });

@@ -82,6 +82,8 @@ export const stepSchema = z.discriminatedUnion('type', [
     event: filled(),
     params: z.record(z.string(), z.string()).optional(),
   }),
+  // HTTP Basic Auth (.htaccess): sent to the job's own domain only, before its pages open.
+  z.object({ ...stepBase, type: z.literal('basicAuth'), username: filled(), password: filled() }),
   z.object({ ...stepBase, type: z.literal('ai'), instruction: z.string().min(1).max(2000) }),
   z.object({ ...stepBase, type: z.literal('code'), source: z.string().min(1).max(50_000) }),
 ]);

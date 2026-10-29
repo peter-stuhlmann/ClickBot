@@ -11,7 +11,8 @@ export type FixtureServer = { origin: string; close: () => Promise<void> };
 
 /**
  * Serves test/fixtures/site on a random local port.
- * Special paths: `/fehler` answers with HTTP 500, `/haengt` never answers.
+ * Special paths: `/fehler` answers with HTTP 500, `/haengt` never answers, `/geschuetzt` needs
+ * HTTP Basic Auth with demo / geheim-123 (like an .htaccess password).
  */
 export async function startFixtureServer(): Promise<FixtureServer> {
   const server = createServer(async (request, response) => {
@@ -22,6 +23,19 @@ export async function startFixtureServer(): Promise<FixtureServer> {
       return;
     }
     if (pathname === '/haengt') return;
+    if (pathname === '/geschuetzt') {
+      const expected = `Basic ${Buffer.from('demo:geheim-123').toString('base64')}`;
+      if (request.headers.authorization !== expected) {
+        response
+          .writeHead(401, { 'www-authenticate': 'Basic realm="Staging"' })
+          .end('Passwort nötig');
+        return;
+      }
+      response
+        .writeHead(200, { 'content-type': 'text/html; charset=utf-8' })
+        .end('<!doctype html><title>Staging</title><h1>Geschützter Bereich</h1>');
+      return;
+    }
     const file = join(SITE_DIR, normalize(pathname));
     if (!file.startsWith(SITE_DIR)) {
       response.writeHead(403).end();

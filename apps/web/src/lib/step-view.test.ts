@@ -122,6 +122,31 @@ describe('STEP_TYPE_OPTIONS', () => {
       'wait',
       'screenshot',
       'analytics',
+      'basicAuth',
     ]);
+  });
+});
+
+describe('describeStep for .htaccess steps', () => {
+  it('names the user but never shows the password', () => {
+    const described = describeStep(
+      step('basicAuth', { username: 'kunde', password: 'geheim-123' }),
+    );
+    expect(described).toEqual({
+      typeLabel: 'Passwortschutz',
+      tone: 'neutral',
+      title: 'Passwortschutz als „kunde“',
+      detail: 'basic auth, user = "kunde", password = ••••••',
+    });
+    expect(JSON.stringify(described)).not.toContain('geheim');
+  });
+
+  it('shows the password as missing until one is typed or stored', () => {
+    expect(describeStep(step('basicAuth', { username: 'kunde' })).detail).toBe(
+      'basic auth, user = "kunde", password fehlt',
+    );
+    expect(
+      describeStep(step('basicAuth', { storedPassword: '{{secret.htaccess-beispiel-de}}' })).detail,
+    ).toBe('basic auth, user = "", password = ••••••');
   });
 });

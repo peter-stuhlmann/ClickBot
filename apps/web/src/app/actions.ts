@@ -6,6 +6,7 @@ import {
   getJob,
   NotFoundError,
   queueTestRun,
+  secureStepPasswords,
   setJobActive,
   updateJob,
   ValidationError,
@@ -24,6 +25,7 @@ import {
 } from '@/lib/job-draft';
 import type { CustomerFormState } from '@/components/organisms/CustomerForm';
 import { requireUser } from '@/server/auth';
+import { getCipher } from '@/server/cipher';
 import { getDb } from '@/server/db';
 
 /** Pauses or resumes a job from the status switch of the jobs table. */
@@ -52,7 +54,11 @@ export async function createJobAction(draft: WizardDraft): Promise<CreateJobResu
   if (issues.length > 0) return { issues };
 
   try {
-    await createJob(getDb(), toNewJobInput(draft, now));
+    const db = getDb();
+    const input = toNewJobInput(draft, now);
+    // .htaccess passwords are stored encrypted as the customer's secrets, never in the flow.
+    const flow = await secureStepPasswords(db, getCipher(), input);
+    await createJob(db, { ...input, flow });
   } catch (error) {
     if (error instanceof ValidationError) return { issues: error.issues };
     throw error;
@@ -73,13 +79,19 @@ async function saveJob(jobId: string, draft: WizardDraft): Promise<Issue[]> {
   const db = getDb();
   const now = new Date();
   try {
-    const loaded = jobToDraft(await getJob(db, jobId), now);
+    const stored = await getJob(db, jobId);
+    const loaded = jobToDraft(stored, now);
     if (!('draft' in loaded)) return [{ path: 'job', message: loaded.notEditable }];
 
     const issues = validateJobEdit(draft, loaded.draft, now);
     if (issues.length > 0) return issues;
 
-    await updateJob(db, jobId, toJobUpdateInput(draft, now));
+    const input = toJobUpdateInput(draft, now);
+    const flow = await secureStepPasswords(db, getCipher(), {
+      ...input,
+      customerId: stored.customerId,
+    });
+    await updateJob(db, jobId, { ...input, flow });
   } catch (error) {
     if (error instanceof ValidationError) return error.issues;
     if (error instanceof NotFoundError) return [GONE];

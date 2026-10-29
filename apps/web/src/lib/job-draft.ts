@@ -35,7 +35,15 @@ export const WIZARD_STEPS = [
 export type WizardStep = (typeof WIZARD_STEPS)[number]['key'];
 
 export type EditableStepType =
-  'open' | 'click' | 'fill' | 'select' | 'assert' | 'wait' | 'screenshot' | 'analytics';
+  | 'open'
+  | 'click'
+  | 'fill'
+  | 'select'
+  | 'assert'
+  | 'wait'
+  | 'screenshot'
+  | 'analytics'
+  | 'basicAuth';
 export type TargetBy = 'role' | 'label' | 'text' | 'css' | 'testId';
 export type AssertKind = 'textVisible' | 'urlContains' | 'titleContains' | 'elementVisible';
 export type WaitKind = 'duration' | 'element' | 'networkIdle';
@@ -57,6 +65,15 @@ export type StepDraft = {
   waitSeconds: string;
   fullPage: boolean;
   timeoutSeconds: string;
+  /** basicAuth (.htaccess) */
+  username: string;
+  /** basicAuth: a newly typed password. Empty keeps `storedPassword`. */
+  password: string;
+  /**
+   * basicAuth: the stored password, a `{{secret.…}}` reference. It never goes into the form,
+   * only back to the server unchanged.
+   */
+  storedPassword: string;
 };
 
 export type SlotDraft = { key: string; date: string; time: string; bots: number };
@@ -209,6 +226,9 @@ export function newStep(
     waitSeconds: '1',
     fullPage: false,
     timeoutSeconds: '10',
+    username: '',
+    password: '',
+    storedPassword: '',
   };
 }
 
@@ -284,6 +304,13 @@ function toStep(step: StepDraft): Record<string, unknown> {
     }
     case 'analytics':
       return { ...base, provider: 'ga4', event: step.value.trim() };
+    case 'basicAuth':
+      // Spaces may belong to a password, so it goes as typed; the server stores it encrypted.
+      return {
+        ...base,
+        username: step.username.trim(),
+        password: step.password === '' ? step.storedPassword : step.password,
+      };
   }
 }
 
@@ -349,6 +376,8 @@ export function toStepDraft(step: Step): StepDraft | null {
       return { ...draft, value: step.name ?? '', fullPage: step.fullPage };
     case 'analytics':
       return { ...draft, value: step.event };
+    case 'basicAuth':
+      return { ...draft, username: step.username, storedPassword: step.password };
   }
 }
 
@@ -612,7 +641,15 @@ export function errorsByPath(issues: Issue[]): Record<string, string> {
 }
 
 export type StepField =
-  'url' | 'targetRole' | 'targetValue' | 'value' | 'waitSeconds' | 'timeoutSeconds' | 'general';
+  | 'url'
+  | 'targetRole'
+  | 'targetValue'
+  | 'value'
+  | 'waitSeconds'
+  | 'timeoutSeconds'
+  | 'username'
+  | 'password'
+  | 'general';
 
 const VALUE_PATHS = new Set([
   'value',
@@ -624,7 +661,7 @@ const VALUE_PATHS = new Set([
 ]);
 
 function stepField(rest: string): StepField {
-  if (rest === 'url') return 'url';
+  if (rest === 'url' || rest === 'username' || rest === 'password') return rest;
   if (rest === 'timeoutMs') return 'timeoutSeconds';
   if (rest === 'until.ms') return 'waitSeconds';
   if (/(^|\.)target\.role$/.test(rest)) return 'targetRole';

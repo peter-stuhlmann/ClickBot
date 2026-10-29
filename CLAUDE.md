@@ -126,6 +126,11 @@ packages/db      Drizzle-Schema, SQL-Migrationen, Repository-Funktionen, Verschl
   - `resolveSecretsForRun` liefert pro Lauf nur die Secrets des Kunden und die allgemeinen,
     nicht abgelaufen und erlaubt auf der Domain der URL.
   - Ein Kunden-Secret überschreibt ein allgemeines mit gleichem Namen.
+  - `saveSecret` legt an oder ersetzt Wert und Domains des Kunden-Secrets mit gleichem Namen.
+  - Passwörter aus Schritten „Passwortschutz (.htaccess)“ speichert `secureStepPasswords` beim
+    Anlegen und Ändern eines Jobs als Kunden-Secret `htaccess-<host>` (erlaubt nur auf dem Host
+    der Start-URL). Im Ablauf steht danach `{{secret.htaccess-<host>}}`. Der Editor schickt das
+    Passwort nie zurück in den Browser: Ein leeres Feld behält das gespeicherte.
 - **Anmeldung** (`auth.ts`, `invitations.ts`, `passwords.ts`, `totp.ts`):
   - Nur für das Team: `/registrieren` legt den ersten Admin an, solange es kein Konto gibt.
     Danach nur per Einladungslink („Einstellungen → Team“ oder `pnpm auth:invite`).
@@ -165,7 +170,7 @@ Hochziehen erst, wenn beide Pakete die neue Version offiziell unterstützen.
   pg-boss und ohne Redis. So gibt es nur eine Quelle der Wahrheit (siehe Abschnitt Worker).
 - **Ablauf:** wird als JSON-Schrittliste gespeichert, validiert mit Zod aus `packages/shared`.
   - Schritt-Typen: öffnen, klicken, ausfüllen, auswählen, prüfen, auslesen, warten,
-    screenshot, analytics, KI-Schritt, Code.
+    screenshot, analytics, Passwortschutz (.htaccess, `basicAuth`), KI-Schritt, Code.
   - Variablen: `{{faker.*}}`, `{{run_nr}}`, `{{bot_nr}}`, `{{secret.name}}`.
 - **Vier Wege zum Ablauf:**
   - KI: Beschreibung → Schrittvorschlag + Rückfragen.
@@ -206,6 +211,13 @@ Hochziehen erst, wenn beide Pakete die neue Version offiziell unterstützen.
   - Werte von Zugangsdaten werden überall maskiert: in Meldungen und ausgelesenen Werten.
 - **Elemente:** Namen und Labels werden exakt gesucht. Passt ein Ziel auf mehrere Elemente,
   schlägt der Schritt fehl („Mehrdeutig …“), statt zu raten.
+  - Gesucht wird in der Seite und in allen ihren iframes (`findTarget` in `targets.ts`), weil
+    Cookie-Banner oft in einem iframe liegen. Mehrdeutig zählt über alle Frames.
+- **Passwortschutz** (`basicAuth`, `basic-auth.ts`): Der Schritt schickt Benutzername und
+  Passwort ab da als HTTP-Basic-Auth mit, aber nur an Schema, Host und Port der Start-URL, nie
+  an Tracker oder CDNs. Er gehört vor den ersten Schritt „Seite öffnen“. Ein späterer
+  Passwortschutz-Schritt ersetzt den früheren. Antwortet eine Seite mit HTTP 401, sagt die
+  Meldung, ob der Schritt fehlt oder die Daten falsch sind.
 - **Testdaten** für `{{faker.*}}` (`createTestData`):
   - Sie werden je Lauf und Bot fest geseedet. Ein erneuter Lauf erzeugt dieselben Daten.
   - E-Mail-Adressen gehen nur an `example.com`/`.org`/`.net`.
