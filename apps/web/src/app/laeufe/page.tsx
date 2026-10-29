@@ -50,7 +50,7 @@ export default async function RunsPage({ searchParams }: Props) {
         }
         stats={null}
         asideLabel="Filter"
-        narrowAside
+        asideOnTop
         aside={
           <RunFilters
             values={filters}

@@ -51,10 +51,34 @@ test.describe('Läufe', () => {
     await expect(page.getByRole('combobox', { name: 'Gerät' })).toHaveValue('');
   });
 
-  test('keeps the filters beside the table in view while the list scrolls', async ({ page }) => {
+  test('keeps the filters in view while the list scrolls', async ({ page }) => {
     await page.goto('/laeufe');
     await page.mouse.wheel(0, 3000);
     await expect.poll(() => page.evaluate(() => window.scrollY)).toBeGreaterThan(1000);
     await expect(page.getByRole('form', { name: 'Läufe filtern' })).toBeInViewport({ ratio: 1 });
+  });
+
+  test('never wraps a value of a run in the middle, also on a small laptop', async ({ page }) => {
+    for (const width of [1280, 1440]) {
+      await page.setViewportSize({ width, height: 900 });
+      await page.goto('/laeufe');
+      const row = page.getByRole('row').nth(1);
+      await expect(row.getByRole('cell').nth(2)).toHaveText(
+        /^\d\d\.\d\d\. \d\d:\d\d( · )?[\d,]+ s$/,
+      );
+      // Each piece of text (time, duration, result, project) sits on a single line.
+      const wrapped = await row.evaluate((element) => {
+        const walker = document.createTreeWalker(element, NodeFilter.SHOW_TEXT);
+        const broken: string[] = [];
+        for (let node = walker.nextNode(); node; node = walker.nextNode()) {
+          if (!node.textContent?.trim()) continue;
+          const range = document.createRange();
+          range.selectNodeContents(node);
+          if (range.getClientRects().length > 1) broken.push(node.textContent.trim());
+        }
+        return broken;
+      });
+      expect(wrapped, `bei ${width} px`).toEqual([]);
+    }
   });
 });

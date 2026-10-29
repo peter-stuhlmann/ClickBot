@@ -39,7 +39,8 @@ describe('RunsTable', () => {
       cells.getByRole('link', { name: 'Kontaktformular-Test Lauf #7 · Desktop · Bot 1' }),
     ).toHaveAttribute('href', '/laeufe/run-7');
     expect(cells.getByText('Beispiel GmbH')).toBeVisible();
-    expect(cells.getByText('05.11. 14:30 · 8,4 s')).toBeVisible();
+    expect(cells.getByText('05.11. 14:30')).toBeVisible();
+    expect(cells.getByText('8,4 s')).toBeVisible();
     expect(cells.getByText('Erfolgreich')).toBeVisible();
   });
 
@@ -58,7 +59,7 @@ describe('RunsTable', () => {
     expect(
       screen.getByRole('link', { name: 'Kontaktformular-Test Testlauf Lauf #7 · Desktop · Bot 1' }),
     ).toBeVisible();
-    expect(screen.getByText('05.11. 14:30 · 8,4 s')).toHaveClass('text-danger');
+    expect(screen.getByText('05.11. 14:30').closest('td')).toHaveClass('text-danger');
   });
 
   it('says when no run matches and pages through many', () => {

@@ -10,8 +10,8 @@ export type ReportLayoutProps = {
   aside?: ReactNode;
   /** Accessible name of the detail column. */
   asideLabel?: string;
-  /** A narrower detail column, e.g. for filters next to a wide table. */
-  narrowAside?: boolean;
+  /** Details above the content instead of beside it, sticky while it scrolls: filters of a wide table. */
+  asideOnTop?: boolean;
   children: ReactNode;
 };
 
@@ -24,9 +24,28 @@ export function ReportLayout({
   stats,
   aside,
   asideLabel = 'Details',
-  narrowAside = false,
+  asideOnTop = false,
   children,
 }: ReportLayoutProps) {
+  if (asideOnTop) {
+    return (
+      <>
+        {header}
+        {stats}
+        <div className="flex flex-col gap-6">
+          {aside && (
+            <aside
+              aria-label={asideLabel}
+              className="flex flex-col gap-4 lg:sticky lg:top-0 lg:z-10"
+            >
+              {aside}
+            </aside>
+          )}
+          <div className="flex min-w-0 flex-col gap-6">{children}</div>
+        </div>
+      </>
+    );
+  }
   return (
     <>
       {header}
@@ -34,15 +53,7 @@ export function ReportLayout({
       <div className="flex flex-col gap-6 xl:flex-row xl:items-start">
         <div className="flex min-w-0 flex-1 flex-col gap-6">{children}</div>
         {aside && (
-          <aside
-            aria-label={asideLabel}
-            className={cn(
-              'flex flex-col gap-4 xl:shrink-0',
-              // Filters belong above the table they filter when there is no room beside it, and
-              // stay in view beside it while the table scrolls.
-              narrowAside ? 'order-first xl:sticky xl:top-8 xl:order-none xl:w-80' : 'xl:w-110',
-            )}
-          >
+          <aside aria-label={asideLabel} className="flex flex-col gap-4 xl:w-110 xl:shrink-0">
             {aside}
           </aside>
         )}

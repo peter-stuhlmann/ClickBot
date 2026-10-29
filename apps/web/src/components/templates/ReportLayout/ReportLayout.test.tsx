@@ -36,16 +36,22 @@ describe('ReportLayout', () => {
     expect(screen.getByRole('complementary', { name: 'Filter' })).toHaveClass('xl:w-110');
   });
 
-  it('can make the detail column narrower and sticky for a wide table, and puts it first on small screens', () => {
+  it('can put the details above a wide table, sticky while it scrolls, e.g. filters', () => {
     render(
-      <ReportLayout header={null} stats={null} aside={<p>Kunde</p>} asideLabel="Filter" narrowAside>
+      <ReportLayout
+        header={null}
+        stats={null}
+        aside={<p>Projekt</p>}
+        asideLabel="Filter"
+        asideOnTop
+      >
         <p>Läufe</p>
       </ReportLayout>,
     );
-    expect(screen.getByRole('complementary', { name: 'Filter' })).toHaveClass(
-      'xl:w-80',
-      'order-first',
-      'xl:sticky',
+    const filters = screen.getByRole('complementary', { name: 'Filter' });
+    expect(filters.compareDocumentPosition(screen.getByText('Läufe'))).toBe(
+      Node.DOCUMENT_POSITION_FOLLOWING,
     );
+    expect(filters).toHaveClass('lg:sticky');
   });
 });

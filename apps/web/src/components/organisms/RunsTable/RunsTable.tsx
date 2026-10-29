@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import { Fragment } from 'react';
 import { Badge } from '@/components/atoms/Badge';
 import { Card } from '@/components/atoms/Card';
 import { Pager, type PagerProps } from '@/components/molecules/Pager';
@@ -10,8 +11,9 @@ import type { RunListRowView } from '@/lib/views';
 const COLUMNS = [
   { label: 'Job · Lauf', width: 'w-auto' },
   { label: 'Projekt', width: 'w-32' },
-  { label: 'Zeitpunkt · Dauer', width: 'w-40' },
-  { label: 'Ergebnis', width: 'w-32' },
+  // Time and duration on two lines, so a narrow column never breaks inside a value.
+  { label: 'Zeitpunkt · Dauer', width: 'w-32' },
+  { label: 'Ergebnis', width: 'w-36' },
 ];
 
 export type RunsTableProps = {
@@ -87,7 +89,15 @@ export function RunsTable({ rows, summary, pager }: RunsTableProps) {
                       </span>
                     )}
                   </span>{' '}
-                  <span className="block truncate text-small text-text-muted">{row.detail}</span>
+                  {/* Breaks only between the parts, never inside "iPhone 15" or "Bot 1". */}
+                  <span className="block text-small text-text-muted">
+                    {row.detail.split(' · ').map((part, index) => (
+                      <Fragment key={index}>
+                        {index > 0 && ' · '}
+                        <span className="whitespace-nowrap">{part}</span>
+                      </Fragment>
+                    ))}
+                  </span>
                 </Link>
               </td>
               <td role="cell" className="mt-1 truncate text-body text-text md:mt-0 md:py-3 md:pr-3">
@@ -100,7 +110,11 @@ export function RunsTable({ rows, summary, pager }: RunsTableProps) {
                   row.failed ? 'text-danger' : 'text-text-muted',
                 )}
               >
-                {row.when} · {row.duration}
+                <span className="whitespace-nowrap">{row.when}</span>
+                <span aria-hidden="true" className="md:hidden">
+                  {' · '}
+                </span>
+                <span className="whitespace-nowrap md:block">{row.duration}</span>
               </td>
               <td role="cell" className="mt-1 justify-self-end md:mt-0 md:py-3">
                 <Badge tone={row.status.tone}>{row.status.label}</Badge>

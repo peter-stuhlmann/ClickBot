@@ -18,7 +18,8 @@ export type RunFiltersProps = {
  */
 export function RunFilters({ values, customers, results, periods, devices }: RunFiltersProps) {
   return (
-    <Card title="Filter">
+    // No title: the bar stays at the top while the runs scroll, so it is kept low.
+    <Card>
       {/*
         The selects keep their own value (defaultValue). A new key per filter state rebuilds
         them after a navigation within the app, e.g. "Filter zurücksetzen".
@@ -28,48 +29,61 @@ export function RunFilters({ values, customers, results, periods, devices }: Run
         method="get"
         action="/laeufe"
         aria-label="Läufe filtern"
-        // Beside the table (xl) one column; above it two or four, so the runs stay in view.
-        className="grid grid-cols-2 gap-3 sm:gap-4 md:grid-cols-4 xl:flex xl:flex-col"
+        // Two or four columns above the table; from xl one row with the buttons at the end.
+        className="grid grid-cols-2 gap-3 sm:gap-4 md:grid-cols-4 xl:flex xl:items-end"
       >
-        <Field id="filter-project" label="Projekt">
-          {(control) => (
-            <Select
-              {...control}
-              name="projekt"
-              options={customers}
-              placeholder="Alle Projekte"
-              defaultValue={values.projekt}
-            />
-          )}
-        </Field>
-        <Field id="filter-result" label="Ergebnis">
-          {(control) => (
-            <Select
-              {...control}
-              name="ergebnis"
-              options={results}
-              placeholder="Alle"
-              defaultValue={values.ergebnis}
-            />
-          )}
-        </Field>
-        <Field id="filter-period" label="Zeitraum">
-          {(control) => (
-            <Select {...control} name="zeitraum" options={periods} defaultValue={values.zeitraum} />
-          )}
-        </Field>
-        <Field id="filter-device" label="Gerät">
-          {(control) => (
-            <Select
-              {...control}
-              name="geraet"
-              options={devices}
-              placeholder="Alle Geräte"
-              defaultValue={values.geraet}
-            />
-          )}
-        </Field>
-        <div className="col-span-2 flex flex-col gap-2 sm:flex-row md:col-span-4 xl:flex-col">
+        <div className="min-w-0 xl:flex-1">
+          <Field id="filter-project" label="Projekt">
+            {(control) => (
+              <Select
+                {...control}
+                name="projekt"
+                options={customers}
+                placeholder="Alle Projekte"
+                defaultValue={values.projekt}
+              />
+            )}
+          </Field>
+        </div>
+        <div className="min-w-0 xl:flex-1">
+          <Field id="filter-result" label="Ergebnis">
+            {(control) => (
+              <Select
+                {...control}
+                name="ergebnis"
+                options={results}
+                placeholder="Alle"
+                defaultValue={values.ergebnis}
+              />
+            )}
+          </Field>
+        </div>
+        <div className="min-w-0 xl:flex-1">
+          <Field id="filter-period" label="Zeitraum">
+            {(control) => (
+              <Select
+                {...control}
+                name="zeitraum"
+                options={periods}
+                defaultValue={values.zeitraum}
+              />
+            )}
+          </Field>
+        </div>
+        <div className="min-w-0 xl:flex-1">
+          <Field id="filter-device" label="Gerät">
+            {(control) => (
+              <Select
+                {...control}
+                name="geraet"
+                options={devices}
+                placeholder="Alle Geräte"
+                defaultValue={values.geraet}
+              />
+            )}
+          </Field>
+        </div>
+        <div className="col-span-2 flex flex-col gap-2 sm:flex-row md:col-span-4 xl:shrink-0">
           <Button type="submit" fullWidth>
             Filter anwenden
           </Button>
