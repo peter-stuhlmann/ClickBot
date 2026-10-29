@@ -74,9 +74,9 @@ describe('createJob', () => {
   });
 
   it.each([
-    ['an unknown', '00000000-0000-0000-0000-000000000000', 'Kunde nicht gefunden.'],
-    ['a missing', '', 'Bitte einen Kunden wählen.'],
-    ['a malformed', 'beispiel', 'Kunde nicht gefunden.'],
+    ['an unknown', '00000000-0000-0000-0000-000000000000', 'Projekt nicht gefunden.'],
+    ['a missing', '', 'Bitte ein Projekt wählen.'],
+    ['a malformed', 'beispiel', 'Projekt nicht gefunden.'],
   ])('reports %s customer at customerId', async (_case, customerId, message) => {
     const error = await createJob(db, {
       customerId,

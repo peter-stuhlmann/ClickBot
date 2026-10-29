@@ -28,7 +28,7 @@ const summary = () => within(screen.getByRole('region', { name: 'Zusammenfassung
 const subtitle = () => screen.getByText(/^Schritt \d von 4/);
 
 async function fillWebsite(user: ReturnType<typeof userEvent.setup>) {
-  await user.selectOptions(screen.getByRole('combobox', { name: 'Kunde' }), 'Beispiel GmbH');
+  await user.selectOptions(screen.getByRole('combobox', { name: 'Projekt' }), 'Beispiel GmbH');
   fireEvent.change(screen.getByRole('textbox', { name: 'Website (Start-URL)' }), {
     target: { value: '127.0.0.1:4100/kontakt.html' },
   });
@@ -47,7 +47,7 @@ describe('NewJobWizard', () => {
 
     expect(screen.getByRole('alert')).toHaveTextContent('Bitte die markierten Angaben prüfen.');
     expect(subtitle()).toHaveTextContent('Schritt 1 von 4 · Welche Website soll getestet werden?');
-    expect(screen.getByRole('combobox', { name: 'Kunde' })).toBeInvalid();
+    expect(screen.getByRole('combobox', { name: 'Projekt' })).toBeInvalid();
     expect(screen.getByRole('checkbox')).toHaveAccessibleDescription(
       'Bitte bestätigen, dass ihr diese Website testen dürft.',
     );

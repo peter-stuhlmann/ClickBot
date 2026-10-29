@@ -24,7 +24,7 @@ describe('RunsTable', () => {
     render(<RunsTable rows={[row()]} summary="1 Lauf" pager={pager} />);
     expect(screen.getAllByRole('columnheader').map((header) => header.textContent)).toEqual([
       'Job · Lauf',
-      'Kunde',
+      'Projekt',
       'Zeitpunkt · Dauer',
       'Ergebnis',
     ]);

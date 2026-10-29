@@ -21,6 +21,13 @@ const config: NextConfig = {
   devIndicators: { position: 'bottom-right' },
   // The e2e server uses its own folder (see playwright.config.ts).
   distDir: process.env.NEXT_DIST_DIR ?? '.next',
+  // "Kunden" became "Projekte"; old bookmarks still arrive.
+  async redirects() {
+    return [
+      { source: '/kunden', destination: '/projekte', permanent: true },
+      { source: '/kunden/:path*', destination: '/projekte/:path*', permanent: true },
+    ];
+  },
 };
 
 export default config;

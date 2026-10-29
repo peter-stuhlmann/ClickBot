@@ -15,14 +15,14 @@ export type CustomerFormProps = {
   action: (state: CustomerFormState, formData: FormData) => Promise<CustomerFormState>;
 };
 
-/** "Kunde anlegen": works without JavaScript, because it is a plain form. */
+/** "Projekt anlegen": works without JavaScript, because it is a plain form. */
 export function CustomerForm({ action }: CustomerFormProps) {
   const [state, formAction, pending] = useActionState(action, {});
   return (
-    <form action={formAction} aria-label="Kunde anlegen" className="max-w-xl">
+    <form action={formAction} aria-label="Projekt anlegen" className="max-w-xl">
       <Card
-        title="Neuer Kunde"
-        description="Jeder Job gehört zu einem Kunden. Das Kürzel für Adressen entsteht aus dem Namen."
+        title="Neues Projekt"
+        description="Jeder Job gehört zu einem Projekt. Das Kürzel für Adressen entsteht aus dem Namen."
       >
         <Field id="customer-name" label="Name" error={state.error}>
           {(control) => (
@@ -38,11 +38,11 @@ export function CustomerForm({ action }: CustomerFormProps) {
           )}
         </Field>
         <div className="flex justify-end gap-3">
-          <Button variant="secondary" href="/kunden">
+          <Button variant="secondary" href="/projekte">
             Abbrechen
           </Button>
           <Button type="submit" loading={pending} icon={<Icon name="check" size={16} />}>
-            Kunde anlegen
+            Projekt anlegen
           </Button>
         </div>
       </Card>

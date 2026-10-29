@@ -12,9 +12,9 @@ import { getCurrentUser } from '@/server/session';
 
 export const dynamic = 'force-dynamic';
 
-export const metadata: Metadata = { title: 'Kunden · Click-Bot' };
+export const metadata: Metadata = { title: 'Projekte · Click-Bot' };
 
-/** Screen 10 "Kunden". */
+/** Screen 10 "Kunden", in the app "Projekte". */
 export default async function CustomersPage() {
   // Auth first: nothing is read for someone who is not signed in.
   const user = await getCurrentUser();
@@ -27,13 +27,13 @@ export default async function CustomersPage() {
   ]);
 
   return (
-    <AppShell active="kunden" user={user} worker={worker}>
+    <AppShell active="projekte" user={user} worker={worker}>
       <PageHeader
-        title="Kunden"
-        description="Alle Jobs und Läufe nach Kunde gruppiert."
+        title="Projekte"
+        description="Alle Jobs und Läufe nach Projekt gruppiert."
         actions={
-          <Button href="/kunden/neu" icon={<Icon name="plus" size={16} />}>
-            Kunde anlegen
+          <Button href="/projekte/neu" icon={<Icon name="plus" size={16} />}>
+            Projekt anlegen
           </Button>
         }
       />

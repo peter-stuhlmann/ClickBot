@@ -12,7 +12,7 @@ describe('CustomerForm', () => {
     render(<CustomerForm action={action} />);
 
     await user.type(screen.getByRole('textbox', { name: 'Name' }), 'Müller Shop');
-    await user.click(screen.getByRole('button', { name: 'Kunde anlegen' }));
+    await user.click(screen.getByRole('button', { name: 'Projekt anlegen' }));
 
     expect(action).toHaveBeenCalledOnce();
     expect(action.mock.calls[0]?.[1].get('name')).toBe('Müller Shop');
@@ -22,22 +22,22 @@ describe('CustomerForm', () => {
     const user = userEvent.setup();
     render(
       <CustomerForm
-        action={async () => ({ error: 'Diesen Kunden gibt es schon.', name: 'Beispiel GmbH' })}
+        action={async () => ({ error: 'Dieses Projekt gibt es schon.', name: 'Beispiel GmbH' })}
       />,
     );
 
     await user.type(screen.getByRole('textbox', { name: 'Name' }), 'Beispiel GmbH');
-    await user.click(screen.getByRole('button', { name: 'Kunde anlegen' }));
+    await user.click(screen.getByRole('button', { name: 'Projekt anlegen' }));
 
     // Wait for the answer of the action, not just for the field, which is there from the start.
-    await screen.findByText('Diesen Kunden gibt es schon.');
+    await screen.findByText('Dieses Projekt gibt es schon.');
     const name = screen.getByRole('textbox', { name: 'Name' });
-    expect(name).toHaveAccessibleDescription('Diesen Kunden gibt es schon.');
+    expect(name).toHaveAccessibleDescription('Dieses Projekt gibt es schon.');
     expect(name).toHaveValue('Beispiel GmbH');
   });
 
   it('leads back to the customer list', () => {
     render(<CustomerForm action={async () => ({})} />);
-    expect(screen.getByRole('link', { name: 'Abbrechen' })).toHaveAttribute('href', '/kunden');
+    expect(screen.getByRole('link', { name: 'Abbrechen' })).toHaveAttribute('href', '/projekte');
   });
 });

@@ -67,7 +67,7 @@ describe('createCustomer', () => {
     await createCustomer(db, { name: 'Stadtwerke Süd' });
     const error = await createCustomer(db, { name: 'stadtwerke süd' }).catch((e: unknown) => e);
     expect((error as ValidationError).issues).toEqual([
-      { path: 'name', message: 'Diesen Kunden gibt es schon.' },
+      { path: 'name', message: 'Dieses Projekt gibt es schon.' },
     ]);
   });
 });
@@ -77,7 +77,7 @@ describe('slugify', () => {
     ['Müller Shop', 'mueller-shop'],
     ['Straße & Söhne GmbH', 'strasse-soehne-gmbh'],
     ['Café Crème', 'cafe-creme'],
-    ['  --  ', 'kunde'],
+    ['  --  ', 'projekt'],
   ])('%j → %j', (name, slug) => {
     expect(slugify(name)).toBe(slug);
   });

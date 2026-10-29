@@ -13,7 +13,7 @@ describe('Sidebar', () => {
       within(nav)
         .getAllByRole('link')
         .map((link) => link.textContent),
-    ).toEqual(['Kunden', 'Jobs', 'Kalender', 'Läufe', 'Vorlagen', 'Einstellungen']);
+    ).toEqual(['Projekte', 'Jobs', 'Kalender', 'Läufe', 'Vorlagen', 'Einstellungen']);
   });
 
   it('marks exactly the active section', () => {

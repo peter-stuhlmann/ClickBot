@@ -438,7 +438,7 @@ function issuesFrom(prefix: string, error: SchemaError): Issue[] {
 function websiteIssues(draft: WizardDraft): Issue[] {
   const issues: Issue[] = [];
   if (!draft.customerId) {
-    issues.push({ path: 'customerId', message: 'Bitte einen Kunden wählen.' });
+    issues.push({ path: 'customerId', message: 'Bitte ein Projekt wählen.' });
   }
   if (!isHttpUrl(normaliseUrl(draft.startUrl))) {
     issues.push({
@@ -714,7 +714,7 @@ export function summarise(
     : DASH;
   return [
     {
-      label: 'Kunde',
+      label: 'Projekt',
       value: customers.find((customer) => customer.id === draft.customerId)?.name ?? DASH,
     },
     {

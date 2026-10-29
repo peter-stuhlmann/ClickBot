@@ -9,17 +9,17 @@ import { createCustomerAction } from '../../actions';
 
 export const dynamic = 'force-dynamic';
 
-export const metadata: Metadata = { title: 'Kunde anlegen · Click-Bot' };
+export const metadata: Metadata = { title: 'Projekt anlegen · Click-Bot' };
 
 export default async function NewCustomerPage() {
   const user = await getCurrentUser();
   const worker = await getWorkerStatus(getDb(), new Date());
 
   return (
-    <AppShell active="kunden" user={user} worker={worker}>
+    <AppShell active="projekte" user={user} worker={worker}>
       <PageHeader
-        title="Kunde anlegen"
-        breadcrumb={[{ label: 'Kunden', href: '/kunden' }, { label: 'Kunde anlegen' }]}
+        title="Projekt anlegen"
+        breadcrumb={[{ label: 'Projekte', href: '/projekte' }, { label: 'Projekt anlegen' }]}
       />
       <CustomerForm action={createCustomerAction} />
     </AppShell>

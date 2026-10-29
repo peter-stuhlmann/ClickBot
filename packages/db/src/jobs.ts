@@ -33,14 +33,14 @@ export type NewJobInput = {
 };
 
 async function checkCustomer(db: Database, customerId: string): Promise<ValidationIssue | null> {
-  if (customerId === '') return { path: 'customerId', message: 'Bitte einen Kunden wählen.' };
+  if (customerId === '') return { path: 'customerId', message: 'Bitte ein Projekt wählen.' };
   const exists =
     isUuid(customerId) &&
     (await db.query.customers.findFirst({
       where: eq(customers.id, customerId),
       columns: { id: true },
     }));
-  return exists ? null : { path: 'customerId', message: 'Kunde nicht gefunden.' };
+  return exists ? null : { path: 'customerId', message: 'Projekt nicht gefunden.' };
 }
 
 const startUrlSchema = z.string().refine((value) => {

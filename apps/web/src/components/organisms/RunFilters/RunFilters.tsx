@@ -5,7 +5,7 @@ import { Field } from '@/components/molecules/Field';
 
 export type RunFiltersProps = {
   /** Current filter values, as in the address. */
-  values: { kunde: string; ergebnis: string; zeitraum: string; geraet: string };
+  values: { projekt: string; ergebnis: string; zeitraum: string; geraet: string };
   customers: SelectOption[];
   results: readonly SelectOption[];
   periods: readonly SelectOption[];
@@ -31,14 +31,14 @@ export function RunFilters({ values, customers, results, periods, devices }: Run
         // Beside the table (xl) one column; above it two or four, so the runs stay in view.
         className="grid grid-cols-2 gap-3 sm:gap-4 md:grid-cols-4 xl:flex xl:flex-col"
       >
-        <Field id="filter-customer" label="Kunde">
+        <Field id="filter-project" label="Projekt">
           {(control) => (
             <Select
               {...control}
-              name="kunde"
+              name="projekt"
               options={customers}
-              placeholder="Alle Kunden"
-              defaultValue={values.kunde}
+              placeholder="Alle Projekte"
+              defaultValue={values.projekt}
             />
           )}
         </Field>

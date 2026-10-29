@@ -9,7 +9,7 @@ import { WorkerStatus, type WorkerStatusProps } from '@/components/molecules/Wor
 import { cn } from '@/lib/cn';
 
 export const NAVIGATION = [
-  { key: 'kunden', href: '/kunden', label: 'Kunden', icon: 'users' },
+  { key: 'projekte', href: '/projekte', label: 'Projekte', icon: 'folder' },
   { key: 'jobs', href: '/', label: 'Jobs', icon: 'bot' },
   { key: 'kalender', href: '/kalender', label: 'Kalender', icon: 'calendar' },
   { key: 'laeufe', href: '/laeufe', label: 'Läufe', icon: 'history' },

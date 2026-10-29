@@ -18,7 +18,7 @@ describe('CustomersTable', () => {
   it('has the columns of the design, without the weekly PDF that does not exist yet', () => {
     render(<CustomersTable rows={[row()]} />);
     expect(screen.getAllByRole('columnheader').map((header) => header.textContent)).toEqual([
-      'Kunde',
+      'Projekt',
       'Jobs',
       'Läufe (30 Tage)',
       'Letzter Lauf',
@@ -63,6 +63,6 @@ describe('CustomersTable', () => {
 
   it('invites to create the first customer when there is none', () => {
     render(<CustomersTable rows={[]} />);
-    expect(screen.getByText(/Noch keine Kunden/)).toBeVisible();
+    expect(screen.getByText(/Noch keine Projekte/)).toBeVisible();
   });
 });

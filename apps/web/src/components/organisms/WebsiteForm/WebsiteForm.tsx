@@ -29,14 +29,14 @@ export function WebsiteForm({ values, customers, errors, onChange }: WebsiteForm
     >
       <Field
         id="job-customer"
-        label="Kunde"
+        label="Projekt"
         error={errors.customerId}
         hint={
           customers.length === 0 ? (
             <>
-              Noch keine Kunden angelegt.{' '}
-              <Link href="/kunden/neu" className="font-medium text-primary hover:underline">
-                Kunde anlegen
+              Noch keine Projekte angelegt.{' '}
+              <Link href="/projekte/neu" className="font-medium text-primary hover:underline">
+                Projekt anlegen
               </Link>
             </>
           ) : undefined
@@ -45,7 +45,7 @@ export function WebsiteForm({ values, customers, errors, onChange }: WebsiteForm
         {(control) => (
           <Select
             {...control}
-            placeholder="Kunde wählen"
+            placeholder="Projekt wählen"
             options={customers.map((customer) => ({ value: customer.id, label: customer.name }))}
             value={values.customerId}
             onChange={(event) => onChange({ customerId: event.target.value })}

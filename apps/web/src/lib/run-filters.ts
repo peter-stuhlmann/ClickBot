@@ -30,8 +30,8 @@ export type ResultKey = keyof typeof RESULTS;
 export type PeriodKey = keyof typeof PERIODS;
 
 export type RunFilters = {
-  /** Customer id, or '' for all. */
-  kunde: string;
+  /** Id of the project (customer in the database), or '' for all. */
+  projekt: string;
   ergebnis: ResultKey | '';
   zeitraum: PeriodKey;
   geraet: DeviceKey | '';
@@ -40,7 +40,7 @@ export type RunFilters = {
 };
 
 export const DEFAULT_RUN_FILTERS: RunFilters = {
-  kunde: '',
+  projekt: '',
   ergebnis: '',
   zeitraum: '7d',
   geraet: '',
@@ -77,7 +77,7 @@ export function parseRunFilters(params: SearchParams): RunFilters {
   const geraet = first(params, 'geraet');
   const seite = Number(first(params, 'seite'));
   return {
-    kunde: first(params, 'kunde'),
+    projekt: first(params, 'projekt'),
     ergebnis: isKey(RESULTS, ergebnis) ? ergebnis : '',
     zeitraum: isKey(PERIODS, zeitraum) ? zeitraum : DEFAULT_RUN_FILTERS.zeitraum,
     geraet: DEVICE_OPTIONS.some((option) => option.key === geraet) ? (geraet as DeviceKey) : '',
@@ -98,7 +98,7 @@ export type RunQuery = {
 export function toRunQuery(filters: RunFilters, now: Date): RunQuery {
   const days = PERIODS[filters.zeitraum].days;
   return {
-    ...(filters.kunde ? { customerId: filters.kunde } : {}),
+    ...(filters.projekt ? { customerId: filters.projekt } : {}),
     ...(filters.ergebnis ? { statuses: [...RESULTS[filters.ergebnis].statuses] } : {}),
     ...(days ? { since: new Date(now.getTime() - days * DAY_MS) } : {}),
     ...(filters.geraet ? { device: filters.geraet } : {}),

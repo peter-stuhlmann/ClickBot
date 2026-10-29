@@ -13,7 +13,7 @@ const RATE_COLOUR: Record<Tone, string> = {
 // Column widths in the ratio of the Figma table (320/160/200/190/110 px); "Wochen-PDF" is left
 // out until the PDF exists.
 const COLUMNS = [
-  { label: 'Kunde', width: 'w-16/49' },
+  { label: 'Projekt', width: 'w-16/49' },
   { label: 'Jobs', width: 'w-8/49' },
   { label: 'Läufe (30 Tage)', width: 'w-10/49' },
   { label: 'Letzter Lauf', width: 'w-19/98' },
@@ -35,7 +35,7 @@ function CellLabel({ children }: { children: string }) {
 export type CustomersTableProps = { rows: CustomerRowView[] };
 
 /**
- * Screen 10: customers with their jobs, runs of 30 days and last run. Below `xl` every row is a
+ * Screen 10 ("Projekte"): customers with their jobs, runs of 30 days and last run. Below `xl` every row is a
  * card; the roles are set explicitly, because Safari drops the semantics of a table shown as blocks.
  */
 export function CustomersTable({ rows }: CustomersTableProps) {
@@ -67,7 +67,7 @@ export function CustomersTable({ rows }: CustomersTableProps) {
                 colSpan={COLUMNS.length}
                 className="block px-5 py-10 text-center text-text-muted xl:table-cell"
               >
-                Noch keine Kunden. Lege den ersten Kunden an, um Jobs für ihn zu erstellen.
+                Noch keine Projekte. Lege das erste Projekt an, um Jobs dafür zu erstellen.
               </td>
             </tr>
           )}

@@ -5,7 +5,7 @@ Ein Bot öffnet eine Seite in einem echten Browser, führt einen Ablauf aus (kli
 ausfüllen, prüfen) und erstellt pro Lauf einen Report auf dem Bildschirm und als PDF.
 
 Status: Grundgerüst, Datenbank-Schicht, Worker mit Zeitplan, die Job-Liste, der Assistent
-„Neuer Job“, der Editor, der Lauf-Report, die Läufe-Übersicht, die Kunden, die Anmeldung und
+„Neuer Job“, der Editor, der Lauf-Report, die Läufe-Übersicht, die Projekte, die Anmeldung und
 die Einstellungen der KI-Anbieter stehen.
 
 - **Fertig:**
@@ -26,10 +26,11 @@ die Einstellungen der KI-Anbieter stehen.
     - „Testlauf starten“ im Editor: speichert offene Änderungen, startet einen Bot auf dem
       ersten Gerät und öffnet dessen Report. Der Report lädt sich alle 2 s neu, solange der
       Lauf wartet oder läuft.
-    - Screen 10 „Kunden“ (`/kunden`) mit Kennzahlen und „Kunde anlegen“ (`/kunden/neu`). Die
-      Spalte „Wochen-PDF“ fehlt, bis es das PDF gibt.
+    - Screen 10 „Kunden“, in der App „Projekte“ (`/projekte`), mit Kennzahlen und „Projekt
+      anlegen“ (`/projekte/neu`). Alte Links auf `/kunden` leiten weiter (`next.config.ts`).
+      Die Spalte „Wochen-PDF“ fehlt, bis es das PDF gibt.
     - Screen 14 „Läufe“ (`/laeufe`): alle Läufe, neueste zuerst, 50 je Seite, mit Filtern nach
-      Kunde, Ergebnis, Zeitraum und Gerät. Die Filter stehen in der Adresse (GET-Formular,
+      Projekt, Ergebnis, Zeitraum und Gerät. Die Filter stehen in der Adresse (GET-Formular,
       `src/lib/run-filters.ts`). CSV, Sammel-PDF, gespeicherte Ansichten und Standort fehlen.
     - Screen 03 „Lauf-Report“ (`/laeufe/<id>`), erreichbar über „Letzter Lauf“ in der
       Job-Liste: Kennzahlen, Schritte mit Ergebnis, Fehler und Bildschirmfoto
@@ -108,7 +109,9 @@ Die Pakete unter `packages/` liefern TypeScript-Quelltext aus, ohne eigenen Buil
     selbst ab.
   - Die Meldungen der Zod-Schemas in `packages/shared` sind deutsch und kurz, weil die UI sie
     direkt am Feld zeigt (z. B. „Bitte ausfüllen.“).
-- **Kunden** (`createCustomer`): Namen sind eindeutig, ohne Groß- und Kleinschreibung. Das
+- **Kunden** (`createCustomer`), in der Oberfläche „Projekte“: Im Code und in der Datenbank
+  heißen sie weiter `customer`. „Kunde“ bleibt in der Oberfläche nur, wo der Auftraggeber
+  gemeint ist, z. B. bei der Freigabe des Tests. Namen sind eindeutig, ohne Groß- und Kleinschreibung. Das
   Kürzel (`slug`) entsteht aus dem Namen („Müller Shop“ → `mueller-shop`), bei Bedarf mit
   `-2`, `-3`. Bearbeiten und Löschen gibt es noch nicht.
 - **Jobs** legt `createJob` als Entwurf an. Mit `status: 'active'` (Assistent) plant der

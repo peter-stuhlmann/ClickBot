@@ -21,7 +21,7 @@ test.use({ storageState: { cookies: [], origins: [] } });
 
 test.describe('Anmeldung', () => {
   test('lets nobody in without signing in, not even to screenshots', async ({ page, request }) => {
-    await page.goto('/kunden');
+    await page.goto('/projekte');
     await expect(page).toHaveURL('/anmelden');
     await expect(page.getByRole('heading', { level: 1, name: 'Anmelden' })).toBeVisible();
 

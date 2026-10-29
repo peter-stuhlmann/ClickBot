@@ -131,7 +131,7 @@ export async function startTestRunAction(
   }
 }
 
-/** "Kunde anlegen" (screen 10): back to the customer list, or the reason it did not work. */
+/** "Projekt anlegen" (screen 10): back to the project list, or the reason it did not work. */
 export async function createCustomerAction(
   _state: CustomerFormState,
   formData: FormData,
@@ -145,6 +145,6 @@ export async function createCustomerAction(
     if (error instanceof ValidationError) return { error: error.issues[0]?.message, name };
     throw error;
   }
-  revalidatePath('/kunden');
-  redirect('/kunden');
+  revalidatePath('/projekte');
+  redirect('/projekte');
 }

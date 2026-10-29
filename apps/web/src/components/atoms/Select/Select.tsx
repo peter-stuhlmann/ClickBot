@@ -5,7 +5,7 @@ export type SelectOption = { value: string; label: string };
 
 export type SelectProps = Omit<SelectHTMLAttributes<HTMLSelectElement>, 'children'> & {
   options: readonly SelectOption[];
-  /** First, empty entry, e.g. "Kunde wählen". */
+  /** First, empty entry, e.g. "Projekt wählen". */
   placeholder?: string;
 };
 

@@ -272,7 +272,7 @@ describe('validateWizardStep', () => {
       now,
     );
     expect(issues).toEqual([
-      { path: 'customerId', message: 'Bitte einen Kunden wählen.' },
+      { path: 'customerId', message: 'Bitte ein Projekt wählen.' },
       { path: 'startUrl', message: 'Start-URL muss mit http:// oder https:// beginnen.' },
       { path: 'name', message: 'Name fehlt.' },
       {
@@ -426,7 +426,7 @@ describe('summarise', () => {
 
   it('shows dashes for what is not decided yet', () => {
     expect(summarise(emptyDraft(now), customers, now)).toEqual([
-      { label: 'Kunde', value: '–' },
+      { label: 'Projekt', value: '–' },
       { label: 'Website', value: '–' },
       { label: 'Job-Name', value: '–' },
       { label: 'Ablauf', value: '–' },
@@ -456,7 +456,7 @@ describe('summarise', () => {
       now,
     );
     expect(rows).toEqual([
-      { label: 'Kunde', value: 'Beispiel GmbH' },
+      { label: 'Projekt', value: 'Beispiel GmbH' },
       { label: 'Website', value: 'beispiel.de/kontakt' },
       { label: 'Job-Name', value: 'Kontaktformular-Test' },
       { label: 'Ablauf', value: '2 Schritte' },

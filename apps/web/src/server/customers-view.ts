@@ -53,9 +53,10 @@ export function toCustomerStatCards(stats: CustomerStats): StatCardView[] {
   const { successful, finished } = stats.successRate30d;
   return [
     {
-      label: 'Kunden',
+      label: 'Projekte',
       value: String(stats.customers),
-      hint: stats.customers > 0 ? `${stats.newThisMonth} neu in diesem Monat` : 'noch keine Kunden',
+      hint:
+        stats.customers > 0 ? `${stats.newThisMonth} neu in diesem Monat` : 'noch keine Projekte',
     },
     {
       label: 'Jobs gesamt',

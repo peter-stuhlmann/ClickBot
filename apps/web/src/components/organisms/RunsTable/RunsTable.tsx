@@ -9,7 +9,7 @@ import type { RunListRowView } from '@/lib/views';
 // the job, so the job column keeps its width next to the filters.
 const COLUMNS = [
   { label: 'Job · Lauf', width: 'w-auto' },
-  { label: 'Kunde', width: 'w-32' },
+  { label: 'Projekt', width: 'w-32' },
   { label: 'Zeitpunkt · Dauer', width: 'w-40' },
   { label: 'Ergebnis', width: 'w-32' },
 ];

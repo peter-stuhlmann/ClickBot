@@ -15,7 +15,7 @@ describe('WebsiteForm', () => {
     const onChange = vi.fn();
     render(<WebsiteForm values={empty} customers={customers} errors={{}} onChange={onChange} />);
 
-    await user.selectOptions(screen.getByRole('combobox', { name: 'Kunde' }), 'Beispiel GmbH');
+    await user.selectOptions(screen.getByRole('combobox', { name: 'Projekt' }), 'Beispiel GmbH');
     fireEvent.change(screen.getByRole('textbox', { name: 'Website (Start-URL)' }), {
       target: { value: 'beispiel.de' },
     });
@@ -38,7 +38,7 @@ describe('WebsiteForm', () => {
         values={empty}
         customers={customers}
         errors={{
-          customerId: 'Bitte einen Kunden wählen.',
+          customerId: 'Bitte ein Projekt wählen.',
           startUrl: 'Start-URL muss mit http:// oder https:// beginnen.',
           name: 'Name fehlt.',
           confirmed: 'Bitte bestätigen, dass ihr diese Website testen dürft.',
@@ -46,8 +46,8 @@ describe('WebsiteForm', () => {
         onChange={vi.fn()}
       />,
     );
-    expect(screen.getByRole('combobox', { name: 'Kunde' })).toHaveAccessibleDescription(
-      'Bitte einen Kunden wählen.',
+    expect(screen.getByRole('combobox', { name: 'Projekt' })).toHaveAccessibleDescription(
+      'Bitte ein Projekt wählen.',
     );
     expect(screen.getByRole('textbox', { name: 'Job-Name' })).toBeInvalid();
     expect(screen.getByRole('checkbox')).toHaveAccessibleDescription(
@@ -57,12 +57,12 @@ describe('WebsiteForm', () => {
 
   it('says so when there are no customers yet', () => {
     render(<WebsiteForm values={empty} customers={[]} errors={{}} onChange={vi.fn()} />);
-    expect(screen.getByRole('combobox', { name: 'Kunde' })).toHaveAccessibleDescription(
-      'Noch keine Kunden angelegt. Kunde anlegen',
+    expect(screen.getByRole('combobox', { name: 'Projekt' })).toHaveAccessibleDescription(
+      'Noch keine Projekte angelegt. Projekt anlegen',
     );
-    expect(screen.getByRole('link', { name: 'Kunde anlegen' })).toHaveAttribute(
+    expect(screen.getByRole('link', { name: 'Projekt anlegen' })).toHaveAttribute(
       'href',
-      '/kunden/neu',
+      '/projekte/neu',
     );
   });
 });

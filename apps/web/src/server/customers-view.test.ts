@@ -75,7 +75,7 @@ describe('toCustomerStatCards', () => {
 
   it('shows the four figures of the design', () => {
     expect(toCustomerStatCards(stats)).toEqual([
-      { label: 'Kunden', value: '4', hint: '1 neu in diesem Monat' },
+      { label: 'Projekte', value: '4', hint: '1 neu in diesem Monat' },
       { label: 'Jobs gesamt', value: '14', hint: '11 aktiv · 3 beendet' },
       { label: 'Läufe (30 Tage)', value: '1.240', hint: '+18 % zu den 30 Tagen davor' },
       { label: 'Erfolgsquote (30 Tage)', value: '95,6 %', hint: '1.185 von 1.240 Läufen' },
@@ -93,7 +93,7 @@ describe('toCustomerStatCards', () => {
         successRate30d: { successful: 0, finished: 0 },
       }),
     ).toEqual([
-      { label: 'Kunden', value: '0', hint: 'noch keine Kunden' },
+      { label: 'Projekte', value: '0', hint: 'noch keine Projekte' },
       { label: 'Jobs gesamt', value: '0', hint: '0 aktiv · 0 beendet' },
       { label: 'Läufe (30 Tage)', value: '0', hint: 'kein Vergleich' },
       { label: 'Erfolgsquote (30 Tage)', value: '–', hint: 'noch keine Läufe' },

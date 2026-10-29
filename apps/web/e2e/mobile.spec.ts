@@ -60,8 +60,8 @@ test.describe('Auf dem Handy', () => {
       job,
       '/laeufe',
       run,
-      '/kunden',
-      '/kunden/neu',
+      '/projekte',
+      '/projekte/neu',
       '/einstellungen/team',
       '/einstellungen/ki',
     ]) {
@@ -94,7 +94,7 @@ test.describe('Auf dem Handy', () => {
   test('every step of the new-job wizard fits', async ({ page }) => {
     await page.goto('/jobs/neu');
     await expectFits(page);
-    await page.getByRole('combobox', { name: 'Kunde' }).selectOption({ label: 'Beispiel GmbH' });
+    await page.getByRole('combobox', { name: 'Projekt' }).selectOption({ label: 'Beispiel GmbH' });
     await page
       .getByRole('textbox', { name: 'Website (Start-URL)' })
       .fill('http://127.0.0.1:4100/kontakt.html');
@@ -152,7 +152,7 @@ test.describe('Auf Tablet und kleinem Laptop', () => {
       await page.setViewportSize(viewport);
       await page.goto('/');
       const job = await hrefOf(page, 'Login & Bestellstatus');
-      for (const path of ['/', job, '/jobs/neu', '/laeufe', '/kunden', '/einstellungen/ki']) {
+      for (const path of ['/', job, '/jobs/neu', '/laeufe', '/projekte', '/einstellungen/ki']) {
         await test.step(path, async () => {
           await page.goto(path);
           await expect(page.getByRole('heading', { level: 1 })).toBeVisible();

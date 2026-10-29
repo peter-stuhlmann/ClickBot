@@ -126,7 +126,7 @@ export function StepForm({ index, step, errors, onChange }: StepFormProps) {
           <Field
             id="step-password"
             label="Passwort"
-            hint="Wird verschlüsselt als Zugangsdaten des Kunden gespeichert und erscheint nie im Report."
+            hint="Wird verschlüsselt als Zugangsdaten des Projekts gespeichert und erscheint nie im Report."
             error={errors.password}
           >
             {(control) => (

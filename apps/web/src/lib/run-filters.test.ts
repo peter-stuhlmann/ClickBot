@@ -12,7 +12,7 @@ const now = new Date('2026-11-05T12:30:00Z');
 describe('parseRunFilters', () => {
   it('starts with the last 7 days of all customers, results and devices', () => {
     expect(parseRunFilters({})).toEqual({
-      kunde: '',
+      projekt: '',
       ergebnis: '',
       zeitraum: '7d',
       geraet: '',
@@ -24,14 +24,14 @@ describe('parseRunFilters', () => {
   it('reads the filters from the address', () => {
     expect(
       parseRunFilters({
-        kunde: 'c1',
+        projekt: 'c1',
         ergebnis: 'fehlgeschlagen',
         zeitraum: '24h',
         geraet: 'iphone',
         seite: '3',
       }),
     ).toEqual({
-      kunde: 'c1',
+      projekt: 'c1',
       ergebnis: 'fehlgeschlagen',
       zeitraum: '24h',
       geraet: 'iphone',
@@ -55,7 +55,7 @@ describe('toRunQuery', () => {
   it('turns the filters into a query for listRuns', () => {
     expect(
       toRunQuery(
-        { kunde: 'c1', ergebnis: 'offen', zeitraum: '24h', geraet: 'android', seite: 3 },
+        { projekt: 'c1', ergebnis: 'offen', zeitraum: '24h', geraet: 'android', seite: 3 },
         now,
       ),
     ).toEqual({
@@ -93,8 +93,8 @@ describe('toRunQuery', () => {
 
 describe('pageHref', () => {
   it('keeps the filters and leaves out the defaults', () => {
-    expect(pageHref({ ...DEFAULT_RUN_FILTERS, kunde: 'c1', ergebnis: 'hinweis' }, 2)).toBe(
-      '/laeufe?kunde=c1&ergebnis=hinweis&seite=2',
+    expect(pageHref({ ...DEFAULT_RUN_FILTERS, projekt: 'c1', ergebnis: 'hinweis' }, 2)).toBe(
+      '/laeufe?projekt=c1&ergebnis=hinweis&seite=2',
     );
     expect(pageHref(DEFAULT_RUN_FILTERS, 1)).toBe('/laeufe');
     expect(pageHref({ ...DEFAULT_RUN_FILTERS, zeitraum: 'alle', geraet: 'ipad' }, 1)).toBe(

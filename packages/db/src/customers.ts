@@ -32,7 +32,7 @@ export function slugify(name: string): string {
     .replace(/[̀-ͯ]/g, '')
     .replace(/[^a-z0-9]+/g, '-')
     .replace(/^-+|-+$/g, '');
-  return slug || 'kunde';
+  return slug || 'projekt';
 }
 
 /** The slug of `name`, numbered (-2, -3, …) if it is taken. */
@@ -61,7 +61,7 @@ export async function createCustomer(db: Database, input: { name: string }): Pro
     .from(customers)
     .where(sql`lower(${customers.name}) = lower(${name})`)
     .limit(1);
-  if (twin) throw fail('Diesen Kunden gibt es schon.');
+  if (twin) throw fail('Dieses Projekt gibt es schon.');
 
   const [customer] = await db
     .insert(customers)
@@ -91,7 +91,7 @@ function hostOf(url: string): string | null {
   }
 }
 
-/** Screen 10 "Kunden": one row per customer, by name. */
+/** Screen 10 "Projekte": one row per customer, by name. */
 export async function listCustomerOverview(
   db: Database,
   now: Date,

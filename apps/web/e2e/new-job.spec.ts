@@ -8,7 +8,7 @@ test.describe('Neuer Job', () => {
     await expect(page.getByRole('heading', { level: 1, name: 'Neuer Job' })).toBeVisible();
 
     // 1 · Website
-    await page.getByRole('combobox', { name: 'Kunde' }).selectOption({ label: 'Beispiel GmbH' });
+    await page.getByRole('combobox', { name: 'Projekt' }).selectOption({ label: 'Beispiel GmbH' });
     await page
       .getByRole('textbox', { name: 'Website (Start-URL)' })
       .fill('http://127.0.0.1:4100/kontakt.html');
@@ -42,7 +42,7 @@ test.describe('Neuer Job', () => {
 
   test('refuses to continue without the confirmation that testing is allowed', async ({ page }) => {
     await page.goto('/jobs/neu');
-    await page.getByRole('combobox', { name: 'Kunde' }).selectOption({ label: 'Beispiel GmbH' });
+    await page.getByRole('combobox', { name: 'Projekt' }).selectOption({ label: 'Beispiel GmbH' });
     await page.getByRole('textbox', { name: 'Website (Start-URL)' }).fill('beispiel.de');
     await page.getByRole('textbox', { name: 'Job-Name' }).fill('Ohne Freigabe');
     await page.getByRole('button', { name: 'Weiter' }).click();
