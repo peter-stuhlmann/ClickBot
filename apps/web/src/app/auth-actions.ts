@@ -9,6 +9,7 @@ import {
   login,
   registerFirstAdmin,
   revokeInvitation,
+  skipTotpSetup,
   ValidationError,
   verifyLoginCode,
   type CodeResult,
@@ -88,6 +89,19 @@ export async function totpSetupAction(_state: FormState, data: FormData): Promis
   if (!token) redirect('/anmelden');
   const code = field(data, 'code');
   return finishCode(await confirmTotpSetup(getDb(), getCipher(), token, code, new Date()));
+}
+
+/** "Später einrichten": signs in without 2FA; the setup comes again at the next login. */
+export async function skipTotpSetupAction(): Promise<void> {
+  const token = await sessionToken();
+  if (!token) redirect('/anmelden');
+  const result = await skipTotpSetup(getDb(), token, new Date());
+  if ('error' in result) {
+    await clearSessionCookie();
+    redirect('/anmelden');
+  }
+  await setSessionCookie(result.token, true);
+  redirect('/');
 }
 
 /** Accepting an invitation: name and password, then 2FA setup. */

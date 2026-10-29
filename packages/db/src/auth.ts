@@ -13,7 +13,8 @@ import { generateTotpSecret, verifyTotp } from './totp';
  * itself as admin, everyone else comes by invitation (invitations.ts).
  *
  * A session starts after the password as "incomplete" (15 minutes) and becomes complete with the
- * 2FA code, or with the 2FA setup on the first login. Completing it swaps the token. The cookie
+ * 2FA code, or with the 2FA setup, or when an account without 2FA skips its setup (offered again
+ * at every login). Completing it swaps the token. The cookie
  * carries a random token; the database stores only its SHA-256.
  */
 
@@ -283,7 +284,8 @@ export async function startTotpSetup(
   token: string,
   now: Date,
 ): Promise<{ secret: string; email: string } | null> {
-  const row = await pendingSession(db, token, now);
+  // Also from a complete session: 2FA that was skipped at login can be set up later.
+  const row = await findSession(db, token, now);
   if (!row || row.user.totpSecretEnc) return null;
   const { session, user } = row;
   if (session.pendingTotpEnc) {
@@ -305,7 +307,7 @@ export async function confirmTotpSetup(
   code: string,
   now: Date,
 ): Promise<CodeResult> {
-  const row = await pendingSession(db, token, now);
+  const row = await findSession(db, token, now);
   const pendingEnc = row?.session.pendingTotpEnc;
   if (!row || !pendingEnc || row.user.totpSecretEnc) return { error: EXPIRED, restart: true };
   const { session, user } = row;
@@ -317,6 +319,16 @@ export async function confirmTotpSetup(
     .set({ totpSecretEnc: pendingEnc, totpLastStep: step })
     .where(and(eq(users.id, user.id), isNull(users.totpSecretEnc)));
   return completeSession(db, session.id, user.id, now);
+}
+
+/**
+ * "Später einrichten": completes the login without 2FA, for an account that has none. The
+ * setup is offered again at every login until it is done.
+ */
+export async function skipTotpSetup(db: Database, token: string, now: Date): Promise<CodeResult> {
+  const row = await pendingSession(db, token, now);
+  if (!row || row.user.totpSecretEnc) return { error: EXPIRED, restart: true };
+  return completeSession(db, row.session.id, row.user.id, now);
 }
 
 /** Ends every session of an account, e.g. when its password is reset. */

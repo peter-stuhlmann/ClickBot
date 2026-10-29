@@ -10,6 +10,7 @@ import {
   login,
   logout,
   registerFirstAdmin,
+  skipTotpSetup,
   startTotpSetup,
   verifyLoginCode,
 } from './auth';
@@ -276,5 +277,56 @@ describe('sessions', () => {
     const { token } = await adminWith2fa();
     await db.delete(users).where(eq(users.email, 'peter@agentur.de'));
     expect(await getSession(db, token, now)).toBeNull();
+  });
+});
+
+describe('skipping the 2FA setup', () => {
+  it('signs in without 2FA and swaps the session token', async () => {
+    const { token } = await registerFirstAdmin(db, admin, now);
+    const result = await skipTotpSetup(db, token, now);
+
+    expect('token' in result).toBe(true);
+    const complete = (result as { token: string }).token;
+    expect(complete).not.toBe(token);
+    expect(await getSession(db, token, now)).toBeNull();
+    expect(await getSession(db, complete, now)).toMatchObject({ complete: true, hasTotp: false });
+  });
+
+  it('offers the setup again at the next login', async () => {
+    const { token } = await registerFirstAdmin(db, admin, now);
+    await skipTotpSetup(db, token, now);
+    const next = await login(db, { email: admin.email, password: admin.password }, minutes(1));
+    expect(await getSession(db, (next as { token: string }).token, minutes(1))).toMatchObject({
+      complete: false,
+      hasTotp: false,
+    });
+  });
+
+  it('is not possible for an account with 2FA, which has to enter its code', async () => {
+    await adminWith2fa();
+    const pending = await login(db, { email: admin.email, password: admin.password }, minutes(1));
+    expect(await skipTotpSetup(db, (pending as { token: string }).token, minutes(1))).toEqual({
+      error: 'Die Anmeldung ist abgelaufen. Bitte neu anmelden.',
+      restart: true,
+    });
+  });
+
+  it('can be made up for later, from a session that is already complete', async () => {
+    const { token } = await registerFirstAdmin(db, admin, now);
+    const skipped = (await skipTotpSetup(db, token, now)) as { token: string };
+
+    const setup = await startTotpSetup(db, cipher, skipped.token, now);
+    expect(setup?.secret).toMatch(/^[A-Z2-7]{32}$/);
+    const done = await confirmTotpSetup(
+      db,
+      cipher,
+      skipped.token,
+      totpCode(setup?.secret as string, totpStep(now)),
+      now,
+    );
+
+    const token2 = (done as { token: string }).token;
+    expect(await getSession(db, token2, now)).toMatchObject({ complete: true, hasTotp: true });
+    expect(await getSession(db, skipped.token, now)).toBeNull();
   });
 });

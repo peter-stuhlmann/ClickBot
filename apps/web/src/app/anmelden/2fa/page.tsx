@@ -2,24 +2,25 @@ import { otpauthUri, startTotpSetup } from '@click-bot/db';
 import type { Metadata } from 'next';
 import { redirect } from 'next/navigation';
 import QRCode from 'qrcode';
+import { Button } from '@/components/atoms/Button';
 import { TotpQr } from '@/components/molecules/TotpQr';
 import { CodeForm } from '@/components/organisms/CodeForm';
 import { AuthLayout } from '@/components/templates/AuthLayout';
 import { currentSession, nextAuthStep, sessionToken } from '@/server/auth';
 import { getCipher } from '@/server/cipher';
 import { getDb } from '@/server/db';
-import { totpSetupAction } from '../../auth-actions';
+import { skipTotpSetupAction, totpSetupAction } from '../../auth-actions';
 
 export const dynamic = 'force-dynamic';
 
 export const metadata: Metadata = { title: '2FA einrichten · Click-Bot' };
 
-/** First login: set up the authenticator app. 2FA is required for every account. */
+/** Set up the authenticator app: after the password (skippable) or later from the team page. */
 export default async function TotpSetupPage() {
   const session = await currentSession();
-  const step = nextAuthStep(session);
   const token = await sessionToken();
-  if (step !== '/anmelden/2fa' || !token) redirect(step);
+  // Right after the password, or later from a signed-in account that skipped the setup.
+  if (!session || session.hasTotp || !token) redirect(nextAuthStep(session));
 
   const setup = await startTotpSetup(getDb(), getCipher(), token, new Date());
   if (!setup) redirect('/anmelden');
@@ -35,6 +36,21 @@ export default async function TotpSetupPage() {
     >
       <TotpQr qrDataUrl={qrDataUrl} secret={setup.secret} />
       <CodeForm action={totpSetupAction} submitLabel="2FA aktivieren" />
+      {session.complete ? (
+        <Button variant="ghost" fullWidth href="/einstellungen/team">
+          Abbrechen
+        </Button>
+      ) : (
+        <form action={skipTotpSetupAction} className="flex flex-col gap-2">
+          <Button type="submit" variant="ghost" fullWidth>
+            Später einrichten
+          </Button>
+          <p className="text-center text-small text-text-muted">
+            Ohne 2FA schützt nur dein Passwort das Konto. Click-Bot fragt bei jeder Anmeldung
+            wieder.
+          </p>
+        </form>
+      )}
     </AuthLayout>
   );
 }

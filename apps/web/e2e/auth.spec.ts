@@ -110,4 +110,44 @@ test.describe('Anmeldung', () => {
     await page.goto(link);
     await expect(page.getByRole('heading', { level: 1, name: 'Einladung ungültig' })).toBeVisible();
   });
+
+  test('lets a person skip the 2FA setup and asks again at the next login', async ({
+    page,
+    browser,
+  }) => {
+    const adminContext = await browser.newContext({ storageState: 'e2e/.auth/admin.json' });
+    const adminPage = await adminContext.newPage();
+    await adminPage.goto('/einstellungen/team');
+    await adminPage.getByLabel('E-Mail').fill('ben@e2e.test');
+    await adminPage.getByRole('button', { name: 'Einladungslink erstellen' }).click();
+    const link = await adminPage.getByRole('textbox', { name: 'Einladungslink' }).inputValue();
+    await adminContext.close();
+
+    await page.goto(link);
+    await page.getByLabel('Name').fill('Ben E2E');
+    await page.getByLabel('Passwort').fill('wolken-himmel-blau-3');
+    await page.getByRole('button', { name: 'Einladung annehmen' }).click();
+    await expect(page).toHaveURL('/anmelden/2fa');
+
+    await page.getByRole('button', { name: 'Später einrichten' }).click();
+    await expect(page).toHaveURL('/');
+    await expect(page.getByRole('complementary')).toContainText('Ben E2E');
+
+    // A reminder on the team page, with the way to set it up later.
+    await page.goto('/einstellungen/team');
+    await expect(page.getByRole('region', { name: 'Dein Konto hat keine 2FA' })).toBeVisible();
+    await page.getByRole('link', { name: '2FA jetzt einrichten' }).click();
+    await expect(page).toHaveURL('/anmelden/2fa');
+    await expect(page.getByRole('button', { name: 'Später einrichten' })).toHaveCount(0);
+    await page.getByRole('link', { name: 'Abbrechen' }).click();
+    await expect(page).toHaveURL('/einstellungen/team');
+
+    // The next login offers the setup again.
+    await page.getByRole('button', { name: 'Abmelden' }).click();
+    await page.getByLabel('E-Mail').fill('ben@e2e.test');
+    await page.getByLabel('Passwort').fill('wolken-himmel-blau-3');
+    await page.getByRole('button', { name: 'Anmelden' }).click();
+    await expect(page).toHaveURL('/anmelden/2fa');
+    await expect(page.getByRole('button', { name: 'Später einrichten' })).toBeVisible();
+  });
 });

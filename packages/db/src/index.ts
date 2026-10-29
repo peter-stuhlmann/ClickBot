@@ -60,6 +60,7 @@ export {
   login,
   logout,
   registerFirstAdmin,
+  skipTotpSetup,
   startTotpSetup,
   verifyLoginCode,
   type CodeResult,

@@ -126,8 +126,10 @@ packages/db      Drizzle-Schema, SQL-Migrationen, Repository-Funktionen, Verschl
     Danach nur per Einladungslink („Einstellungen → Team“ oder `pnpm auth:invite`).
   - Ein Link für eine Adresse mit Konto setzt Passwort und 2FA neu und beendet alle
     Sitzungen. Das ist der Weg zurück nach vergessenem Passwort oder verlorenem Handy.
-  - 2FA (TOTP, RFC 6238) ist Pflicht. Ein Code gilt einmal (`users.totp_last_step`). Der
-    Schlüssel liegt mit `SECRETS_KEY` verschlüsselt.
+  - 2FA (TOTP, RFC 6238): Nach dem Passwort folgt der Code oder, ohne 2FA, die Einrichtung.
+    Sie lässt sich überspringen („Später einrichten“, `skipTotpSetup`), kommt dann aber bei
+    jeder Anmeldung wieder und lässt sich unter „Einstellungen → Team“ nachholen. Ein Code
+    gilt einmal (`users.totp_last_step`). Der Schlüssel liegt mit `SECRETS_KEY` verschlüsselt.
   - Passwörter: scrypt wie in seo-analyse (`scrypt$salt$hash`), Regeln in
     `packages/shared/src/password.ts`, dazu die Prüfung auf Datenlecks (Have I Been Pwned,
     `apps/web/src/server/pwned.ts`). `PWNED_CHECK=off` schaltet sie in Tests ab.
