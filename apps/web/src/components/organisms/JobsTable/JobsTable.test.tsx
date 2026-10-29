@@ -48,6 +48,17 @@ describe('JobsTable', () => {
     expect(cells.getByText('100 %')).toHaveClass('text-success');
   });
 
+  it('names the columns inside the row for small screens, but not twice for screen readers', () => {
+    render(<JobsTable rows={[row()]} toggleAction={noop} />);
+    const [, dataRow] = screen.getAllByRole('row');
+    for (const column of ['Zeitplan', 'Fortschritt', 'Letzter Lauf', 'Erfolgsquote', 'Status']) {
+      expect(within(dataRow as HTMLElement).getByText(column)).toHaveAttribute(
+        'aria-hidden',
+        'true',
+      );
+    }
+  });
+
   it('colours the success rate by its tone', () => {
     render(
       <JobsTable

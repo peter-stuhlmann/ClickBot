@@ -140,29 +140,29 @@ export function JobEditor({
           description={header.description}
           status={header.status}
           breadcrumb={[{ label: 'Jobs', href: '/' }, { label: header.title }]}
-          actions={
-            <>
-              <Button
-                variant="secondary"
-                icon={<Icon name="play" size={16} />}
-                loading={testing}
-                disabled={saving}
-                onClick={testRun}
-                title={`Ein Bot auf ${deviceLabel(draft.devices[0] ?? 'desktop')}, sofort. Ungespeicherte Änderungen werden vorher gespeichert.`}
-              >
-                Testlauf starten
-              </Button>
-              <Button
-                icon={<Icon name="check" size={16} />}
-                loading={saving}
-                disabled={!dirty || testing}
-                onClick={save}
-              >
-                Speichern
-              </Button>
-            </>
-          }
         />
+      }
+      actions={
+        <>
+          <Button
+            variant="secondary"
+            icon={<Icon name="play" size={16} />}
+            loading={testing}
+            disabled={saving}
+            onClick={testRun}
+            title={`Ein Bot auf ${deviceLabel(draft.devices[0] ?? 'desktop')}, sofort. Ungespeicherte Änderungen werden vorher gespeichert.`}
+          >
+            Testlauf starten
+          </Button>
+          <Button
+            icon={<Icon name="check" size={16} />}
+            loading={saving}
+            disabled={!dirty || testing}
+            onClick={save}
+          >
+            Speichern
+          </Button>
+        </>
       }
       message={
         issues.length > 0 ? (

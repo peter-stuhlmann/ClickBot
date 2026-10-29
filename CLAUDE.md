@@ -431,6 +431,18 @@ Tailwind (v4, CSS-first):
 - **Kein `style={}`** außer für wirklich dynamische Werte, z. B. die Breite eines
   Fortschrittsbalkens.
 
+Responsive (Handy zuerst prüfen, `e2e/mobile.spec.ts`):
+
+- Unter `lg` ist die Sidebar eine Kopfzeile mit Menü (Schublade), ab `lg` eine Spalte, die beim
+  Scrollen stehen bleibt.
+- Unter `xl` stehen die Spalten der Templates untereinander. Tabellen werden darunter zu einer
+  Karte je Zeile (Läufe erst unter `md`), mit ausdrücklichen ARIA-Rollen, weil Safari einer als
+  Block angezeigten Tabelle die Semantik nimmt.
+- Knöpfe von Formularseiten (Assistent, Editor) stehen in `ActionBar`: ab `xl` neben dem Titel,
+  darunter als Leiste am unteren Fensterrand.
+- `e2e/mobile.spec.ts` prüft bei 360, 768 und 1280 px, dass nichts seitlich übersteht. Neue Seiten
+  dort eintragen.
+
 ## Tests (Pflicht, kein Nachgedanke)
 
 Der Code testet Websites, also muss er selbst verlässlich sein. Eine Änderung ohne passende

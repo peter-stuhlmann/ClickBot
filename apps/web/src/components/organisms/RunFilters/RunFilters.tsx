@@ -28,7 +28,8 @@ export function RunFilters({ values, customers, results, periods, devices }: Run
         method="get"
         action="/laeufe"
         aria-label="Läufe filtern"
-        className="flex flex-col gap-4"
+        // Beside the table (xl) one column; above it two or four, so the runs stay in view.
+        className="grid grid-cols-2 gap-3 sm:gap-4 md:grid-cols-4 xl:flex xl:flex-col"
       >
         <Field id="filter-customer" label="Kunde">
           {(control) => (
@@ -68,7 +69,7 @@ export function RunFilters({ values, customers, results, periods, devices }: Run
             />
           )}
         </Field>
-        <div className="flex flex-col gap-2">
+        <div className="col-span-2 flex flex-col gap-2 sm:flex-row md:col-span-4 xl:flex-col">
           <Button type="submit" fullWidth>
             Filter anwenden
           </Button>

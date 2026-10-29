@@ -50,4 +50,11 @@ test.describe('Läufe', () => {
     await expect(page).toHaveURL('/laeufe');
     await expect(page.getByRole('combobox', { name: 'Gerät' })).toHaveValue('');
   });
+
+  test('keeps the filters beside the table in view while the list scrolls', async ({ page }) => {
+    await page.goto('/laeufe');
+    await page.mouse.wheel(0, 3000);
+    await expect.poll(() => page.evaluate(() => window.scrollY)).toBeGreaterThan(1000);
+    await expect(page.getByRole('form', { name: 'Läufe filtern' })).toBeInViewport({ ratio: 1 });
+  });
 });

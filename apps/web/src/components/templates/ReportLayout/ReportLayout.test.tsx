@@ -33,15 +33,19 @@ describe('ReportLayout', () => {
       </ReportLayout>,
     );
     expect(screen.getByRole('complementary', { name: 'Filter' })).toHaveTextContent('Kunde');
-    expect(screen.getByRole('complementary', { name: 'Filter' })).toHaveClass('w-110');
+    expect(screen.getByRole('complementary', { name: 'Filter' })).toHaveClass('xl:w-110');
   });
 
-  it('can make the detail column narrower for a wide table', () => {
+  it('can make the detail column narrower and sticky for a wide table, and puts it first on small screens', () => {
     render(
       <ReportLayout header={null} stats={null} aside={<p>Kunde</p>} asideLabel="Filter" narrowAside>
         <p>Läufe</p>
       </ReportLayout>,
     );
-    expect(screen.getByRole('complementary', { name: 'Filter' })).toHaveClass('w-80');
+    expect(screen.getByRole('complementary', { name: 'Filter' })).toHaveClass(
+      'xl:w-80',
+      'order-first',
+      'xl:sticky',
+    );
   });
 });

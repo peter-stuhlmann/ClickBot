@@ -21,19 +21,27 @@ export type RunsTableProps = {
   pager: PagerProps;
 };
 
-/** Screen 14: runs of all jobs; each row opens the report of its run. */
+/**
+ * Screen 14: runs of all jobs; each row opens the report of its run. Below `md` every run is a
+ * block of two lines; the roles are set explicitly, because Safari drops the semantics of a table
+ * shown as blocks.
+ */
 export function RunsTable({ rows, summary, pager }: RunsTableProps) {
   return (
     <Card
       title="Läufe"
       aside={<span className="shrink-0 text-meta text-text-muted">{summary}</span>}
     >
-      <table className="w-full table-fixed border-collapse text-left">
-        <thead className="border-b border-border">
-          <tr>
+      <table
+        role="table"
+        className="block w-full border-collapse text-left md:table md:table-fixed"
+      >
+        <thead role="rowgroup" className="sr-only border-b border-border md:not-sr-only">
+          <tr role="row">
             {COLUMNS.map((column) => (
               <th
                 key={column.label}
+                role="columnheader"
                 scope="col"
                 className={`${column.width} pb-3 text-label font-semibold text-text-muted uppercase`}
               >
@@ -42,10 +50,14 @@ export function RunsTable({ rows, summary, pager }: RunsTableProps) {
             ))}
           </tr>
         </thead>
-        <tbody>
+        <tbody role="rowgroup" className="block md:table-row-group">
           {rows.length === 0 && (
-            <tr>
-              <td colSpan={COLUMNS.length} className="py-10 text-center text-text-muted">
+            <tr role="row" className="block md:table-row">
+              <td
+                role="cell"
+                colSpan={COLUMNS.length}
+                className="block py-10 text-center text-text-muted md:table-cell"
+              >
                 Keine Läufe für diese Filter.
               </td>
             </tr>
@@ -53,12 +65,14 @@ export function RunsTable({ rows, summary, pager }: RunsTableProps) {
           {rows.map((row) => (
             <tr
               key={row.id}
+              role="row"
               className={cn(
-                'border-b border-divider last:border-0',
+                // Dense, so the result fills the gap beside the customer on small screens.
+                'grid grid-flow-row-dense grid-cols-2 gap-x-3 gap-y-1 border-b border-divider py-3 last:border-0 md:table-row md:py-0',
                 row.failed && 'bg-danger-soft',
               )}
             >
-              <td className="py-3 pr-3">
+              <td role="cell" className="col-span-2 min-w-0 md:py-3 md:pr-3">
                 <Link
                   href={row.href}
                   className="group block rounded-chip focus-visible:outline-2 focus-visible:outline-primary"
@@ -76,16 +90,19 @@ export function RunsTable({ rows, summary, pager }: RunsTableProps) {
                   <span className="block truncate text-small text-text-muted">{row.detail}</span>
                 </Link>
               </td>
-              <td className="truncate py-3 pr-3 text-body text-text">{row.customer}</td>
+              <td role="cell" className="mt-1 truncate text-body text-text md:mt-0 md:py-3 md:pr-3">
+                {row.customer}
+              </td>
               <td
+                role="cell"
                 className={cn(
-                  'py-3 pr-3 font-mono text-small',
+                  'col-span-2 font-mono text-small md:py-3 md:pr-3',
                   row.failed ? 'text-danger' : 'text-text-muted',
                 )}
               >
                 {row.when} · {row.duration}
               </td>
-              <td className="py-3">
+              <td role="cell" className="mt-1 justify-self-end md:mt-0 md:py-3">
                 <Badge tone={row.status.tone}>{row.status.label}</Badge>
               </td>
             </tr>

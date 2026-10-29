@@ -15,7 +15,10 @@ export type ReportLayoutProps = {
   children: ReactNode;
 };
 
-/** Report pages (screen 03): header, key figures, then main column and detail column. */
+/**
+ * Report pages (screen 03): header, key figures, then main column and detail column; below `xl`
+ * one above the other.
+ */
 export function ReportLayout({
   header,
   stats,
@@ -28,12 +31,17 @@ export function ReportLayout({
     <>
       {header}
       {stats}
-      <div className="flex items-start gap-6">
+      <div className="flex flex-col gap-6 xl:flex-row xl:items-start">
         <div className="flex min-w-0 flex-1 flex-col gap-6">{children}</div>
         {aside && (
           <aside
             aria-label={asideLabel}
-            className={cn('flex shrink-0 flex-col gap-4', narrowAside ? 'w-80' : 'w-110')}
+            className={cn(
+              'flex flex-col gap-4 xl:shrink-0',
+              // Filters belong above the table they filter when there is no room beside it, and
+              // stay in view beside it while the table scrolls.
+              narrowAside ? 'order-first xl:sticky xl:top-8 xl:order-none xl:w-80' : 'xl:w-110',
+            )}
           >
             {aside}
           </aside>

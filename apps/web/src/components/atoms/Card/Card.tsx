@@ -17,13 +17,13 @@ export function Card({ title, description, aside, children, className }: CardPro
     <section
       aria-labelledby={title ? titleId : undefined}
       className={cn(
-        'flex flex-col gap-4 rounded-card border border-border bg-surface p-5',
+        'flex flex-col gap-4 rounded-card border border-border bg-surface p-4 sm:p-5',
         className,
       )}
     >
       {title && (
-        <header className="flex items-start justify-between gap-4">
-          <div className="flex flex-col gap-2">
+        <header className="flex flex-wrap items-start justify-between gap-x-4 gap-y-2">
+          <div className="flex min-w-0 flex-col gap-2">
             <h2 id={titleId} className="text-card font-semibold text-text">
               {title}
             </h2>

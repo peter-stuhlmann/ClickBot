@@ -26,6 +26,17 @@ describe('CustomersTable', () => {
     ]);
   });
 
+  it('names the columns inside the row for small screens, but not twice for screen readers', () => {
+    render(<CustomersTable rows={[row()]} />);
+    const [, dataRow] = screen.getAllByRole('row');
+    for (const column of ['Jobs', 'Läufe (30 Tage)', 'Letzter Lauf', 'Erfolgsquote']) {
+      expect(within(dataRow as HTMLElement).getByText(column)).toHaveAttribute(
+        'aria-hidden',
+        'true',
+      );
+    }
+  });
+
   it('shows everything about a customer in one row', () => {
     render(<CustomersTable rows={[row()]} />);
     const [, dataRow] = screen.getAllByRole('row');

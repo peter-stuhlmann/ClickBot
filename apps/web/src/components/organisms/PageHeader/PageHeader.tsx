@@ -16,16 +16,17 @@ export type PageHeaderProps = {
 
 export function PageHeader({ title, description, actions, breadcrumb, status }: PageHeaderProps) {
   return (
-    <header className="flex items-center justify-between gap-6">
-      <div className="flex flex-col gap-1">
+    // Below `sm` the buttons go under the title, so a long title keeps its width.
+    <header className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between sm:gap-6">
+      <div className="flex min-w-0 flex-col gap-1">
         {breadcrumb && <Breadcrumb items={breadcrumb} />}
         <div className="flex flex-wrap items-center gap-3">
-          <h1 className="text-h1 font-semibold text-text">{title}</h1>
+          <h1 className="text-h1 font-semibold break-words text-text">{title}</h1>
           {status && <Badge tone={status.tone}>{status.label}</Badge>}
         </div>
         {description && <p className="text-body text-text-muted">{description}</p>}
       </div>
-      {actions && <div className="flex shrink-0 items-center gap-3">{actions}</div>}
+      {actions && <div className="flex shrink-0 flex-wrap items-center gap-3">{actions}</div>}
     </header>
   );
 }

@@ -59,13 +59,14 @@ export function StepItem({
         aria-pressed={selected}
         aria-label={`Schritt ${number}: ${step.title}`}
         onClick={onSelect}
-        className="flex min-w-0 flex-1 items-center gap-3 rounded-input text-left focus-visible:outline-2 focus-visible:outline-primary"
+        // Below `sm` title and locator get a line of their own, so they are not cut after a word.
+        className="flex min-w-0 flex-1 flex-wrap items-center gap-x-3 gap-y-1.5 rounded-input text-left focus-visible:outline-2 focus-visible:outline-primary sm:flex-nowrap"
       >
         <span className="flex size-6 shrink-0 items-center justify-center rounded-full bg-neutral-soft text-small font-semibold text-text-secondary">
           {number}
         </span>
         <span className={typeBadge({ tone: step.tone })}>{step.typeLabel}</span>
-        <span className="flex min-w-0 flex-col gap-0.5">
+        <span className="flex min-w-0 basis-full flex-col gap-0.5 sm:basis-auto">
           <span className="truncate text-body font-medium text-text">{step.title}</span>
           <span className="truncate font-mono text-small text-text-muted">{step.detail}</span>
         </span>
