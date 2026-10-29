@@ -36,6 +36,13 @@
       "when": 1793239303539,
       "tag": "0004_ai_providers",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1793296600535,
+      "tag": "0005_browsers",
+      "breakpoints": true
     }
   ]
 }

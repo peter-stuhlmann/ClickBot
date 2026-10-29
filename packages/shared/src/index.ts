@@ -5,3 +5,4 @@ export * from './domains';
 export * from './password';
 export * from './analytics-marking';
 export * from './ai-providers';
+export * from './browsers';

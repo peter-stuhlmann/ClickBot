@@ -1,9 +1,11 @@
 import {
   ALL_MARKINGS_ON,
+  browserProblem,
   DEFAULT_TIMEZONE,
   describeMarking,
   flowSchema,
   localToUtc,
+  runTargets,
   scheduleSchema,
   type AnalyticsMarking,
   type Flow,
@@ -11,7 +13,7 @@ import {
   type Step,
   type Target,
 } from '@click-bot/shared';
-import { deviceLabel, type DeviceKey } from './devices';
+import { describeTargets, type BrowserKey, type DeviceKey } from './devices';
 import { describeSchedule, displayUrl, plural } from './format';
 import type { SummaryRowView } from './views';
 
@@ -105,6 +107,8 @@ export type WizardDraft = {
   steps: StepDraft[];
   schedule: ScheduleDraft;
   devices: DeviceKey[];
+  /** Browsers to run in; iPhone and iPad always run in Safari (runTargets). */
+  browsers: BrowserKey[];
   /** Which GA4 markers the bot runs set (all on by default). */
   analyticsMarking: AnalyticsMarking;
 };
@@ -118,6 +122,7 @@ export type NewJobDraftInput = {
   flow: { version: 1; steps: Record<string, unknown>[] };
   schedule: Record<string, unknown>;
   devices: DeviceKey[];
+  browsers: BrowserKey[];
   analyticsMarking: AnalyticsMarking;
   status: 'active';
 };
@@ -164,6 +169,7 @@ export function emptyDraft(now: Date): WizardDraft {
       staggerSeconds: STAGGER_SECONDS,
     },
     devices: ['desktop'],
+    browsers: ['chromium'],
     analyticsMarking: ALL_MARKINGS_ON,
   };
 }
@@ -421,6 +427,7 @@ export function toNewJobInput(draft: WizardDraft, now: Date): NewJobDraftInput {
     flow: { version: 1, steps: draft.steps.map(toStep) },
     schedule: toSchedule(draft.schedule, now),
     devices: draft.devices,
+    browsers: draft.browsers,
     analyticsMarking: draft.analyticsMarking,
     status: 'active',
   };
@@ -502,10 +509,13 @@ export function validateWizardStep(draft: WizardDraft, step: WizardStep, now: Da
     }
     case 'schedule':
       return scheduleIssues(draft.schedule, now);
-    case 'devices':
-      return draft.devices.length > 0
-        ? []
-        : [{ path: 'devices', message: 'Mindestens ein Gerät wählen.' }];
+    case 'devices': {
+      if (draft.devices.length === 0) {
+        return [{ path: 'devices', message: 'Mindestens ein Gerät wählen.' }];
+      }
+      const problem = browserProblem(draft.devices, draft.browsers);
+      return problem ? [{ path: 'browsers', message: problem }] : [];
+    }
   }
 }
 
@@ -534,6 +544,7 @@ export type StoredJob = {
   flow: Flow;
   schedule: Schedule;
   devices: readonly DeviceKey[];
+  browsers: readonly BrowserKey[];
   analyticsMarking: AnalyticsMarking;
 };
 
@@ -590,6 +601,7 @@ export function jobToDraft(
       steps: steps as StepDraft[],
       schedule: scheduleDraft,
       devices: [...job.devices],
+      browsers: [...job.browsers],
       analyticsMarking: job.analyticsMarking,
     },
   };
@@ -630,6 +642,7 @@ export function removeStep(
 export function wizardStepOf(path: string): WizardStep {
   const [head] = path.split('.');
   if (head === 'flow' || head === 'schedule' || head === 'devices') return head;
+  if (head === 'browsers') return 'devices';
   return 'website';
 }
 
@@ -727,23 +740,30 @@ export function summarise(
       value: draft.steps.length > 0 ? plural(draft.steps.length, 'Schritt', 'Schritte') : DASH,
     },
     { label: 'Zeitplan', value: scheduleText },
-    { label: 'Geräte', value: draft.devices.map(deviceLabel).join(', ') || DASH },
+    { label: 'Geräte', value: describeTargets(draft.devices, draft.browsers) || DASH },
     { label: 'GA4-Markierung', value: describeMarking(draft.analyticsMarking) ?? 'alle an' },
   ];
 }
 
-/** "24 Starts × 2 Geräte = 48 Läufe", or null while the schedule is invalid. */
+/**
+ * "24 Starts × 2 Geräte = 48 Läufe", or "× 3 Kombinationen" when a device runs in several
+ * browsers; null while the schedule is invalid or nothing would run.
+ */
 export function describeRunTotal(draft: WizardDraft, now: Date): string | null {
   const parsed = scheduleSchema.safeParse(toSchedule(draft.schedule, now));
-  if (!parsed.success || draft.devices.length === 0) return null;
+  const targets = runTargets(draft.devices, draft.browsers).length;
+  if (!parsed.success || targets === 0) return null;
   const schedule = parsed.data;
   const starts =
     schedule.type === 'interval'
       ? schedule.maxRuns
       : schedule.slots.reduce((sum, slot) => sum + slot.bots, 0);
-  const devices = draft.devices.length;
-  return `${plural(starts, 'Start', 'Starts')} × ${plural(devices, 'Gerät', 'Geräte')} = ${plural(
-    starts * devices,
+  const perStart =
+    targets === new Set(draft.devices).size
+      ? plural(targets, 'Gerät', 'Geräte')
+      : plural(targets, 'Kombination', 'Kombinationen');
+  return `${plural(starts, 'Start', 'Starts')} × ${perStart} = ${plural(
+    starts * targets,
     'Lauf',
     'Läufe',
   )}`;

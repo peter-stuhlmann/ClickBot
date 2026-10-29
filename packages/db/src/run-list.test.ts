@@ -61,6 +61,7 @@ async function setup() {
       runNr: 2,
       slotIndex: null,
       device: 'android',
+      browser: 'chromium',
       status: 'running',
       scheduledAt: hoursAgo(0.1),
       startedAt: hoursAgo(0.1),

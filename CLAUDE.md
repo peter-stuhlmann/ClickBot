@@ -41,9 +41,9 @@ die Einstellungen der KI-Anbieter stehen.
     - plant fällige Termine ein und führt sie mit Playwright aus
     - speichert Ergebnis, Schritte und Bildschirmfotos
     - meldet seinen Status an die Web-App
-    - emuliert Geräte in Chromium
+    - führt Läufe in Chrome, Firefox und Safari (WebKit) aus und emuliert Geräte
 - **Noch nicht gebaut:**
-  - im Worker: Proxies und Standort-Profile, echtes WebKit für iPhone/iPad, KI- und
+  - im Worker: Proxies und Standort-Profile, KI- und
     Code-Schritte, KI-Suche nach Elementen, Live-Stream; Markierung für andere
     Analytics-Werkzeuge als GA4
   - E-Mail-Versand (Einladungslinks werden angezeigt und von Hand weitergegeben), Konten
@@ -82,7 +82,7 @@ pnpm-Monorepo, Node 22, TypeScript überall.
 
 ```
 apps/web         Next.js 16 (App Router): UI, API-Routen, Login, PDF-Erzeugung
-apps/worker      Node-Prozess mit Playwright/Chromium: führt Läufe aus (Live-Stream via CDP geplant)
+apps/worker      Node-Prozess mit Playwright (Chromium, Firefox, WebKit): führt Läufe aus (Live-Stream geplant)
 packages/shared  Zod-Schemas und reine Logik: flow.ts, variables.ts, schedule.ts, domains.ts
 packages/db      Drizzle-Schema, SQL-Migrationen, Repository-Funktionen, Verschlüsselung (nur Server)
 packages/ai      HTTP-Clients der KI-Anbieter, ohne SDKs (nur Server)
@@ -202,12 +202,19 @@ Hochziehen erst, wenn beide Pakete die neue Version offiziell unterstützen.
   und protokolliert das im Report.
 - **Zeitplan:** `{ type: "interval" | "times", slots: [{ date, time, bots }], stagger }`.
   Die Bots eines Termins bilden eine Welle.
-- **Bots:** jeder Bot ist ein eigener Browser-Context im gemeinsamen Chromium.
+- **Bots:** jeder Bot ist ein eigener Browser-Context im gemeinsamen Browser seiner Engine.
   - Pro Context: eigener Proxy, Standort-Profil (GPS, Locale, Zeitzone) und Gerät
     (Viewport, User-Agent, Touch).
   - Vor jedem Lauf prüft der Bot, in welchem Land seine IP tatsächlich landet. Bei falschem
     Land wird der Lauf abgebrochen.
-- **Live-Browser:** CDP-Screencast über WebSocket direkt vom Worker. Next.js gibt dafür einen
+- **Browser je Job** (`jobs.browsers`, `runTargets` in `packages/shared/src/browsers.ts`): Chrome
+  (Chromium), Firefox und Safari (WebKit), Mehrfachauswahl wie die Geräte.
+  - Jede Kombination aus Gerät und Browser ist ein eigener Lauf (`runs.browser`).
+  - iPhone und iPad laufen immer einmal in WebKit, egal welche Browser gewählt sind: Auf iOS ist
+    jeder Browser WebKit. Android gibt es nur mit Chrome oder Firefox (`browserProblem`).
+  - Läufe und Jobs von vor der Auswahl sind Chrome.
+- **Live-Browser:** CDP-Screencast über WebSocket direkt vom Worker (CDP gibt es nur in
+  Chromium; für Firefox und WebKit braucht es einen anderen Weg). Next.js gibt dafür einen
   kurzlebigen Token aus.
 - **PDF:** dasselbe HTML wie der Report auf dem Bildschirm, gerendert mit `page.pdf()`,
   Kundenlogo im Kopf.
@@ -254,7 +261,7 @@ Hochziehen erst, wenn beide Pakete die neue Version offiziell unterstützen.
   gebaut sind.
 - **Warteschlange** (`packages/db/src/queue.ts`), pro Takt (1 s) in `createWorker`:
   1. `planDueRuns` legt für aktive Jobs die fälligen Starts als `queued`-Läufe an.
-     - Ein Start ist Termin × Bot × Gerät.
+     - Ein Start ist Termin × Bot × Gerät × Browser (`runTargets`).
      - Vorlauf 60 s. Verpasste Starts älter als 5 Min. werden übersprungen, nicht nachgeholt.
      - Doppelte Planung ist ausgeschlossen: Zeilensperre auf dem Job plus eindeutiger Index
        `runs_scheduled_start_unique`.
@@ -282,15 +289,19 @@ Hochziehen erst, wenn beide Pakete die neue Version offiziell unterstützen.
   (`recoverStaleRuns`).
   - Danach alle 15 Min. nur noch Läufe, die länger als 15 Min. laufen.
   - Mehrere Worker parallel bräuchten vorher eine Absprache über diesen Schritt.
-- **Browser:** Alle Läufe teilen ein Chromium (`createBrowserManager`). Stürzt es ab, scheitern
-  nur die Läufe darin, mit der Meldung des Browsers. Der nächste Lauf startet ein neues Chromium.
-  Ein gescheiterter Start wird beim nächsten Lauf erneut versucht.
+- **Browser:** Je Engine teilen alle Läufe einen Browser (`createBrowserManager`). Chromium
+  startet mit dem Worker, Firefox und WebKit beim ersten Lauf, der sie braucht. Stürzt einer ab,
+  scheitern nur die Läufe darin, mit der Meldung des Browsers. Der nächste Lauf startet einen
+  neuen. Ein gescheiterter Start wird beim nächsten Lauf erneut versucht.
 - **Lebenszeichen:** Alle 10 s schreibt der Worker in `worker_heartbeats`. Die Web-App zeigt
   „online“, wenn der letzte Eintrag höchstens 30 s alt ist.
 - **Geräte** (`contextOptionsFor`):
-  - Desktop 1440 × 900, iPhone 15, Pixel 8, iPad (gen 11), alle in Chromium mit Deutsch und
-    Europe/Berlin.
-  - Viewport, User-Agent und Touch sind echt, die Safari-Engine nicht.
+  - Desktop 1440 × 900, iPhone 15, Pixel 8, iPad (gen 11), alle mit Deutsch und Europe/Berlin.
+  - Desktop behält den User-Agent seines Browsers. iPhone und iPad laufen in echtem WebKit.
+  - Android in Firefox meldet sich als Firefox für Android. `isMobile` fehlt dort, weil Playwright
+    es in Firefox nicht kann (Klicks warten sonst ewig). Die Seite bekommt deshalb die
+    Fensterbreite statt ihres Meta-Viewports; Tippen und `pointer: coarse` gehen, `maxTouchPoints`
+    bleibt 0.
 - **Demo-Website** (`apps/worker/demo-site/`, `pnpm demo-site`, Port 4100):
   - Die Demo-Jobs aus `pnpm db:seed` zeigen nur auf `127.0.0.1:4100`, nie auf echte fremde
     Domains. Ein Test in `seed.test.ts` sichert das ab.
@@ -298,14 +309,15 @@ Hochziehen erst, wenn beide Pakete die neue Version offiziell unterstützen.
   - Die Demo-Läufe haben Schritt-Ergebnisse, aber keine Bildschirmfotos. Ein fehlgeschlagener
     Demo-Lauf scheitert an seinem letzten Schritt.
 - **Tests:**
-  - Echtes Chromium gegen die lokalen Testseiten in `test/fixtures/site/`. Spezialpfade:
+  - Echtes Chromium gegen die lokalen Testseiten in `test/fixtures/site/`. `engines.test.ts`
+    spielt die wichtigsten Abläufe zusätzlich in Firefox und WebKit durch. Spezialpfade:
     `/fehler` liefert HTTP 500, `/haengt` antwortet nie.
   - `useBrowser()` (`test/browser.ts`) lässt nur die Testseite durch, beantwortet GA4 lokal
     und blockiert alles andere.
   - Die Worker-Tests mit Datenbank nutzen eine eigene Datenbank `clickbot_worker_test` im
     `db-test`-Container. Sie wird in `test/global-setup.ts` angelegt und laufen deshalb parallel
     zu den Tests von `packages/db`.
-  - Chromium installieren: `pnpm --filter @click-bot/worker browsers`.
+  - Browser installieren: `pnpm --filter @click-bot/worker browsers` (Chromium, Firefox, WebKit).
 
 ## KI (`packages/ai`)
 
@@ -349,6 +361,8 @@ Hochziehen erst, wenn beide Pakete die neue Version offiziell unterstützen.
 - Hostinger VPS KVM 2 (2 vCPU, 8 GB RAM) mit Docker Compose: web, worker, postgres, Caddy
   (TLS).
 - Shared Hosting geht nicht: kein Chromium, keine dauerhaft laufenden Prozesse, kein WebSocket.
+- Das Worker-Image braucht Chromium, Firefox und WebKit samt Systembibliotheken (z. B. das
+  offizielle Playwright-Image). Jede Engine ist ein eigener Prozess und kostet RAM.
 - `MAX_CONCURRENT_BROWSERS=6` auf KVM 2. Der echte Wert kommt aus einem Lasttest, nicht aus
   einer Schätzung.
 
@@ -495,28 +509,28 @@ Tests ist nicht fertig.
 
 Alle Befehle im Repo-Root ausführen.
 
-| Befehl                                     | Zweck                                                                       |
-| ------------------------------------------ | --------------------------------------------------------------------------- |
-| `pnpm install`                             | Abhängigkeiten installieren                                                 |
-| `pnpm db:up` / `pnpm db:down`              | lokale Datenbanken starten / stoppen (Docker)                               |
-| `pnpm db:migrate`                          | Migrationen auf die Entwicklungs-Datenbank anwenden (liest `.env`)          |
-| `pnpm db:generate`                         | nach Schema-Änderung neue SQL-Migration erzeugen                            |
-| `pnpm db:seed`                             | Demo-Daten (4 Jobs aus dem Design) in eine leere Entwicklungs-DB schreiben  |
-| `pnpm db:reset`                            | Entwicklungs-DB löschen, neu migrieren und Demo-Daten anlegen               |
-| `pnpm auth:invite <email> [--admin]`       | Einladungslink ausgeben (neues Konto oder Zugang zurücksetzen)              |
-| `pnpm demo-site`                           | lokale Demo-Website für die Demo-Jobs auf http://127.0.0.1:4100             |
-| `pnpm worker`                              | Worker starten: plant und führt Läufe aus (liest `.env`)                    |
-| `pnpm test:e2e`                            | Playwright-Tests gegen echten Next-Server und Test-DB (nicht in `test`)     |
-| `pnpm --filter @click-bot/worker browsers` | Chromium für Playwright installieren (einmalig, nötig für die Worker-Tests) |
-| `pnpm dev`                                 | Web-App auf http://localhost:3000                                           |
-| `pnpm test`                                | alle Tests (Vitest-Projekte `shared` und `web`)                             |
-| `pnpm vitest run --project shared`         | nur ein Projekt testen                                                      |
-| `pnpm test:coverage`                       | Tests mit Abdeckung; scheitert unter den Grenzwerten aus `vitest.config.ts` |
-| `pnpm lint`                                | ESLint in allen Paketen, inklusive Atomic-Design-Regeln                     |
-| `pnpm typecheck`                           | TypeScript in allen Paketen                                                 |
-| `pnpm format` / `pnpm format:check`        | Prettier schreiben / prüfen                                                 |
-| `pnpm check`                               | format:check, lint, typecheck und test in einem Lauf                        |
-| `pnpm --filter @click-bot/web build`       | Produktions-Build der Web-App                                               |
+| Befehl                                     | Zweck                                                                                           |
+| ------------------------------------------ | ----------------------------------------------------------------------------------------------- |
+| `pnpm install`                             | Abhängigkeiten installieren                                                                     |
+| `pnpm db:up` / `pnpm db:down`              | lokale Datenbanken starten / stoppen (Docker)                                                   |
+| `pnpm db:migrate`                          | Migrationen auf die Entwicklungs-Datenbank anwenden (liest `.env`)                              |
+| `pnpm db:generate`                         | nach Schema-Änderung neue SQL-Migration erzeugen                                                |
+| `pnpm db:seed`                             | Demo-Daten (4 Jobs aus dem Design) in eine leere Entwicklungs-DB schreiben                      |
+| `pnpm db:reset`                            | Entwicklungs-DB löschen, neu migrieren und Demo-Daten anlegen                                   |
+| `pnpm auth:invite <email> [--admin]`       | Einladungslink ausgeben (neues Konto oder Zugang zurücksetzen)                                  |
+| `pnpm demo-site`                           | lokale Demo-Website für die Demo-Jobs auf http://127.0.0.1:4100                                 |
+| `pnpm worker`                              | Worker starten: plant und führt Läufe aus (liest `.env`)                                        |
+| `pnpm test:e2e`                            | Playwright-Tests gegen echten Next-Server und Test-DB (nicht in `test`)                         |
+| `pnpm --filter @click-bot/worker browsers` | Chromium, Firefox und WebKit für Playwright installieren (einmalig, nötig für die Worker-Tests) |
+| `pnpm dev`                                 | Web-App auf http://localhost:3000                                                               |
+| `pnpm test`                                | alle Tests (Vitest-Projekte `shared` und `web`)                                                 |
+| `pnpm vitest run --project shared`         | nur ein Projekt testen                                                                          |
+| `pnpm test:coverage`                       | Tests mit Abdeckung; scheitert unter den Grenzwerten aus `vitest.config.ts`                     |
+| `pnpm lint`                                | ESLint in allen Paketen, inklusive Atomic-Design-Regeln                                         |
+| `pnpm typecheck`                           | TypeScript in allen Paketen                                                                     |
+| `pnpm format` / `pnpm format:check`        | Prettier schreiben / prüfen                                                                     |
+| `pnpm check`                               | format:check, lint, typecheck und test in einem Lauf                                            |
+| `pnpm --filter @click-bot/web build`       | Produktions-Build der Web-App                                                                   |
 
 - **Build-Skripte:** pnpm führt Build-Skripte von Abhängigkeiten nur aus, wenn sie in
   `pnpm-workspace.yaml` unter `onlyBuiltDependencies` freigegeben sind.

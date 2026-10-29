@@ -9,7 +9,7 @@
   "scripts": {
     "lint": "eslint .",
     "typecheck": "tsc -p tsconfig.json",
-    "browsers": "playwright install chromium",
+    "browsers": "playwright install chromium firefox webkit",
     "start": "tsx --env-file-if-exists=../../.env src/main.ts",
     "demo-site": "tsx src/demo-site.ts"
   },

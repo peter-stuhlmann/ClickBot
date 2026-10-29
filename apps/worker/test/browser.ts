@@ -1,4 +1,11 @@
-import { chromium, type Browser, type BrowserContext } from 'playwright';
+import {
+  chromium,
+  firefox,
+  webkit,
+  type Browser,
+  type BrowserContext,
+  type BrowserContextOptions,
+} from 'playwright';
 import { afterAll, beforeAll } from 'vitest';
 import { startFixtureServer, type FixtureServer } from './fixture-server';
 
@@ -21,17 +28,20 @@ export async function guardContext(
   return context;
 }
 
+const ENGINES = { chromium, firefox, webkit };
+
 /**
- * Starts Chromium and the fixture site once per test file. Contexts created through
+ * Starts a browser (Chromium unless said otherwise) and the fixture site once per test file or
+ * describe block. Contexts created through
  * `newContext` can only reach the fixture site; GA4 requests are answered locally with 204,
  * every other outside request is aborted, so no test ever touches the internet.
  */
-export function useBrowser() {
+export function useBrowser(engine: keyof typeof ENGINES = 'chromium') {
   let browser: Browser;
   let site: FixtureServer;
 
   beforeAll(async () => {
-    [browser, site] = await Promise.all([chromium.launch(), startFixtureServer()]);
+    [browser, site] = await Promise.all([ENGINES[engine].launch(), startFixtureServer()]);
   });
 
   afterAll(async () => {
@@ -40,8 +50,9 @@ export function useBrowser() {
 
   return {
     origin: () => site.origin,
-    async newContext(): Promise<BrowserContext> {
-      return guardContext(await browser.newContext(), site.origin);
+    version: () => browser.version(),
+    async newContext(options?: BrowserContextOptions): Promise<BrowserContext> {
+      return guardContext(await browser.newContext(options), site.origin);
     },
   };
 }

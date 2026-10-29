@@ -1,3 +1,4 @@
+import { runTargets } from '@click-bot/shared';
 import { and, eq, inArray, isNull } from 'drizzle-orm';
 import type { Database } from './client';
 import { NotFoundError } from './errors';
@@ -6,7 +7,7 @@ import { allocateRunNumber } from './jobs';
 import { jobs, runs } from './schema';
 
 /**
- * "Testlauf starten" in the editor: one bot on the first device of the job, due now and outside
+ * "Testlauf starten" in the editor: one bot on the first device of the job, in its first browser, due now and outside
  * the schedule (no slot). While a test run of the job is still waiting or running, that one is
  * returned instead, so repeated clicks never pile up runs.
  */
@@ -19,7 +20,7 @@ export async function queueTestRun(
   return db.transaction(async (tx) => {
     // Serialises concurrent clicks: the second one sees the run of the first.
     const [job] = await tx
-      .select({ id: jobs.id, devices: jobs.devices })
+      .select({ id: jobs.id, devices: jobs.devices, browsers: jobs.browsers })
       .from(jobs)
       .where(eq(jobs.id, jobId))
       .for('update');
@@ -38,6 +39,7 @@ export async function queueTestRun(
       .limit(1);
     if (open) return { runId: open.id, existing: true };
 
+    const [target] = runTargets(job.devices, job.browsers);
     const runNr = await allocateRunNumber(tx, jobId);
     const [run] = await tx
       .insert(runs)
@@ -46,7 +48,8 @@ export async function queueTestRun(
         runNr,
         slotIndex: null,
         botNr: 1,
-        device: job.devices[0] ?? 'desktop',
+        device: target?.device ?? 'desktop',
+        browser: target?.browser ?? 'chromium',
         status: 'queued',
         scheduledAt: now,
       })

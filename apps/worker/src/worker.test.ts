@@ -18,7 +18,7 @@ import { guardContext, useBrowser } from '../test/browser';
 import { db, resetDb, testConnection } from '../test/db';
 import { createFileArtifactStore } from './artifacts';
 import { createBrowserManager } from './browser-manager';
-import { createWorker, type Worker } from './worker';
+import { createWorker, type Worker, type WorkerDeps } from './worker';
 
 const browser = useBrowser();
 const cipher = createCipher(randomBytes(32));
@@ -40,11 +40,13 @@ afterAll(async () => {
   await testConnection.close();
 });
 
-function startWorker(options: { maxConcurrent?: number; cipher?: Cipher } = {}): Worker {
+function startWorker(
+  options: { maxConcurrent?: number; cipher?: Cipher; newContext?: WorkerDeps['newContext'] } = {},
+): Worker {
   worker = createWorker({
     db,
     cipher: options.cipher ?? cipher,
-    newContext: () => browser.newContext(),
+    newContext: options.newContext ?? (() => browser.newContext()),
     artifacts: createFileArtifactStore(artifactsDir),
     maxConcurrent: options.maxConcurrent ?? 6,
     workerId: 'test-worker',
@@ -105,6 +107,26 @@ async function dueJob(steps: unknown[], bots = 1) {
 const allRuns = () => db.select().from(schema.runs).orderBy(schema.runs.runNr);
 
 describe('worker', () => {
+  it('opens every run with its own device and browser', async () => {
+    const { job } = await dueJob(contactSteps);
+    await db
+      .update(schema.jobs)
+      .set({ devices: ['desktop', 'iphone'], browsers: ['firefox'] })
+      .where(eq(schema.jobs.id, job.id));
+    const opened: string[] = [];
+    const w = startWorker({
+      newContext: (device, kind) => {
+        opened.push(`${device}-${kind}`);
+        return browser.newContext();
+      },
+    });
+
+    await w.tick();
+    await w.idle();
+    expect(opened.sort()).toEqual(['desktop-firefox', 'iphone-webkit']);
+    expect((await allRuns()).map((run) => run.status)).toEqual(['passed', 'passed']);
+  });
+
   it('executes a due run and stores the verdict with every step', async () => {
     await dueJob(contactSteps);
     const w = startWorker();

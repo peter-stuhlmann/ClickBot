@@ -1,6 +1,6 @@
 import 'server-only';
 import type { Job } from '@click-bot/db';
-import { deviceLabel } from '@/lib/devices';
+import { describeTargets } from '@/lib/devices';
 import { describeSchedule } from '@/lib/format';
 import type { JobHeaderView, Tone } from '@/lib/views';
 
@@ -13,12 +13,12 @@ const STATUS: Record<Job['status'], { tone: Tone; label: string }> = {
 
 /** Title line of the editor (screen 02). */
 export function toJobHeader(
-  job: Pick<Job, 'name' | 'status' | 'schedule' | 'devices'>,
+  job: Pick<Job, 'name' | 'status' | 'schedule' | 'devices' | 'browsers'>,
 ): JobHeaderView {
   const { primary, secondary } = describeSchedule(job.schedule);
   return {
     title: job.name,
     status: STATUS[job.status],
-    description: [primary, secondary, job.devices.map(deviceLabel).join(', ')].join(' · '),
+    description: [primary, secondary, describeTargets(job.devices, job.browsers)].join(' · '),
   };
 }

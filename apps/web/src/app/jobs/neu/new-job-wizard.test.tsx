@@ -87,7 +87,7 @@ describe('NewJobWizard', () => {
 
     expect(subtitle()).toHaveTextContent('Schritt 4 von 4');
     await user.click(screen.getByRole('button', { name: /iPhone 15/ }));
-    expect(summary().getByText('Desktop, iPhone 15')).toBeInTheDocument();
+    expect(summary().getByText('Desktop (Chrome), iPhone 15 (Safari)')).toBeInTheDocument();
     expect(screen.getByText(/4 Starts × 2 Geräte = 8 Läufe/)).toBeInTheDocument();
 
     await user.click(screen.getByRole('button', { name: 'Job anlegen' }));

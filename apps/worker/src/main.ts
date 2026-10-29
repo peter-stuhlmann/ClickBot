@@ -1,4 +1,5 @@
 import {
+  type Browser,
   createCipher,
   createDb,
   deleteExpiredSessions,
@@ -7,9 +8,10 @@ import {
 } from '@click-bot/db';
 import { hostname } from 'node:os';
 import { fileURLToPath } from 'node:url';
-import { chromium } from 'playwright';
+import { BROWSER_KINDS } from '@click-bot/shared';
+import { chromium, firefox, webkit } from 'playwright';
 import { createFileArtifactStore } from './artifacts';
-import { createBrowserManager } from './browser-manager';
+import { createBrowserManager, type BrowserManager } from './browser-manager';
 import { contextOptionsFor } from './devices';
 import { createWorker } from './worker';
 
@@ -34,14 +36,21 @@ const artifactsDir =
   process.env.ARTIFACTS_DIR ?? fileURLToPath(new URL('../../../data/artifacts', import.meta.url));
 
 const connection = createDb(databaseUrl);
-// One shared Chromium; after a crash the next run starts a new one.
-const browsers = createBrowserManager(() => chromium.launch(), log);
-// Start it right away, so a missing Chromium installation shows up at once.
-await browsers.get();
+// One shared process per browser engine, started by the first run that needs it; after a crash
+// the next run starts a new one.
+const engines = { chromium, firefox, webkit };
+const browsers = Object.fromEntries(
+  BROWSER_KINDS.map((kind) => [kind, createBrowserManager(() => engines[kind].launch(), log)]),
+) as Record<Browser, BrowserManager>;
+// Chromium right away, so a missing installation shows up at once.
+await browsers.chromium.get();
 const worker = createWorker({
   db: connection.db,
   cipher,
-  newContext: async (device) => (await browsers.get()).newContext(contextOptionsFor(device)),
+  newContext: async (device, kind) => {
+    const browser = await browsers[kind].get();
+    return browser.newContext(contextOptionsFor(device, kind, browser.version()));
+  },
   artifacts: createFileArtifactStore(artifactsDir),
   maxConcurrent,
   workerId: `${hostname()}-${process.pid}`,
@@ -88,7 +97,7 @@ async function shutdown(signal: string) {
   log(`${signal} empfangen, warte auf laufende Läufe …`);
   timers.forEach(clearInterval);
   await worker.stop();
-  await browsers.close();
+  await Promise.all(Object.values(browsers).map((manager) => manager.close()));
   await connection.close();
   process.exit(0);
 }

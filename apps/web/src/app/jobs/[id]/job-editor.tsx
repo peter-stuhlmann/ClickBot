@@ -1,5 +1,6 @@
 'use client';
 
+import { runTargets } from '@click-bot/shared';
 import { useRouter } from 'next/navigation';
 import { useMemo, useState, useTransition } from 'react';
 import { Button } from '@/components/atoms/Button';
@@ -12,7 +13,7 @@ import { ScheduleForm } from '@/components/organisms/ScheduleForm';
 import { StepForm } from '@/components/organisms/StepForm';
 import { StepList } from '@/components/organisms/StepList';
 import { EditorLayout } from '@/components/templates/EditorLayout';
-import { deviceLabel, toggleDevice } from '@/lib/devices';
+import { browserLabel, deviceLabel, toggleBrowser, toggleDevice } from '@/lib/devices';
 import {
   appendStep,
   describeRunTotal,
@@ -131,6 +132,8 @@ export function JobEditor({
   }
 
   const selectedStep = selected === null ? undefined : draft.steps[selected];
+  // The test run takes the first device in its first browser, as queueTestRun does.
+  const [testTarget] = runTargets(draft.devices, draft.browsers);
 
   return (
     <EditorLayout
@@ -150,7 +153,7 @@ export function JobEditor({
             loading={testing}
             disabled={saving}
             onClick={testRun}
-            title={`Ein Bot auf ${deviceLabel(draft.devices[0] ?? 'desktop')}, sofort. Ungespeicherte Änderungen werden vorher gespeichert.`}
+            title={`Ein Bot auf ${deviceLabel(testTarget?.device ?? 'desktop')} in ${browserLabel(testTarget?.browser ?? 'chromium')}, sofort. Ungespeicherte Änderungen werden vorher gespeichert.`}
           >
             Testlauf starten
           </Button>
@@ -197,6 +200,11 @@ export function JobEditor({
             selected={draft.devices}
             error={errors.devices}
             onToggle={(device) => update({ devices: toggleDevice(draft.devices, device) })}
+            browsers={draft.browsers}
+            browserError={errors.browsers}
+            onToggleBrowser={(browser) =>
+              update({ browsers: toggleBrowser(draft.browsers, browser) })
+            }
           />
           <AnalyticsMarkingForm
             marking={draft.analyticsMarking}

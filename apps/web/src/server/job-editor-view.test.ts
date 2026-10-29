@@ -12,6 +12,7 @@ const job = {
     startAt: '2026-11-05T10:00:00Z',
   },
   devices: ['desktop' as const, 'iphone' as const],
+  browsers: ['chromium' as const],
 };
 
 describe('toJobHeader', () => {
@@ -19,7 +20,7 @@ describe('toJobHeader', () => {
     expect(toJobHeader(job)).toEqual({
       title: 'Kontaktformular-Test',
       status: { tone: 'success', label: 'Aktiv' },
-      description: 'alle 15 Min. · max. 20 Läufe · Desktop, iPhone 15',
+      description: 'alle 15 Min. · max. 20 Läufe · Desktop (Chrome), iPhone 15 (Safari)',
     });
   });
 

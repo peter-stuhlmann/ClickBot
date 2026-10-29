@@ -1,4 +1,4 @@
-import { expandSchedule, type BotStart } from '@click-bot/shared';
+import { expandSchedule, runTargets, type BotStart, type RunTarget } from '@click-bot/shared';
 import { and, asc, count, eq, inArray, isNotNull, isNull, lt, lte, max, or } from 'drizzle-orm';
 import type { Database } from './client';
 import type { Job } from './jobs';
@@ -29,23 +29,35 @@ async function planJob(db: Database, job: Job, due: BotStart[]): Promise<number>
   return db.transaction(async (tx) => {
     // Locking the job row serialises concurrent planners for the same job.
     const [locked] = await tx
-      .select({ status: jobs.status, runCounter: jobs.runCounter, devices: jobs.devices })
+      .select({
+        status: jobs.status,
+        runCounter: jobs.runCounter,
+        devices: jobs.devices,
+        browsers: jobs.browsers,
+      })
       .from(jobs)
       .where(eq(jobs.id, job.id))
       .for('update');
     if (!locked || locked.status !== 'active') return 0;
 
     const existing = await tx
-      .select({ slotIndex: runs.slotIndex, botNr: runs.botNr, device: runs.device })
+      .select({
+        slotIndex: runs.slotIndex,
+        botNr: runs.botNr,
+        device: runs.device,
+        browser: runs.browser,
+      })
       .from(runs)
       .where(and(eq(runs.jobId, job.id), isNotNull(runs.slotIndex)));
-    const key = (slot: number | null, bot: number, device: string) => `${slot}:${bot}:${device}`;
-    const planned = new Set(existing.map((r) => key(r.slotIndex, r.botNr, r.device)));
+    const key = (slot: number | null, bot: number, target: RunTarget) =>
+      `${slot}:${bot}:${target.device}:${target.browser}`;
+    const planned = new Set(existing.map((r) => key(r.slotIndex, r.botNr, r)));
 
+    const targets = runTargets(locked.devices, locked.browsers);
     const missing = due.flatMap((start) =>
-      locked.devices
-        .filter((device) => !planned.has(key(start.slotIndex, start.botNr, device)))
-        .map((device) => ({ start, device })),
+      targets
+        .filter((target) => !planned.has(key(start.slotIndex, start.botNr, target)))
+        .map((target) => ({ start, target })),
     );
     if (missing.length === 0) return 0;
 
@@ -54,12 +66,13 @@ async function planJob(db: Database, job: Job, due: BotStart[]): Promise<number>
       .set({ runCounter: locked.runCounter + missing.length })
       .where(eq(jobs.id, job.id));
     await tx.insert(runs).values(
-      missing.map(({ start, device }, i) => ({
+      missing.map(({ start, target }, i) => ({
         jobId: job.id,
         runNr: locked.runCounter + 1 + i,
         slotIndex: start.slotIndex,
         botNr: start.botNr,
-        device,
+        device: target.device,
+        browser: target.browser,
         scheduledAt: start.at,
         status: 'queued' as const,
       })),

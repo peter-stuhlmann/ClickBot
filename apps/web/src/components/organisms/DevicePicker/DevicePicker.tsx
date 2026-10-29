@@ -2,12 +2,15 @@ import { Card } from '@/components/atoms/Card';
 import { Icon, type IconName } from '@/components/atoms/Icon';
 import { ChoiceCard } from '@/components/molecules/ChoiceCard';
 import { cn } from '@/lib/cn';
-import { DEVICE_OPTIONS, type DeviceKey } from '@/lib/devices';
+import { BROWSER_OPTIONS, DEVICE_OPTIONS, type BrowserKey, type DeviceKey } from '@/lib/devices';
 
 export type DevicePickerProps = {
   selected: DeviceKey[];
   error?: string;
   onToggle: (device: DeviceKey) => void;
+  browsers: BrowserKey[];
+  browserError?: string;
+  onToggleBrowser: (browser: BrowserKey) => void;
   /** Narrow column (editor): two cards per row, without the location card. */
   compact?: boolean;
 };
@@ -19,8 +22,16 @@ const ICONS: Record<DeviceKey, IconName> = {
   ipad: 'tablet',
 };
 
-/** Step 4 of the job wizard: devices to test on. Location profiles are not built yet. */
-export function DevicePicker({ selected, error, onToggle, compact = false }: DevicePickerProps) {
+/** Step 4 of the job wizard: devices and browsers to test on. Location profiles are not built yet. */
+export function DevicePicker({
+  selected,
+  error,
+  onToggle,
+  browsers,
+  browserError,
+  onToggleBrowser,
+  compact = false,
+}: DevicePickerProps) {
   return (
     <>
       <Card
@@ -41,8 +52,29 @@ export function DevicePicker({ selected, error, onToggle, compact = false }: Dev
         </div>
         {error && <p className="text-small text-danger">{error}</p>}
         <p className="text-small text-text-muted">
-          Alle Geräte laufen in Chromium mit echter Bildschirmgröße, Touch und Gerätekennung. Echtes
-          Safari (WebKit) für iPhone und iPad ist geplant.
+          Jedes Gerät läuft mit echter Bildschirmgröße, Touch und Gerätekennung.
+        </p>
+      </Card>
+      <Card
+        title="In welchen Browsern testen?"
+        description="Mehrfachauswahl möglich – jedes Gerät läuft in jedem passenden Browser als eigener Bot."
+      >
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+          {BROWSER_OPTIONS.map((browser) => (
+            <ChoiceCard
+              key={browser.key}
+              icon="globe"
+              title={browser.label}
+              description={browser.spec}
+              selected={browsers.includes(browser.key)}
+              onClick={() => onToggleBrowser(browser.key)}
+            />
+          ))}
+        </div>
+        {browserError && <p className="text-small text-danger">{browserError}</p>}
+        <p className="text-small text-text-muted">
+          iPhone und iPad laufen immer in Safari (WebKit), denn auf iOS nutzt jeder Browser diese
+          Engine. Android gibt es mit Chrome oder Firefox.
         </p>
       </Card>
       {!compact && (

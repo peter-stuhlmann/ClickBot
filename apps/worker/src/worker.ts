@@ -4,6 +4,7 @@ import {
   planDueRuns,
   recordHeartbeat,
   resolveSecretsForRun,
+  type Browser,
   type Cipher,
   type ClaimedRun,
   type Database,
@@ -18,8 +19,8 @@ import { runFlow } from './run-flow';
 export type WorkerDeps = {
   db: Database;
   cipher: Cipher;
-  /** A fresh, isolated browser context per run, set up for the run's device. */
-  newContext: (device: Device) => Promise<BrowserContext>;
+  /** A fresh, isolated browser context per run, in the run's browser, set up for its device. */
+  newContext: (device: Device, browser: Browser) => Promise<BrowserContext>;
   artifacts: ArtifactStore;
   /** Upper limit of browsers running at the same time (MAX_CONCURRENT_BROWSERS). */
   maxConcurrent: number;
@@ -44,7 +45,7 @@ async function executeRun(deps: WorkerDeps, { run, job }: ClaimedRun): Promise<v
   const now = deps.clock ?? (() => new Date());
   let context: BrowserContext | undefined;
   try {
-    context = await deps.newContext(run.device);
+    context = await deps.newContext(run.device, run.browser);
     const secrets = await resolveSecretsForRun(deps.db, deps.cipher, {
       customerId: job.customerId,
       url: job.startUrl,

@@ -1,6 +1,6 @@
 import 'server-only';
 import type { RunListRow } from '@click-bot/db';
-import { deviceLabel } from '@/lib/devices';
+import { browserLabel, deviceLabel } from '@/lib/devices';
 import { formatDuration, formatShortDateTime } from '@/lib/format';
 import type { RunListRowView } from '@/lib/views';
 import { RUN_BADGE } from './jobs-view';
@@ -12,7 +12,7 @@ export function toRunListRow(row: RunListRow): RunListRowView {
     id: row.id,
     href: `/laeufe/${row.id}`,
     jobName: row.jobName,
-    detail: `Lauf #${row.runNr} · ${deviceLabel(row.device)} · Bot ${row.botNr}`,
+    detail: `Lauf #${row.runNr} · ${deviceLabel(row.device)} · ${browserLabel(row.browser)} · Bot ${row.botNr}`,
     testRun: row.slotIndex === null,
     customer: row.customerName,
     when: formatShortDateTime(startedOrPlanned),

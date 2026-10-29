@@ -1,7 +1,7 @@
 import { and, desc, eq, gte, inArray, sql, type SQL } from 'drizzle-orm';
 import type { Database } from './client';
 import { isUuid } from './ids';
-import type { Device } from './jobs';
+import type { Browser, Device } from './jobs';
 import { customers, jobs, runs } from './schema';
 
 type RunStatus = (typeof runs.$inferSelect)['status'];
@@ -23,6 +23,7 @@ export type RunListRow = {
   slotIndex: number | null;
   botNr: number;
   device: Device;
+  browser: Browser;
   status: RunStatus;
   scheduledAt: Date;
   startedAt: Date | null;
@@ -54,6 +55,7 @@ export async function listRuns(
         slotIndex: runs.slotIndex,
         botNr: runs.botNr,
         device: runs.device,
+        browser: runs.browser,
         status: runs.status,
         scheduledAt: runs.scheduledAt,
         startedAt: runs.startedAt,

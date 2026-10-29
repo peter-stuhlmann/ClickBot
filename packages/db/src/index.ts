@@ -18,6 +18,7 @@ export {
   listStartedSlots,
   plannedRunCount,
   updateJob,
+  type Browser,
   type Device,
   type Job,
   type JobUpdateInput,

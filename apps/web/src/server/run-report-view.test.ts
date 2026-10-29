@@ -69,6 +69,7 @@ function report(
       slotIndex: 6,
       botNr: 2,
       device: 'iphone',
+      browser: 'webkit',
       locationProfileId: null,
       proxyId: null,
       status: 'passed',
@@ -112,7 +113,7 @@ describe('toRunReportView', () => {
       { label: 'Schritte', value: '3 / 3', hint: 'alle bestanden' },
       { label: 'Dauer', value: '8,4 s', hint: 'Ø 3,9 s bei diesem Job' },
       { label: 'Start', value: '14:30:01', hint: 'geplant 14:30:00 · 1 s später' },
-      { label: 'Gerät', value: 'iPhone 15', hint: 'Bot #2 · Chromium' },
+      { label: 'Gerät', value: 'iPhone 15', hint: 'Bot #2 · Safari' },
     ]);
     expect(view.steps).toEqual([
       {
@@ -186,7 +187,7 @@ describe('toRunReportView', () => {
       { label: 'Schritte', value: '0 / 3', hint: 'noch nicht gestartet' },
       { label: 'Dauer', value: '–', hint: 'Ø 3,9 s bei diesem Job' },
       { label: 'Start', value: '–', hint: 'geplant 14:30:00' },
-      { label: 'Gerät', value: 'iPhone 15', hint: 'Bot #2 · Chromium' },
+      { label: 'Gerät', value: 'iPhone 15', hint: 'Bot #2 · Safari' },
     ]);
   });
 

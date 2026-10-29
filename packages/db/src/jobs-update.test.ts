@@ -88,6 +88,15 @@ describe('updateJob', () => {
     expect(updated.updatedAt.getTime()).toBeGreaterThan(job.updatedAt.getTime());
   });
 
+  it('stores the chosen browsers, and keeps them when the input leaves them out', async () => {
+    const job = await newJob();
+    const changed = await update(job, { browsers: ['firefox', 'chromium'] });
+    expect(changed.browsers).toEqual(['chromium', 'firefox']);
+
+    const kept = await update(changed, { name: 'Ohne Browser-Angabe' });
+    expect(kept.browsers).toEqual(['chromium', 'firefox']);
+  });
+
   it('reports every problem with its path and changes nothing', async () => {
     const job = await newJob();
     const issues = await issuesOf(

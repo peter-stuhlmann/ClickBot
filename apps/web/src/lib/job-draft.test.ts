@@ -40,6 +40,7 @@ describe('emptyDraft', () => {
   it('starts on desktop with an hourly interval from now and one slot at the next full hour', () => {
     const fresh = emptyDraft(now);
     expect(fresh.devices).toEqual(['desktop']);
+    expect(fresh.browsers).toEqual(['chromium']);
     expect(fresh.steps).toEqual([]);
     expect(fresh.schedule).toMatchObject({
       type: 'interval',
@@ -100,6 +101,7 @@ describe('toNewJobInput', () => {
         startUrl: 'beispiel.de/kontakt',
         name: '  Kontaktformular-Test ',
         devices: ['desktop', 'iphone'],
+        browsers: ['chromium', 'firefox'],
         steps: [
           step('open', { id: 'open-1', url: 'https://beispiel.de/kontakt' }),
           step('fill', {
@@ -121,6 +123,7 @@ describe('toNewJobInput', () => {
       name: 'Kontaktformular-Test',
       startUrl: 'https://beispiel.de/kontakt',
       devices: ['desktop', 'iphone'],
+      browsers: ['chromium', 'firefox'],
       status: 'active',
       schedule: {
         type: 'interval',
@@ -350,6 +353,15 @@ describe('validateWizardStep', () => {
       { path: 'devices', message: 'Mindestens ein Gerät wählen.' },
     ]);
   });
+
+  it('needs a browser each chosen device exists in', () => {
+    expect(validateWizardStep(draft({ browsers: [] }), 'devices', now)).toEqual([
+      { path: 'browsers', message: 'Mindestens einen Browser wählen.' },
+    ]);
+    expect(
+      validateWizardStep(draft({ devices: ['android'], browsers: ['webkit'] }), 'devices', now),
+    ).toEqual([{ path: 'browsers', message: 'Android gibt es nur mit Chrome oder Firefox.' }]);
+  });
 });
 
 describe('wizardStepOf', () => {
@@ -361,6 +373,7 @@ describe('wizardStepOf', () => {
     ['flow.steps.2.target.label', 'flow'],
     ['schedule.slots.0.time', 'schedule'],
     ['devices', 'devices'],
+    ['browsers', 'devices'],
     ['something.else', 'website'],
   ])('sends %s to the %s step', (path, wizardStep) => {
     expect(wizardStepOf(path)).toBe(wizardStep);
@@ -431,7 +444,7 @@ describe('summarise', () => {
       { label: 'Job-Name', value: '–' },
       { label: 'Ablauf', value: '–' },
       { label: 'Zeitplan', value: 'alle 60 Min. · max. 24 Läufe' },
-      { label: 'Geräte', value: 'Desktop' },
+      { label: 'Geräte', value: 'Desktop (Chrome)' },
       { label: 'GA4-Markierung', value: 'alle an' },
     ]);
   });
@@ -461,7 +474,7 @@ describe('summarise', () => {
       { label: 'Job-Name', value: 'Kontaktformular-Test' },
       { label: 'Ablauf', value: '2 Schritte' },
       { label: 'Zeitplan', value: '2 Termine · 10 Bots' },
-      { label: 'Geräte', value: 'Desktop, iPhone 15' },
+      { label: 'Geräte', value: 'Desktop (Chrome), iPhone 15 (Safari)' },
       { label: 'GA4-Markierung', value: 'alle an' },
     ]);
   });
@@ -487,12 +500,22 @@ describe('describeRunTotal', () => {
     expect(describeRunTotal(oneSlot, now)).toBe('1 Start × 1 Gerät = 1 Lauf');
   });
 
+  it('counts every device in each of its browsers, iPhone once in Safari', () => {
+    expect(
+      describeRunTotal(
+        draft({ devices: ['desktop', 'iphone'], browsers: ['chromium', 'firefox'] }),
+        now,
+      ),
+    ).toBe('24 Starts × 3 Kombinationen = 72 Läufe');
+  });
+
   it('says nothing while the schedule is invalid or no device is chosen', () => {
     const fresh = emptyDraft(now);
     expect(
       describeRunTotal(draft({ schedule: { ...fresh.schedule, maxRuns: '' } }), now),
     ).toBeNull();
     expect(describeRunTotal(draft({ devices: [] }), now)).toBeNull();
+    expect(describeRunTotal(draft({ browsers: [] }), now)).toBeNull();
   });
 });
 

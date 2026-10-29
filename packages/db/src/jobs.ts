@@ -1,6 +1,9 @@
 import {
   analyticsMarkingSchema,
+  BROWSER_KINDS,
+  browserProblem,
   expandSchedule,
+  runTargets,
   flowSchema,
   scheduleSchema,
   type AnalyticsMarking,
@@ -12,10 +15,11 @@ import { z } from 'zod';
 import type { Database } from './client';
 import { NotFoundError, ValidationError, issuesFromZod, type ValidationIssue } from './errors';
 import { isUuid } from './ids';
-import { customers, device, jobs, runs } from './schema';
+import { browser, customers, device, jobs, runs } from './schema';
 
 export type Job = typeof jobs.$inferSelect;
 export type Device = (typeof device.enumValues)[number];
+export type Browser = (typeof browser.enumValues)[number];
 
 export type NewJobInput = {
   customerId: string;
@@ -26,6 +30,8 @@ export type NewJobInput = {
   /** Untrusted input, validated with scheduleSchema. */
   schedule: unknown;
   devices?: Device[];
+  /** Default: Chrome. */
+  browsers?: Browser[];
   /** Untrusted input, validated with analyticsMarkingSchema. Default: everything marked. */
   analyticsMarking?: unknown;
   /** "active" lets the planner pick the job up right away. Default: draft. */
@@ -52,6 +58,7 @@ const startUrlSchema = z.string().refine((value) => {
 }, 'Start-URL muss mit http:// oder https:// beginnen.');
 
 const devicesSchema = z.array(z.enum(device.enumValues)).min(1, 'Mindestens ein Gerät wählen.');
+const browsersSchema = z.array(z.enum(browser.enumValues));
 
 type JobFields = {
   name: string;
@@ -59,6 +66,7 @@ type JobFields = {
   flow: Flow;
   schedule: Schedule;
   devices: Device[];
+  browsers: Browser[];
   analyticsMarking: AnalyticsMarking;
 };
 
@@ -70,6 +78,7 @@ function validateFields(
     flow: unknown;
     schedule: unknown;
     devices?: Device[];
+    browsers?: Browser[];
     analyticsMarking?: unknown;
   },
   issues: ValidationIssue[],
@@ -82,6 +91,17 @@ function validateFields(
 
   const devices = devicesSchema.safeParse([...new Set(input.devices ?? ['desktop'])]);
   if (!devices.success) issues.push(...issuesFromZod('devices', devices.error));
+
+  // In the order of the list, without duplicates; checked against the devices.
+  const browsers = browsersSchema.safeParse(input.browsers ?? ['chromium']);
+  const chosenBrowsers = browsers.success
+    ? BROWSER_KINDS.filter((kind) => browsers.data.includes(kind))
+    : [];
+  if (!browsers.success) issues.push(...issuesFromZod('browsers', browsers.error));
+  const browserIssue = browsers.success
+    ? browserProblem(devices.success ? devices.data : [], chosenBrowsers)
+    : null;
+  if (browserIssue) issues.push({ path: 'browsers', message: browserIssue });
 
   const flow = flowSchema.safeParse(input.flow);
   if (!flow.success) issues.push(...issuesFromZod('flow', flow.error));
@@ -96,6 +116,8 @@ function validateFields(
     !name ||
     !startUrl.success ||
     !devices.success ||
+    !browsers.success ||
+    browserIssue ||
     !flow.success ||
     !schedule.success ||
     !marking.success
@@ -108,6 +130,7 @@ function validateFields(
     flow: flow.data,
     schedule: schedule.data,
     devices: devices.data,
+    browsers: chosenBrowsers,
     analyticsMarking: marking.data,
   };
 }
@@ -135,6 +158,8 @@ export type JobUpdateInput = {
   /** Untrusted input, validated with scheduleSchema. */
   schedule: unknown;
   devices: Device[];
+  /** Omitted: the job keeps its browsers. */
+  browsers?: Browser[];
   /** Omitted: the job keeps its marking. */
   analyticsMarking?: unknown;
 };
@@ -186,7 +211,11 @@ export async function updateJob(db: Database, jobId: string, input: JobUpdateInp
 
     const issues: ValidationIssue[] = [];
     const fields = validateFields(
-      { ...input, analyticsMarking: input.analyticsMarking ?? current.analyticsMarking },
+      {
+        ...input,
+        browsers: input.browsers ?? current.browsers,
+        analyticsMarking: input.analyticsMarking ?? current.analyticsMarking,
+      },
       issues,
     );
     if (fields) {
@@ -204,9 +233,9 @@ export async function updateJob(db: Database, jobId: string, input: JobUpdateInp
   });
 }
 
-/** Every start of the schedule runs once per device. */
-export function plannedRunCount(job: Pick<Job, 'schedule' | 'devices'>): number {
-  return expandSchedule(job.schedule).length * job.devices.length;
+/** Every start of the schedule runs once per device and browser (runTargets). */
+export function plannedRunCount(job: Pick<Job, 'schedule' | 'devices' | 'browsers'>): number {
+  return expandSchedule(job.schedule).length * runTargets(job.devices, job.browsers).length;
 }
 
 export async function getJob(db: Database, jobId: string): Promise<Job> {

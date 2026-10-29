@@ -50,6 +50,7 @@ function draftOf(schedule: Schedule = interval): WizardDraft {
       flow,
       schedule,
       devices: ['desktop'],
+      browsers: ['chromium'],
       analyticsMarking: { debugMode: true, internalTraffic: true, botFlag: true, runNumber: true },
     },
     new Date(NOW),
@@ -297,7 +298,10 @@ describe('JobEditor', () => {
 
     it('names the device it will use', () => {
       renderEditor();
-      expect(testButton()).toHaveAttribute('title', expect.stringContaining('Ein Bot auf Desktop'));
+      expect(testButton()).toHaveAttribute(
+        'title',
+        expect.stringContaining('Ein Bot auf Desktop in Chrome'),
+      );
     });
   });
 });

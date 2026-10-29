@@ -13,7 +13,7 @@ import { StepList } from '@/components/organisms/StepList';
 import { WebsiteForm } from '@/components/organisms/WebsiteForm';
 import { WizardStepper } from '@/components/organisms/WizardStepper';
 import { WizardLayout } from '@/components/templates/WizardLayout';
-import { toggleDevice } from '@/lib/devices';
+import { toggleBrowser, toggleDevice } from '@/lib/devices';
 import {
   appendStep,
   describeRunTotal,
@@ -159,6 +159,11 @@ export function NewJobWizard({ customers, now, createAction }: NewJobWizardProps
             selected={draft.devices}
             error={errors.devices}
             onToggle={(device) => update({ devices: toggleDevice(draft.devices, device) })}
+            browsers={draft.browsers}
+            browserError={errors.browsers}
+            onToggleBrowser={(browser) =>
+              update({ browsers: toggleBrowser(draft.browsers, browser) })
+            }
           />
           <AnalyticsMarkingForm
             marking={draft.analyticsMarking}

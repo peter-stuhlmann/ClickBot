@@ -39,7 +39,12 @@ describe('createJob', () => {
   it('stores flow and schedule with the defaults filled in, as a draft on desktop', async () => {
     const job = await newJob();
 
-    expect(job).toMatchObject({ status: 'draft', devices: ['desktop'], runCounter: 0 });
+    expect(job).toMatchObject({
+      status: 'draft',
+      devices: ['desktop'],
+      browsers: ['chromium'],
+      runCounter: 0,
+    });
     expect(job.flow.steps[1]).toMatchObject({ timeoutMs: 10_000, aiFallback: true });
     expect(job.schedule).toMatchObject({ timezone: 'Europe/Berlin', staggerSeconds: 5 });
   });
@@ -58,6 +63,8 @@ describe('createJob', () => {
     ['startUrl', { startUrl: 'beispiel.de' }],
     ['startUrl', { startUrl: 'ftp://beispiel.de' }],
     ['devices', { devices: [] }],
+    ['browsers', { browsers: [] }],
+    ['browsers', { devices: ['android'], browsers: ['webkit'] }],
   ])('rejects an invalid %s', async (field, overrides) => {
     const error = await newJob(overrides).catch((e: unknown) => e);
     expect(issuePaths(error)).toEqual([field]);
@@ -71,6 +78,20 @@ describe('createJob', () => {
   it('stores several devices without duplicates', async () => {
     const job = await newJob({ devices: ['desktop', 'iphone', 'desktop'] });
     expect(job.devices).toEqual(['desktop', 'iphone']);
+  });
+
+  it('stores the chosen browsers without duplicates, in the order of the list', async () => {
+    const job = await newJob({ browsers: ['webkit', 'firefox', 'webkit'] });
+    expect(job.browsers).toEqual(['firefox', 'webkit']);
+  });
+
+  it('says why Android cannot run in Safari alone', async () => {
+    const error = await newJob({ devices: ['android'], browsers: ['webkit'] }).catch(
+      (e: unknown) => e,
+    );
+    expect((error as ValidationError).issues).toEqual([
+      { path: 'browsers', message: 'Android gibt es nur mit Chrome oder Firefox.' },
+    ]);
   });
 
   it.each([

@@ -41,6 +41,7 @@ describe('queueTestRun', () => {
       slotIndex: null,
       botNr: 1,
       device: 'iphone',
+      browser: 'webkit',
       status: 'queued',
       scheduledAt: now,
     });

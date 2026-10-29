@@ -1,7 +1,7 @@
 import 'server-only';
 import type { RunReport, RunStepRow } from '@click-bot/db';
 import { describeMarking, markingState, type AnalyticsMarking, type Step } from '@click-bot/shared';
-import { deviceLabel } from '@/lib/devices';
+import { browserLabel, deviceLabel } from '@/lib/devices';
 import { formatClock, formatDateLong, formatDuration, plural } from '@/lib/format';
 import { toStepDraft } from '@/lib/job-draft';
 import { describeStep } from '@/lib/step-view';
@@ -137,7 +137,11 @@ export function toRunReportView(
       value: run.startedAt ? formatClock(run.startedAt) : DASH,
       hint: startHint(run.scheduledAt, run.startedAt),
     },
-    { label: 'Gerät', value: deviceLabel(run.device), hint: `Bot #${run.botNr} · Chromium` },
+    {
+      label: 'Gerät',
+      value: deviceLabel(run.device),
+      hint: `Bot #${run.botNr} · ${browserLabel(run.browser)}`,
+    },
   ];
 
   return {

@@ -10,7 +10,7 @@ export type BrowserManager = {
 const CRASHED = 'Browser beendet oder abgestürzt. Der nächste Lauf startet einen neuen.';
 
 /**
- * Keeps one shared Chromium for all runs. If it crashes, the runs in it fail (with the browser's
+ * Keeps one shared browser (one engine) for all runs. If it crashes, the runs in it fail (with the browser's
  * message), and the next run gets a fresh browser instead of failing as well. Runs asking at the
  * same time share one start; a failed start is tried again by the next run.
  */

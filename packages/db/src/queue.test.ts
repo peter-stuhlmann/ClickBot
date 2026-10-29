@@ -97,6 +97,30 @@ describe('planDueRuns', () => {
     ]);
   });
 
+  it('runs every device in each of its browsers, iPhone once in Safari', async () => {
+    await activeJob(wave(1), {
+      devices: ['desktop', 'iphone'],
+      browsers: ['chromium', 'firefox'],
+    });
+    await planDueRuns(db, { now, lookaheadMs: 2 * MIN });
+    expect((await allRuns()).map((r) => `${r.device}-${r.browser}`).sort()).toEqual([
+      'desktop-chromium',
+      'desktop-firefox',
+      'iphone-webkit',
+    ]);
+  });
+
+  it('plans a browser added later only for the starts it has not run yet', async () => {
+    const job = await activeJob(wave(1), { devices: ['desktop'], browsers: ['chromium'] });
+    await planDueRuns(db, { now, lookaheadMs: 2 * MIN });
+    await db
+      .update(jobs)
+      .set({ browsers: ['chromium', 'webkit'] })
+      .where(eq(jobs.id, job.id));
+    await planDueRuns(db, { now: at(5_000), lookaheadMs: 2 * MIN });
+    expect((await allRuns()).map((r) => r.browser).sort()).toEqual(['chromium', 'webkit']);
+  });
+
   it('ignores paused, draft and finished jobs', async () => {
     const job = await activeJob(wave());
     for (const status of ['paused', 'draft', 'finished'] as const) {

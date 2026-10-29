@@ -1,5 +1,7 @@
 import {
   AI_PROVIDER_KINDS,
+  BROWSER_KINDS,
+  DEVICE_KINDS,
   type AnalyticsMarking,
   type Flow,
   type Schedule,
@@ -37,7 +39,8 @@ export const runStatus = pgEnum('run_status', [
 ]);
 export const stepStatus = pgEnum('step_status', ['passed', 'healed', 'failed', 'skipped']);
 export const proxyKind = pgEnum('proxy_kind', ['datacenter', 'residential']);
-export const device = pgEnum('device', ['desktop', 'iphone', 'android', 'ipad']);
+export const device = pgEnum('device', DEVICE_KINDS);
+export const browser = pgEnum('browser', BROWSER_KINDS);
 export const aiProviderKind = pgEnum('ai_provider_kind', AI_PROVIDER_KINDS);
 
 export const users = pgTable(
@@ -127,6 +130,11 @@ export const jobs = pgTable(
       .array()
       .notNull()
       .default(sql`ARRAY['desktop']::device[]`),
+    /** Browsers to run in; which device runs in which one decides runTargets in @click-bot/shared. */
+    browsers: browser('browsers')
+      .array()
+      .notNull()
+      .default(sql`ARRAY['chromium']::browser[]`),
     status: jobStatus('status').notNull().default('draft'),
     /** How bot runs mark their GA4 requests; see analyticsMarkingSchema in @click-bot/shared. */
     analyticsMarking: jsonb('analytics_marking')
@@ -141,6 +149,7 @@ export const jobs = pgTable(
   (t) => [
     index('jobs_customer_idx').on(t.customerId),
     check('jobs_devices_not_empty', sql`cardinality(${t.devices}) > 0`),
+    check('jobs_browsers_not_empty', sql`cardinality(${t.browsers}) > 0`),
   ],
 );
 
@@ -218,6 +227,7 @@ export const runs = pgTable(
     slotIndex: integer('slot_index'),
     botNr: integer('bot_nr').notNull().default(1),
     device: device('device').notNull(),
+    browser: browser('browser').notNull().default('chromium'),
     locationProfileId: uuid('location_profile_id').references(() => locationProfiles.id, {
       onDelete: 'set null',
     }),
@@ -233,10 +243,10 @@ export const runs = pgTable(
   },
   (t) => [
     uniqueIndex('runs_job_run_nr_unique').on(t.jobId, t.runNr),
-    // A scheduled start (slot × bot × device) becomes exactly one run, even if two
+    // A scheduled start (slot × bot × device × browser) becomes exactly one run, even if two
     // schedulers plan at the same time. Manual test runs have no slot and are not affected.
     uniqueIndex('runs_scheduled_start_unique')
-      .on(t.jobId, t.slotIndex, t.botNr, t.device)
+      .on(t.jobId, t.slotIndex, t.botNr, t.device, t.browser)
       .where(sql`${t.slotIndex} IS NOT NULL`),
     index('runs_status_scheduled_idx').on(t.status, t.scheduledAt),
     check('runs_bot_nr_positive', sql`${t.botNr} > 0`),

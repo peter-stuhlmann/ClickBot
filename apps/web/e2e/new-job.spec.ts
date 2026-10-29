@@ -31,6 +31,12 @@ test.describe('Neuer Job', () => {
     // 4 · Geräte
     await page.getByRole('button', { name: /iPhone 15/ }).click();
     await expect(page.getByText(/2 Starts × 2 Geräte = 4 Läufe/)).toBeVisible();
+    // The desktop also in Firefox; the iPhone stays in Safari.
+    await page.getByRole('button', { name: /^Firefox/ }).click();
+    await expect(page.getByText(/2 Starts × 3 Kombinationen = 6 Läufe/)).toBeVisible();
+    await expect(page.getByRole('complementary', { name: 'Zusammenfassung' })).toContainText(
+      'Desktop (Chrome), Desktop (Firefox), iPhone 15 (Safari)',
+    );
     await page.getByRole('button', { name: 'Job anlegen' }).click();
 
     await expect(page).toHaveURL('/');

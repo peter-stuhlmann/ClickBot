@@ -54,6 +54,7 @@ const job = (overrides: Partial<Parameters<typeof jobToDraft>[0]> = {}) => ({
   flow,
   schedule: interval,
   devices: ['desktop', 'iphone'] as const,
+  browsers: ['firefox'] as const,
   analyticsMarking: { debugMode: false, internalTraffic: true, botFlag: true, runNumber: true },
   ...overrides,
 });
@@ -73,6 +74,7 @@ describe('jobToDraft', () => {
       startUrl: 'https://beispiel.de/kontakt',
       confirmed: true,
       devices: ['desktop', 'iphone'],
+      browsers: ['firefox'],
     });
     expect(draft.steps.map((step) => [step.id, step.type])).toEqual([
       ['open', 'open'],
@@ -144,6 +146,7 @@ describe('toJobUpdateInput', () => {
       // The exact stored start, not 10:00:00: the starts must not move by merely saving.
       schedule: { type: 'interval', everyMinutes: 15, maxRuns: 20, startAt: interval.startAt },
       devices: ['desktop', 'iphone'],
+      browsers: ['firefox'],
       // The job's own GA4 marking, not the default.
       analyticsMarking: { debugMode: false, internalTraffic: true, botFlag: true, runNumber: true },
     });
