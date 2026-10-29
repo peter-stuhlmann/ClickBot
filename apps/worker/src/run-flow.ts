@@ -1,6 +1,7 @@
 import { maskSecrets, type Flow } from '@click-bot/shared';
 import type { BrowserContext } from 'playwright';
 import { createGa4Recorder } from './analytics';
+import { markBotTraffic } from './bot-marking';
 import { toStepMessage } from './errors';
 import { executeStep } from './steps';
 import { createTestData } from './test-data';
@@ -41,6 +42,7 @@ export async function runFlow(
   flow: Flow,
   options: RunOptions,
 ): Promise<RunResult> {
+  await markBotTraffic(context, options.runNr);
   const analytics = createGa4Recorder();
   context.on('request', (request) => analytics.record(request.url(), request.postData()));
   const page = await context.newPage();

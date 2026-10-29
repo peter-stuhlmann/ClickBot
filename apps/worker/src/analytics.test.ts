@@ -19,6 +19,12 @@ describe('parseGa4Events', () => {
     expect(parseGa4Events(`${collect}&en=page_view`, 'en=click')).toEqual(['page_view', 'click']);
   });
 
+  it('reads events sent through server-side tagging on the own domain', () => {
+    expect(parseGa4Events('https://sgtm.beispiel.de/g/collect?v=2&tid=G-ABC&en=x', null)).toEqual([
+      'x',
+    ]);
+  });
+
   it('decodes encoded event names', () => {
     expect(parseGa4Events(`${collect}&en=form%20start`, null)).toEqual(['form start']);
   });

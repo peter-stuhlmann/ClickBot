@@ -1,12 +1,12 @@
-const GA_HOST = /(^|\.)google-analytics\.com$|(^|\.)analytics\.google\.com$/;
+import { isGa4CollectUrl } from './bot-marking';
 
 /**
  * Event names in a GA4 measurement request (`/g/collect`). gtag sends single events in the
  * query string and batches in the body, one hit per line.
  */
 export function parseGa4Events(url: string, body: string | null): string[] {
+  if (!isGa4CollectUrl(url)) return [];
   const parsed = new URL(url);
-  if (!GA_HOST.test(parsed.hostname) || parsed.pathname !== '/g/collect') return [];
 
   const events: string[] = [];
   const fromUrl = parsed.searchParams.get('en');

@@ -38,7 +38,7 @@ stehen.
     - emuliert Geräte in Chromium
 - **Noch nicht gebaut:**
   - im Worker: Proxies und Standort-Profile, echtes WebKit für iPhone/iPad, KI- und
-    Code-Schritte, Live-Stream, Markierung der Bot-Läufe für Analytics
+    Code-Schritte, Live-Stream; Markierung für andere Analytics-Werkzeuge als GA4
   - E-Mail-Versand (Einladungslinks werden angezeigt und von Hand weitergegeben), Konten
     sperren oder löschen, Rate-Limit je IP-Adresse beim Login
   - im Assistenten: Ablauf per KI, Aufnehmen und Code (nur „Schritte zusammenklicken“ geht),
@@ -206,6 +206,11 @@ Hochziehen erst, wenn beide Pakete die neue Version offiziell unterstützen.
   - E-Mail-Adressen gehen nur an `example.com`/`.org`/`.net`.
 - **GA4:** Der Worker schneidet die Anfragen an `/g/collect` mit. Der Schritt `analytics`
   wartet, bis das Event gesendet wurde.
+- **Bot-Läufe sind in GA4 markiert** (`bot-marking.ts`, Produktregel): Jede GA4-Anfrage eines
+  Laufs bekommt vor dem Verlassen des Browsers `_dbg=1` (nur DebugView, nie in Berichten),
+  `ep.traffic_type=internal` (Datenfilter „Interner Traffic“), `ep.click_bot=1` und
+  `epn.click_bot_run=<Laufnummer>`. Werte der Website werden überschrieben. Erkannt werden
+  Googles Adressen und server-seitiges Tagging auf eigener Domain (`/g/collect` mit `tid=G-…`).
 - **Noch nicht verfügbar:** KI- und Code-Schritte schlagen mit klarer Meldung fehl, bis sie
   gebaut sind.
 - **Warteschlange** (`packages/db/src/queue.ts`), pro Takt (1 s) in `createWorker`:

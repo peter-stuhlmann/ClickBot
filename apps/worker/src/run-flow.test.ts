@@ -48,6 +48,37 @@ const contactFlow = [
   step('ga', { type: 'analytics', provider: 'ga4', event: 'generate_lead' }),
 ];
 
+describe('runFlow – bot runs never count as real visits', () => {
+  it('marks every GA4 request as debug and internal traffic of this run, before it leaves', async () => {
+    const context = await browser.newContext();
+    // Sees each request as it would reach the network: after the marking of runFlow.
+    const sent: string[] = [];
+    await context.route(/\/g\/collect/, (route) => {
+      sent.push(route.request().url());
+      return route.fallback();
+    });
+    try {
+      await runFlow(context, flow(contactFlow), {
+        baseUrl: browser.origin(),
+        runNr: 42,
+        botNr: 1,
+        secrets: {},
+      });
+    } finally {
+      await context.close();
+    }
+
+    expect(sent).toHaveLength(2);
+    for (const url of sent) {
+      const params = new URL(url).searchParams;
+      expect(params.get('_dbg')).toBe('1');
+      expect(params.get('ep.traffic_type')).toBe('internal');
+      expect(params.get('ep.click_bot')).toBe('1');
+      expect(params.get('epn.click_bot_run')).toBe('42');
+    }
+  });
+});
+
 describe('runFlow – happy path', () => {
   it('fills and sends the contact form and checks the result', async () => {
     const result = await run(contactFlow);
