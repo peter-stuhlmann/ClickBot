@@ -23,7 +23,8 @@ export type SidebarProps = {
 
 export function Sidebar({ active, worker, user }: SidebarProps) {
   return (
-    <aside className="flex w-60 shrink-0 flex-col gap-1 bg-sidebar px-3 pt-5 pb-4">
+    // Sticky at window height: the user card stays at the bottom however long the page is.
+    <aside className="sticky top-0 flex h-dvh w-60 shrink-0 flex-col gap-1 overflow-y-auto bg-sidebar px-3 pt-5 pb-4">
       <div className="flex items-center gap-2.5 pb-5 pl-2">
         <LogoMark />
         <span className="text-h2 font-semibold text-on-primary">Click-Bot</span>
