@@ -12,6 +12,7 @@
     "test:e2e": "playwright test"
   },
   "dependencies": {
+    "@click-bot/ai": "workspace:*",
     "@click-bot/db": "workspace:*",
     "@click-bot/shared": "workspace:*",
     "class-variance-authority": "0.7.1",

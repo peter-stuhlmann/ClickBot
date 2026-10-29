@@ -10,7 +10,8 @@ const viaIndex = (types) => ({
 });
 
 /** Packages that talk to the database. Only src/server and src/app may use them. */
-const DATA_MODULES = ['@click-bot/db', 'pg', 'drizzle-orm', 'drizzle-orm/**'];
+// The AI clients count as data access: they call the providers with decrypted keys.
+const DATA_MODULES = ['@click-bot/db', '@click-bot/ai', 'pg', 'drizzle-orm', 'drizzle-orm/**'];
 
 /**
  * Strict Atomic Design: every level may only import levels below it, never its own level.

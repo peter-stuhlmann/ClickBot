@@ -14,7 +14,7 @@ process.env.ARTIFACTS_DIR ||= fileURLToPath(new URL('../../data/artifacts', impo
 const config: NextConfig = {
   reactStrictMode: true,
   // The workspace packages ship TypeScript source; Next compiles them with the app.
-  transpilePackages: ['@click-bot/shared', '@click-bot/db'],
+  transpilePackages: ['@click-bot/shared', '@click-bot/db', '@click-bot/ai'],
   // node-postgres is a server-side Node module; keep it out of the bundle.
   serverExternalPackages: ['pg'],
   // Bottom left would cover the user block of the sidebar.

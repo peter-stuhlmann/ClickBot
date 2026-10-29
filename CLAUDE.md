@@ -5,14 +5,16 @@ Ein Bot öffnet eine Seite in einem echten Browser, führt einen Ablauf aus (kli
 ausfüllen, prüfen) und erstellt pro Lauf einen Report auf dem Bildschirm und als PDF.
 
 Status: Grundgerüst, Datenbank-Schicht, Worker mit Zeitplan, die Job-Liste, der Assistent
-„Neuer Job“, der Editor, der Lauf-Report, die Läufe-Übersicht, die Kunden und die Anmeldung
-stehen.
+„Neuer Job“, der Editor, der Lauf-Report, die Läufe-Übersicht, die Kunden, die Anmeldung und
+die Einstellungen der KI-Anbieter stehen.
 
 - **Fertig:**
   - das Design (Figma)
   - `packages/shared`: Ablauf-Schema, Variablen, Zeitplan, Domain-Regeln
   - `packages/db`: Schema, Migrationen, Jobs, Zugangsdaten, Verschlüsselung, Übersicht und
-    Kennzahlen, Demo-Daten
+    Kennzahlen, Demo-Daten, KI-Anbieter
+  - `packages/ai`: Anbindung an Gemini, OpenAI, Perplexity, Claude und eine OpenAI-kompatible
+    API (Custom), mit Verbindungstest
   - `apps/web`:
     - App-Rahmen mit Sidebar
     - Screen 01 „Jobs“ mit echten Daten, inklusive Pausieren und Fortsetzen
@@ -31,6 +33,9 @@ stehen.
       `src/lib/run-filters.ts`). CSV, Sammel-PDF, gespeicherte Ansichten und Standort fehlen.
     - Screen 03 „Lauf-Report“ (`/laeufe/<id>`), erreichbar über „Letzter Lauf“ in der
       Job-Liste: Kennzahlen, Schritte mit Ergebnis, Fehler und Bildschirmfoto
+    - „Einstellungen“ mit den Tabs aus Screen 08a, bisher nur „Team“ und „KI & API“
+      (`/einstellungen/ki`): API-Schlüssel, Modell und Standard-Anbieter. Nur Admins ändern,
+      die anderen sehen den Stand.
   - `apps/worker`:
     - plant fällige Termine ein und führt sie mit Playwright aus
     - speichert Ergebnis, Schritte und Bildschirmfotos
@@ -38,7 +43,8 @@ stehen.
     - emuliert Geräte in Chromium
 - **Noch nicht gebaut:**
   - im Worker: Proxies und Standort-Profile, echtes WebKit für iPhone/iPad, KI- und
-    Code-Schritte, Live-Stream; Markierung für andere Analytics-Werkzeuge als GA4
+    Code-Schritte, KI-Suche nach Elementen, Live-Stream; Markierung für andere
+    Analytics-Werkzeuge als GA4
   - E-Mail-Versand (Einladungslinks werden angezeigt und von Hand weitergegeben), Konten
     sperren oder löschen, Rate-Limit je IP-Adresse beim Login
   - im Assistenten: Ablauf per KI, Aufnehmen und Code (nur „Schritte zusammenklicken“ geht),
@@ -78,12 +84,13 @@ apps/web         Next.js 16 (App Router): UI, API-Routen, Login, PDF-Erzeugung
 apps/worker      Node-Prozess mit Playwright/Chromium: führt Läufe aus (Live-Stream via CDP geplant)
 packages/shared  Zod-Schemas und reine Logik: flow.ts, variables.ts, schedule.ts, domains.ts
 packages/db      Drizzle-Schema, SQL-Migrationen, Repository-Funktionen, Verschlüsselung (nur Server)
+packages/ai      HTTP-Clients der KI-Anbieter, ohne SDKs (nur Server)
 ```
 
-`packages/shared` und `packages/db` liefern TypeScript-Quelltext aus, ohne eigenen Build.
+Die Pakete unter `packages/` liefern TypeScript-Quelltext aus, ohne eigenen Build.
 
 - Next kompiliert sie über `transpilePackages` in `apps/web/next.config.ts` mit.
-- `packages/db` wird dort eingetragen, sobald die Web-App es nutzt.
+- Ein neues Paket wird dort eingetragen, sobald die Web-App es nutzt.
 - `packages/shared` muss browsertauglich bleiben: kein `node:`-Import, keine Datenbank.
 
 ## Datenbank (`packages/db`)
@@ -148,6 +155,16 @@ packages/db      Drizzle-Schema, SQL-Migrationen, Repository-Funktionen, Verschl
   - Sitzungen: zufälliger Token im Cookie `clickbot_session` (httpOnly, SameSite=Lax),
     in der Datenbank nur sein SHA-256. Nach dem Passwort 15 Minuten unvollständig, mit 2FA
     14 Tage gültig. Der Token wechselt beim Abschluss der 2FA.
+- **KI-Anbieter** (`ai-providers.ts`, Tabelle `ai_providers`):
+  - Eine Zeile je Anbieter (Gemini, OpenAI, Perplexity, Claude, Custom), Liste und Regeln in
+    `packages/shared/src/ai-providers.ts`.
+  - Der API-Schlüssel liegt mit `SECRETS_KEY` verschlüsselt, dazu seine letzten vier Zeichen
+    zum Wiedererkennen. `listAiProviders` liefert den Schlüssel nie, auch nicht verschlüsselt.
+  - Ein leeres Schlüsselfeld behält den gespeicherten. Nur Custom (OpenAI-kompatibel, z. B.
+    Ollama) kommt ohne Schlüssel aus und hat als einziger eine eigene Adresse.
+  - Genau ein Anbieter ist Standard (Index `ai_providers_one_default`). Der erste gespeicherte
+    wird es; wird der Standard entfernt, übernimmt der nächste in der Liste.
+  - `getAiConfig` liefert den entschlüsselten Schlüssel für einen Aufruf, nur auf dem Server.
 - **Laufnummern** (`{{run_nr}}`) vergibt `allocateRunNumber` atomar per
   `UPDATE … RETURNING`, nie über `max()+1`.
 - **Löschregeln:**
@@ -287,6 +304,19 @@ Hochziehen erst, wenn beide Pakete die neue Version offiziell unterstützen.
     zu den Tests von `packages/db`.
   - Chromium installieren: `pnpm --filter @click-bot/worker browsers`.
 
+## KI (`packages/ai`)
+
+- **`createAiClient(config)`** mit `complete` (Textantwort) und `listModels`, direkt über
+  `fetch` statt über die SDKs der Anbieter. OpenAI, Perplexity und Custom sprechen Chat
+  Completions, Claude die Messages API, Gemini `generateContent`.
+- Der Schlüssel geht immer in einen Header, auch bei Gemini (`x-goog-api-key` statt `?key=`),
+  damit er nicht in Logs landet. Fehlermeldungen sind deutsch und maskieren den Schlüssel.
+- **„Verbindung testen“** (`testAiConnection`) lädt die Modelle des Anbieters und sagt, ob das
+  eingetragene dabei ist. Perplexity kann seine Modelle nicht auflisten, dort geht eine
+  Anfrage mit 5 Tokens raus.
+- Tests ersetzen nur `fetch` und prüfen Anfrage und Auswertung. Die E2E-Tests sprechen nie mit
+  einem echten Anbieter.
+
 ## Lokale Entwicklung
 
 - **Postgres 17** läuft in Docker, definiert in `docker-compose.yml`.
@@ -364,7 +394,8 @@ Regeln:
     `src/server/auth.ts`), vor jedem Datenzugriff. Jede Server Action ruft selbst
     `requireUser()` oder `requireAdmin()` auf.
   - Server Actions bekommen Komponenten als Prop, z. B. `toggleAction`. Sie liegen in
-    `src/app/actions.ts`, die der Anmeldung in `src/app/auth-actions.ts`. Sie prüfen Eingaben
+    `src/app/actions.ts`, die der Anmeldung in `src/app/auth-actions.ts`, die der KI-Anbieter
+    in `src/app/ai-actions.ts`. Sie prüfen Eingaben
     selbst noch einmal, denn jeder kann sie aufrufen.
   - Formulare über mehrere Schritte: Der Zustand liegt in einer Client-Komponente neben der
     Seite (z. B. `src/app/jobs/neu/new-job-wizard.tsx`), die nur Organisms zusammensteckt.
@@ -375,7 +406,8 @@ Regeln:
     sie importieren.
   - Anzeigedaten-Typen für Komponenten stehen in `src/lib/views.ts`. Komponenten kennen die
     Datenbank-Form nicht.
-  - Komponenten und `src/lib` dürfen `@click-bot/db`, `pg` und `drizzle-orm` nicht importieren.
+  - Komponenten und `src/lib` dürfen `@click-bot/db`, `@click-bot/ai`, `pg` und `drizzle-orm`
+    nicht importieren.
     Das prüft `no-restricted-imports`, weil eslint-plugin-boundaries Workspace-Pakete außerhalb
     von `src/` übersieht.
 - **Eine Komponente pro Ordner:** `Button/Button.tsx`, `Button/index.ts`, `Button.test.tsx`

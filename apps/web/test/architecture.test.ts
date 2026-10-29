@@ -103,6 +103,15 @@ describe('data access stays in pages', { timeout: 60_000 }, () => {
     expect(await boundaryErrors(file, importDbPackage)).toEqual(['no-restricted-imports']);
   });
 
+  it.each(['src/components/organisms/AiProviderForm/AiProviderForm.tsx', 'src/lib/ai-settings.ts'])(
+    'forbids %s to import the AI clients, which hold decrypted keys',
+    async (file) => {
+      expect(await boundaryErrors(file, "import { createAiClient } from '@click-bot/ai';")).toEqual(
+        ['no-restricted-imports'],
+      );
+    },
+  );
+
   it('lets src/server use the database package', async () => {
     expect(await boundaryErrors('src/server/jobs.ts', importDbPackage)).toEqual([]);
   });

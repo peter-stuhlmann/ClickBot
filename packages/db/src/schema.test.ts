@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { db, insertCustomer, single } from '../test/db';
 import { runMigrations } from './migrate';
-import { customers, jobs, locationProfiles, runs, users } from './schema';
+import { aiProviders, customers, jobs, locationProfiles, runs, users } from './schema';
 
 // These rules live in the database itself, so they hold even for writes that bypass the
 // repository functions (manual SQL, future scripts).
@@ -95,5 +95,30 @@ describe('database constraints', () => {
 
     await db.insert(runs).values(run);
     await expect(db.insert(runs).values(run)).rejects.toThrow();
+  });
+
+  it('allows only one default AI provider', async () => {
+    const key = { apiKeyEnc: 'x', apiKeyHint: '…1234' };
+    await db.insert(aiProviders).values({ kind: 'openai', model: 'm', ...key, isDefault: true });
+    await expect(
+      db.insert(aiProviders).values({ kind: 'gemini', model: 'm', ...key, isDefault: true }),
+    ).rejects.toThrow();
+  });
+
+  it('needs a key for every AI provider but a custom one, and an address only for that', async () => {
+    await expect(db.insert(aiProviders).values({ kind: 'openai', model: 'm' })).rejects.toThrow();
+    await expect(db.insert(aiProviders).values({ kind: 'custom', model: 'm' })).rejects.toThrow();
+    await expect(
+      db.insert(aiProviders).values({
+        kind: 'openai',
+        model: 'm',
+        apiKeyEnc: 'x',
+        apiKeyHint: '…',
+        baseUrl: 'http://anders',
+      }),
+    ).rejects.toThrow();
+    await expect(
+      db.insert(aiProviders).values({ kind: 'custom', model: 'm', baseUrl: 'http://localhost/v1' }),
+    ).resolves.toBeDefined();
   });
 });

@@ -118,6 +118,8 @@ export type FormState = {
   restart?: boolean;
   /** A created invitation link, shown once. */
   link?: string;
+  /** Short confirmation, e.g. „Gespeichert.“ */
+  notice?: string;
 };
 
 export type FormAction = (state: FormState, formData: FormData) => Promise<FormState>;
@@ -133,3 +135,32 @@ export type TeamMemberView = {
 
 /** An invitation link that can still be used. */
 export type InvitationView = { id: string; email: string; role: string; expires: string };
+
+/** One provider in "Einstellungen → KI & API". Never carries the key, only its hint. */
+export type AiProviderView = {
+  kind: string;
+  label: string;
+  /** Where to get a key. */
+  keyHelp: string;
+  configured: boolean;
+  isDefault: boolean;
+  model: string;
+  /** Only the custom endpoint has an address field. */
+  needsBaseUrl: boolean;
+  baseUrl: string;
+  keyRequired: boolean;
+  /** "…1234" of the stored key, null without one. */
+  keyHint: string | null;
+  /** Offered in the model field before a connection test lists the real models. */
+  modelSuggestions: string[];
+};
+
+/** Result of "Verbindung testen". */
+export type ConnectionCheck = {
+  tone: 'success' | 'warning' | 'danger';
+  message: string;
+  /** The provider's models, for the model field. */
+  models?: string[];
+};
+
+export type ConnectionCheckAction = (formData: FormData) => Promise<ConnectionCheck>;

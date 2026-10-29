@@ -83,3 +83,12 @@ export {
   type TeamMember,
 } from './invitations';
 export { otpauthUri, totpCode, totpStep } from './totp';
+export {
+  deleteAiProvider,
+  getAiConfig,
+  listAiProviders,
+  saveAiProvider,
+  setDefaultAiProvider,
+  type AiProviderListing,
+  type StoredAiConfig,
+} from './ai-providers';

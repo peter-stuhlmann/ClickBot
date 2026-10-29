@@ -1,4 +1,9 @@
-import type { AnalyticsMarking, Flow, Schedule } from '@click-bot/shared';
+import {
+  AI_PROVIDER_KINDS,
+  type AnalyticsMarking,
+  type Flow,
+  type Schedule,
+} from '@click-bot/shared';
 import { sql } from 'drizzle-orm';
 import {
   boolean,
@@ -33,6 +38,7 @@ export const runStatus = pgEnum('run_status', [
 export const stepStatus = pgEnum('step_status', ['passed', 'healed', 'failed', 'skipped']);
 export const proxyKind = pgEnum('proxy_kind', ['datacenter', 'residential']);
 export const device = pgEnum('device', ['desktop', 'iphone', 'android', 'ipad']);
+export const aiProviderKind = pgEnum('ai_provider_kind', AI_PROVIDER_KINDS);
 
 export const users = pgTable(
   'users',
@@ -269,3 +275,31 @@ export const workerHeartbeats = pgTable('worker_heartbeats', {
   startedAt: timestamp('started_at', { withTimezone: true }).notNull(),
   lastSeenAt: timestamp('last_seen_at', { withTimezone: true }).notNull(),
 });
+
+/** "Einstellungen → KI & API": one row per provider; the default one serves AI steps. */
+export const aiProviders = pgTable(
+  'ai_providers',
+  {
+    kind: aiProviderKind('kind').primaryKey(),
+    model: text('model').notNull(),
+    /** Only for "custom" (OpenAI-compatible API); the others have a fixed address. */
+    baseUrl: text('base_url'),
+    /** Encrypted with SECRETS_KEY; null only for a custom endpoint without a key. */
+    apiKeyEnc: text('api_key_enc'),
+    /** Last four characters ("…1234"), so the UI can show which key is stored. */
+    apiKeyHint: text('api_key_hint'),
+    isDefault: boolean('is_default').notNull().default(false),
+    createdAt: createdAt(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    uniqueIndex('ai_providers_one_default')
+      .on(t.isDefault)
+      .where(sql`${t.isDefault}`),
+    check('ai_providers_base_url', sql`(${t.kind} = 'custom') = (${t.baseUrl} IS NOT NULL)`),
+    check(
+      'ai_providers_key',
+      sql`${t.kind} = 'custom' OR (${t.apiKeyEnc} IS NOT NULL AND ${t.apiKeyHint} IS NOT NULL)`,
+    ),
+  ],
+);

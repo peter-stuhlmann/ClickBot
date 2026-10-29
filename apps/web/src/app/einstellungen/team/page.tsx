@@ -2,10 +2,13 @@ import { getWorkerStatus, listOpenInvitations, listUsers } from '@click-bot/db';
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import { Notice } from '@/components/molecules/Notice';
+import { Tabs } from '@/components/molecules/Tabs';
 import { InviteForm } from '@/components/organisms/InviteForm';
 import { PageHeader } from '@/components/organisms/PageHeader';
 import { TeamList } from '@/components/organisms/TeamList';
 import { AppShell } from '@/components/templates/AppShell';
+import { SettingsLayout } from '@/components/templates/SettingsLayout';
+import { SETTINGS_TABS } from '@/lib/settings-tabs';
 import { currentSession, requireUser } from '@/server/auth';
 import { getDb } from '@/server/db';
 import { getCurrentUser } from '@/server/session';
@@ -32,15 +35,19 @@ export default async function TeamPage() {
 
   return (
     <AppShell active="einstellungen" user={user} worker={worker}>
-      <PageHeader
-        title="Team"
-        description={
-          isAdmin
-            ? 'Wer Zugang zu Click-Bot hat. Neue Personen kommen nur per Einladungslink.'
-            : 'Wer Zugang zu Click-Bot hat. Einladen können nur Admins.'
+      <SettingsLayout
+        header={
+          <PageHeader
+            title="Einstellungen"
+            description={
+              isAdmin
+                ? 'Team – wer Zugang zu Click-Bot hat. Neue Personen kommen nur per Einladungslink.'
+                : 'Team – wer Zugang zu Click-Bot hat. Einladen können nur Admins.'
+            }
+          />
         }
-      />
-      <div className="flex max-w-3xl flex-col gap-6">
+        tabs={<Tabs label="Einstellungen" items={SETTINGS_TABS} current="/einstellungen/team" />}
+      >
         {!hasTotp && (
           <Notice tone="warning" title="Dein Konto hat keine 2FA">
             Bisher schützt nur dein Passwort den Zugang.{' '}
@@ -55,7 +62,7 @@ export default async function TeamPage() {
           invitations={invitations.map(toInvitation)}
           revokeAction={isAdmin ? revokeInvitationAction : undefined}
         />
-      </div>
+      </SettingsLayout>
     </AppShell>
   );
 }

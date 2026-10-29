@@ -26,6 +26,7 @@ export default defineConfig({
       thresholds: {
         'packages/shared/src/**': { branches: 95, functions: 95, lines: 95, statements: 95 },
         'packages/db/src/**': { branches: 90, functions: 90, lines: 90, statements: 90 },
+        'packages/ai/src/**': { branches: 90, functions: 90, lines: 90, statements: 90 },
         'apps/*/src/**': { branches: 90, functions: 90, lines: 90, statements: 90 },
       },
     },
