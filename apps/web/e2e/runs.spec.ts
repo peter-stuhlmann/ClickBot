@@ -64,7 +64,8 @@ test.describe('Läufe', () => {
       await page.goto('/laeufe');
       const row = page.getByRole('row').nth(1);
       await expect(row.getByRole('cell').nth(2)).toHaveText(
-        /^\d\d\.\d\d\. \d\d:\d\d( · )?[\d,]+ s$/,
+        // A run that still waits has no duration yet (–).
+        /^\d\d\.\d\d\. \d\d:\d\d( · )?([\d,]+ s|–)$/,
       );
       // Each piece of text (time, duration, result, project) sits on a single line.
       const wrapped = await row.evaluate((element) => {
