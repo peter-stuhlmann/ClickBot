@@ -2,7 +2,9 @@ import {
   createCipher,
   createJob,
   createSecret,
+  getPageAnalysis,
   getWorkerStatus,
+  requestPageAnalysis,
   schema,
   type Cipher,
 } from '@click-bot/db';
@@ -107,6 +109,23 @@ async function dueJob(steps: unknown[], bots = 1) {
 const allRuns = () => db.select().from(schema.runs).orderBy(schema.runs.runNr);
 
 describe('worker', () => {
+  it('opens a page queued for "Mit KI beschreiben" and stores what it found', async () => {
+    const ok = await requestPageAnalysis(db, `${browser.origin()}/kontakt.html`, new Date());
+    const broken = await requestPageAnalysis(db, `${browser.origin()}/fehler`, new Date());
+    const w = startWorker();
+
+    await w.tick();
+    await w.idle();
+    expect(await getPageAnalysis(db, ok)).toMatchObject({
+      status: 'done',
+      result: { title: 'Kontakt – Beispiel GmbH', forms: 1 },
+    });
+    expect(await getPageAnalysis(db, broken)).toMatchObject({
+      status: 'failed',
+      error: 'Seite antwortet mit HTTP 500.',
+    });
+  });
+
   it('opens every run with its own device and browser', async () => {
     const { job } = await dueJob(contactSteps);
     await db

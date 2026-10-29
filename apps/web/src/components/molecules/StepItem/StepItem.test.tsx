@@ -19,6 +19,13 @@ const handlers = () => ({
 });
 
 describe('StepItem', () => {
+  it('shows a suggested step read-only, without selecting, moving or removing', () => {
+    render(<StepItem index={2} step={click} selected={false} readOnly />);
+    expect(screen.queryByRole('button')).not.toBeInTheDocument();
+    expect(screen.getByText('Klicke auf „Kontakt“')).toBeVisible();
+    expect(screen.getByText('3')).toBeVisible();
+  });
+
   it('shows number, type, title and locator of the step', () => {
     render(<StepItem index={1} step={click} selected={false} {...handlers()} />);
     const select = screen.getByRole('button', { name: 'Schritt 2: Klicke auf „Kontakt“' });

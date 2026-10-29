@@ -3,6 +3,7 @@ import type { Metadata } from 'next';
 import { AppShell } from '@/components/templates/AppShell';
 import { getDb } from '@/server/db';
 import { getCurrentUser } from '@/server/session';
+import { suggestFlowAction } from '../../ai-actions';
 import { createJobAction } from '../../actions';
 import { NewJobWizard } from './new-job-wizard';
 
@@ -19,7 +20,12 @@ export default async function NewJobPage() {
 
   return (
     <AppShell active="jobs" user={user} worker={worker}>
-      <NewJobWizard customers={customers} now={now.toISOString()} createAction={createJobAction} />
+      <NewJobWizard
+        customers={customers}
+        now={now.toISOString()}
+        createAction={createJobAction}
+        suggestAction={suggestFlowAction}
+      />
     </AppShell>
   );
 }

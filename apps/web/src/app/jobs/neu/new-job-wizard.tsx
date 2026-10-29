@@ -3,10 +3,11 @@
 import { useMemo, useState, useTransition, type ReactNode } from 'react';
 import { Button } from '@/components/atoms/Button';
 import { Icon } from '@/components/atoms/Icon';
+import { AiFlowPanel } from '@/components/organisms/AiFlowPanel';
 import { AnalyticsMarkingForm } from '@/components/organisms/AnalyticsMarkingForm';
 import { DevicePicker } from '@/components/organisms/DevicePicker';
 import { JobSummary } from '@/components/organisms/JobSummary';
-import { MethodPicker } from '@/components/organisms/MethodPicker';
+import { MethodPicker, type FlowMethod } from '@/components/organisms/MethodPicker';
 import { ScheduleForm } from '@/components/organisms/ScheduleForm';
 import { StepForm } from '@/components/organisms/StepForm';
 import { StepList } from '@/components/organisms/StepList';
@@ -34,25 +35,33 @@ import {
   type WizardDraft,
 } from '@/lib/job-draft';
 import { describeStep } from '@/lib/step-view';
+import type { FlowSuggestionResult, SuggestFlowAction } from '@/lib/views';
 
 export type NewJobWizardProps = {
   customers: { id: string; name: string }[];
   /** Server time of the request, so the defaults are the same on server and client. */
   now: string;
   createAction: (draft: WizardDraft) => Promise<{ issues: Issue[] }>;
+  /** "Mit KI beschreiben": suggested steps for a description. */
+  suggestAction: SuggestFlowAction;
 };
 
 const NOT_SAVED =
   'Gespeichert wird erst am Ende. Bis dahin ist der Job ein Entwurf und läuft nicht.';
 
 /** State and navigation of the "Neuer Job" wizard (screens 05 and 05b). */
-export function NewJobWizard({ customers, now, createAction }: NewJobWizardProps) {
+export function NewJobWizard({ customers, now, createAction, suggestAction }: NewJobWizardProps) {
   const renderedAt = useMemo(() => new Date(now), [now]);
   const [draft, setDraft] = useState(() => emptyDraft(renderedAt));
   const [current, setCurrent] = useState(0);
   const [issues, setIssues] = useState<Issue[]>([]);
   const [selected, setSelected] = useState<number | null>(null);
   const [saving, startSaving] = useTransition();
+  const [method, setMethod] = useState<FlowMethod>('editor');
+  const [aiDescription, setAiDescription] = useState('');
+  const [aiAnswers, setAiAnswers] = useState<Record<string, string>>({});
+  const [aiResult, setAiResult] = useState<FlowSuggestionResult | null>(null);
+  const [generating, startGenerating] = useTransition();
 
   const step = WIZARD_STEPS[current] ?? WIZARD_STEPS[0];
   const isLast = current === WIZARD_STEPS.length - 1;
@@ -96,6 +105,24 @@ export function NewJobWizard({ customers, now, createAction }: NewJobWizardProps
 
   const setSteps = (steps: StepDraft[]) => update({ steps });
 
+  function generate() {
+    startGenerating(async () => {
+      const answers = Object.entries(aiAnswers).map(([question, answer]) => ({ question, answer }));
+      setAiResult(
+        await suggestAction({ startUrl: draft.startUrl, description: aiDescription, answers }),
+      );
+    });
+  }
+
+  /** The suggestion replaces the flow; the step builder shows it for changes. */
+  function acceptSuggestion() {
+    if (!aiResult?.ok) return;
+    setSteps(aiResult.steps);
+    setSelected(null);
+    setIssues([]);
+    setMethod('editor');
+  }
+
   function applySteps(next: StepListState, clearIssues = true) {
     setSteps(next.steps);
     setSelected(next.selected);
@@ -115,29 +142,58 @@ export function NewJobWizard({ customers, now, createAction }: NewJobWizardProps
     case 'flow':
       content = (
         <>
-          <MethodPicker />
-          <StepList
-            steps={draft.steps.map((flowStep, index) => ({
-              key: flowStep.id,
-              view: describeStep(flowStep),
-              invalid: Object.keys(stepErrors(issues, index)).length > 0,
-            }))}
-            selectedIndex={selected}
-            error={errors['flow.steps']}
-            onSelect={setSelected}
-            onAdd={() => applySteps(appendStep(draft.steps, draft.startUrl), false)}
-            onMove={(index, delta) => applySteps(moveStep(draft.steps, index, delta))}
-            onRemove={(index) => applySteps(removeStep(draft.steps, index, selected))}
-          />
-          {selected !== null && selectedStep && (
-            <StepForm
-              index={selected}
-              step={selectedStep}
-              errors={stepErrors(issues, selected)}
-              onChange={(changed) =>
-                setSteps(draft.steps.map((other, index) => (index === selected ? changed : other)))
+          <MethodPicker method={method} onChoose={setMethod} />
+          {method === 'ai' ? (
+            <AiFlowPanel
+              description={aiDescription}
+              onDescriptionChange={setAiDescription}
+              onGenerate={generate}
+              generating={generating}
+              error={aiResult && !aiResult.ok ? aiResult.message : undefined}
+              suggestion={
+                aiResult?.ok
+                  ? {
+                      steps: aiResult.steps.map(describeStep),
+                      questions: aiResult.questions,
+                      facts: aiResult.facts,
+                      notice: aiResult.notice,
+                    }
+                  : undefined
               }
+              answers={aiAnswers}
+              onAnswer={(question, answer) =>
+                setAiAnswers((old) => ({ ...old, [question]: answer }))
+              }
+              onAccept={acceptSuggestion}
             />
+          ) : (
+            <>
+              <StepList
+                steps={draft.steps.map((flowStep, index) => ({
+                  key: flowStep.id,
+                  view: describeStep(flowStep),
+                  invalid: Object.keys(stepErrors(issues, index)).length > 0,
+                }))}
+                selectedIndex={selected}
+                error={errors['flow.steps']}
+                onSelect={setSelected}
+                onAdd={() => applySteps(appendStep(draft.steps, draft.startUrl), false)}
+                onMove={(index, delta) => applySteps(moveStep(draft.steps, index, delta))}
+                onRemove={(index) => applySteps(removeStep(draft.steps, index, selected))}
+              />
+              {selected !== null && selectedStep && (
+                <StepForm
+                  index={selected}
+                  step={selectedStep}
+                  errors={stepErrors(issues, selected)}
+                  onChange={(changed) =>
+                    setSteps(
+                      draft.steps.map((other, index) => (index === selected ? changed : other)),
+                    )
+                  }
+                />
+              )}
+            </>
           )}
         </>
       );

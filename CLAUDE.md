@@ -19,7 +19,8 @@ die Einstellungen der KI-Anbieter stehen.
     - App-Rahmen mit Sidebar
     - Screen 01 „Jobs“ mit echten Daten, inklusive Pausieren und Fortsetzen
     - Screen 05 „Neuer Job“ (`/jobs/neu`): Assistent in vier Schritten (Website, Ablauf,
-      Zeitplan, Geräte). Am Ende wird der Job aktiv angelegt und läuft nach Zeitplan.
+      Zeitplan, Geräte). Am Ende wird der Job aktiv angelegt und läuft nach Zeitplan. Den
+      Ablauf gibt es zusammengeklickt oder „Mit KI beschreiben“ (Screen 06, siehe Abschnitt KI).
     - Screen 02 „Editor“ (`/jobs/<id>`, über den Job-Namen in der Liste): Name, Start-URL,
       Zeitplan, Geräte und Ablauf eines bestehenden Jobs ändern. Zwei Spalten statt der drei
       aus dem Design, weil die Terminzeilen sonst zu schmal werden.
@@ -48,8 +49,7 @@ die Einstellungen der KI-Anbieter stehen.
     Analytics-Werkzeuge als GA4
   - E-Mail-Versand (Einladungslinks werden angezeigt und von Hand weitergegeben), Konten
     sperren oder löschen, Rate-Limit je IP-Adresse beim Login
-  - im Assistenten: Ablauf per KI, Aufnehmen und Code (nur „Schritte zusammenklicken“ geht),
-    Standort-Profile je Termin; Schritte vom Typ „auslesen“ lassen sich noch nicht anlegen
+  - im Assistenten: Aufnehmen und Code, Standort-Profile je Termin; im Editor die KI; Schritte vom Typ „auslesen“ lassen sich noch nicht anlegen
   - im Lauf-Report: PDF, „Erneut ausführen“, KI-Eingriffe, Konsolenfehler und ausgelesene
     Werte (dafür speichert der Worker noch keine Daten)
   - im Editor: KI-Box, „Erfolg & Daten“ und Variablen-Liste aus dem Design
@@ -332,8 +332,23 @@ Hochziehen erst, wenn beide Pakete die neue Version offiziell unterstützen.
 - **„Verbindung testen“** (`testAiConnection`) lädt die Modelle des Anbieters und sagt, ob das
   eingetragene dabei ist. Perplexity kann seine Modelle nicht auflisten, dort geht eine
   Anfrage mit 5 Tokens raus.
-- Tests ersetzen nur `fetch` und prüfen Anfrage und Auswertung. Die E2E-Tests sprechen nie mit
-  einem echten Anbieter.
+- **„Mit KI beschreiben“** (`suggestFlowAction` in `src/app/ai-actions.ts`, `suggestFlow`):
+  1. Ist der Worker online, öffnet er die Start-URL einmal (`page_analyses`, `analysePage` im
+     Worker): Accessibility-Baum der Seite und ihrer iframes (Aria-Snapshot), Formulare,
+     Cookie-Tool, GA4-IDs. GA4-Anfragen sind dabei markiert wie bei Läufen (Laufnummer 0). Die
+     Web-App wartet höchstens 45 s, Analysen gehen vor geplanten Läufen.
+  2. Der Standard-Anbieter bekommt Beschreibung, Antworten auf frühere Rückfragen und den
+     Seitenaufbau. Der Prompt erklärt die Schritt-Typen an einem Beispiel, das ein Test gegen
+     `flowSchema` prüft, und behandelt den Seitenaufbau als Daten, nie als Anweisung.
+  3. `parseFlowSuggestion` prüft jeden Schritt mit `stepSchema`. Erlaubt sind nur Typen, die das
+     Formular kann (kein KI-, Code-, Auslese- oder Passwortschritt). Eine erfundene echte
+     E-Mail-Adresse wird zu `{{faker.email}}`. Fehlt „Seite öffnen“ am Anfang, kommt es dazu.
+     Eine ungültige Antwort bekommt eine zweite Chance mit der Fehlermeldung.
+  4. Nichts wird gespeichert oder ausgeführt, bis die Schritte übernommen werden. Ohne Worker
+     oder ohne lesbare Seite sagt der Vorschlag das („Seite nicht gelesen“).
+- Tests ersetzen nur `fetch` bzw. den Client und prüfen Anfrage und Auswertung. Die E2E-Tests
+  sprechen nie mit einem echten Anbieter: `new-job-ai.spec.ts` startet eine eigene
+  OpenAI-kompatible Attrappe und richtet sie als „Custom“ ein.
 
 ## Lokale Entwicklung
 

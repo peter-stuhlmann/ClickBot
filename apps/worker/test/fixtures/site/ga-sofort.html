@@ -1,0 +1,17 @@
+<!doctype html>
+<html lang="de">
+  <head>
+    <meta charset="utf-8" />
+    <title>Startseite – Beispiel GmbH</title>
+  </head>
+  <body>
+    <h1>Willkommen</h1>
+    <script>
+      // A page without consent banner that sends a page view right away.
+      fetch('https://region1.google-analytics.com/g/collect?v=2&tid=G-SOFORT&en=page_view', {
+        method: 'POST',
+        mode: 'no-cors',
+      });
+    </script>
+  </body>
+</html>

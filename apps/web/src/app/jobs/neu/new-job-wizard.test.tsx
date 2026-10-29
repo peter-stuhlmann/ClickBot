@@ -1,7 +1,8 @@
 import { fireEvent, render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import type { Issue, WizardDraft } from '@/lib/job-draft';
+import { newStep, type Issue, type WizardDraft } from '@/lib/job-draft';
+import type { SuggestFlowAction } from '@/lib/views';
 import { NewJobWizard } from './new-job-wizard';
 
 // 13:30 in Berlin. Only Date is faked, so user-event's timers keep working.
@@ -18,8 +19,20 @@ afterEach(() => {
 
 type CreateAction = (draft: WizardDraft) => Promise<{ issues: Issue[] }>;
 
-function renderWizard(createAction = vi.fn<CreateAction>(async () => ({ issues: [] }))) {
-  render(<NewJobWizard customers={customers} now={NOW} createAction={createAction} />);
+const noSuggestion: SuggestFlowAction = async () => ({ ok: false, message: 'nicht im Test' });
+
+function renderWizard(
+  createAction = vi.fn<CreateAction>(async () => ({ issues: [] })),
+  suggestAction: SuggestFlowAction = noSuggestion,
+) {
+  render(
+    <NewJobWizard
+      customers={customers}
+      now={NOW}
+      createAction={createAction}
+      suggestAction={suggestAction}
+    />,
+  );
   return createAction;
 }
 
@@ -39,6 +52,58 @@ async function fillWebsite(user: ReturnType<typeof userEvent.setup>) {
 }
 
 describe('NewJobWizard', () => {
+  it('takes over the steps the AI suggests for a description, with the answers asked for', async () => {
+    const user = userEvent.setup();
+    const suggestAction = vi.fn<SuggestFlowAction>(async () => ({
+      ok: true,
+      steps: [
+        { ...newStep('open', [], 'https://127.0.0.1:4100/kontakt.html'), id: 'ki-1' },
+        { ...newStep('click', [], ''), id: 'ki-2', targetRole: 'button', targetValue: 'Absenden' },
+      ],
+      questions: [{ question: 'Welches Event?', options: ['generate_lead', 'form_submit'] }],
+      facts: [],
+      notice: null,
+    }));
+    renderWizard(undefined, suggestAction);
+    await fillWebsite(user);
+    await user.click(weiter());
+
+    await user.click(screen.getByRole('button', { name: /Mit KI beschreiben/ }));
+    await user.type(
+      screen.getByRole('textbox', { name: 'Was soll der Bot tun?' }),
+      'Sende das Formular ab.',
+    );
+    await user.click(screen.getByRole('button', { name: 'Vorschlag erzeugen' }));
+    expect(suggestAction).toHaveBeenLastCalledWith({
+      startUrl: '127.0.0.1:4100/kontakt.html',
+      description: 'Sende das Formular ab.',
+      answers: [],
+    });
+
+    await user.click(await screen.findByRole('button', { name: 'form_submit' }));
+    await user.click(screen.getByRole('button', { name: 'Neu erzeugen' }));
+    expect(suggestAction).toHaveBeenLastCalledWith(
+      expect.objectContaining({ answers: [{ question: 'Welches Event?', answer: 'form_submit' }] }),
+    );
+
+    await user.click(await screen.findByRole('button', { name: '2 Schritte übernehmen' }));
+    expect(screen.getByRole('button', { name: /Schritte zusammenklicken/ })).toHaveAttribute(
+      'aria-pressed',
+      'true',
+    );
+    expect(screen.getByRole('button', { name: 'Schritt 2: Klicke auf „Absenden“' })).toBeVisible();
+  });
+
+  it('shows why the AI made no suggestion', async () => {
+    const user = userEvent.setup();
+    renderWizard(undefined, async () => ({ ok: false, message: 'Custom ist nicht erreichbar.' }));
+    await fillWebsite(user);
+    await user.click(weiter());
+    await user.click(screen.getByRole('button', { name: /Mit KI beschreiben/ }));
+    await user.click(screen.getByRole('button', { name: 'Vorschlag erzeugen' }));
+    expect(await screen.findByText('Custom ist nicht erreichbar.')).toBeVisible();
+  });
+
   it('stays on the first step and names every missing field', async () => {
     const user = userEvent.setup();
     renderWizard();

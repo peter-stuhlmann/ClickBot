@@ -43,6 +43,13 @@
       "when": 1793296600535,
       "tag": "0005_browsers",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1793299381134,
+      "tag": "0006_page_analyses",
+      "breakpoints": true
     }
   ]
 }
