@@ -1,15 +1,35 @@
 import 'server-only';
-import { createDb, type Database } from '@click-bot/db';
+import { createDb, schema, type Database, type DbConnection } from '@click-bot/db';
 
-// One pool per server process. In development Next reloads modules, so the pool lives on
-// globalThis to avoid opening a new one on every change.
-const globalForDb = globalThis as unknown as { clickBotDb?: Database };
+type Slot = { connection?: DbConnection; schema?: object };
+
+/**
+ * The cached connection, or a new one when the schema is not the one it was made with. In
+ * development Next reloads @click-bot/db after a change, while globalThis survives; a connection
+ * made with the old schema would not know new columns. The old pool is closed then.
+ */
+export function connectionFor(
+  slot: Slot,
+  currentSchema: object,
+  create: () => DbConnection,
+): DbConnection {
+  if (slot.connection && slot.schema === currentSchema) return slot.connection;
+  const old = slot.connection;
+  slot.connection = create();
+  slot.schema = currentSchema;
+  void old?.close().catch(() => {});
+  return slot.connection;
+}
+
+// One pool per server process. It lives on globalThis, so module reloads in development do not
+// open a new pool on every change.
+const globalForDb = globalThis as unknown as { clickBotDbSlot?: Slot };
 
 export function getDb(): Database {
-  if (!globalForDb.clickBotDb) {
+  globalForDb.clickBotDbSlot ??= {};
+  return connectionFor(globalForDb.clickBotDbSlot, schema, () => {
     const url = process.env.DATABASE_URL;
     if (!url) throw new Error('DATABASE_URL fehlt (siehe .env.example).');
-    globalForDb.clickBotDb = createDb(url).db;
-  }
-  return globalForDb.clickBotDb;
+    return createDb(url);
+  }).db;
 }
