@@ -24,8 +24,8 @@ import type { SummaryRowView } from './views';
  */
 
 export const WIZARD_STEPS = [
-  { key: 'website', label: 'Website', question: 'Welche Website soll getestet werden?' },
-  { key: 'flow', label: 'Ablauf', question: 'Wie soll der Ablauf entstehen?' },
+  { key: 'job', label: 'Job', question: 'Zu welchem Projekt gehört der Job?' },
+  { key: 'flow', label: 'Ablauf', question: 'Wo beginnt der Test, und was soll passieren?' },
   { key: 'schedule', label: 'Zeitplan', question: 'Wann soll der Bot laufen?' },
   {
     key: 'devices',
@@ -442,25 +442,41 @@ function issuesFrom(prefix: string, error: SchemaError): Issue[] {
   }));
 }
 
-function websiteIssues(draft: WizardDraft): Issue[] {
+/** Step 1: project and name. */
+function jobIssues(draft: WizardDraft): Issue[] {
   const issues: Issue[] = [];
   if (!draft.customerId) {
     issues.push({ path: 'customerId', message: 'Bitte ein Projekt wählen.' });
   }
-  if (!isHttpUrl(normaliseUrl(draft.startUrl))) {
-    issues.push({
-      path: 'startUrl',
-      message: 'Start-URL muss mit http:// oder https:// beginnen.',
-    });
-  }
   if (!draft.name.trim()) issues.push({ path: 'name', message: 'Name fehlt.' });
-  if (!draft.confirmed) {
-    issues.push({
-      path: 'confirmed',
-      message: 'Bitte bestätigen, dass ihr diese Website testen dürft.',
-    });
-  }
   return issues;
+}
+
+/** Step 2 asks for the start address above the flow. */
+function startUrlIssues(draft: WizardDraft): Issue[] {
+  return isHttpUrl(normaliseUrl(draft.startUrl))
+    ? []
+    : [{ path: 'startUrl', message: 'Start-URL muss mit http:// oder https:// beginnen.' }];
+}
+
+function flowIssues(draft: WizardDraft, now: Date): Issue[] {
+  const parsed = flowSchema.safeParse(toNewJobInput(draft, now).flow);
+  return parsed.success ? [] : issuesFrom('flow', parsed.error);
+}
+
+function deviceIssues(draft: WizardDraft): Issue[] {
+  if (draft.devices.length === 0) {
+    return [{ path: 'devices', message: 'Mindestens ein Gerät wählen.' }];
+  }
+  const problem = browserProblem(draft.devices, draft.browsers);
+  return problem ? [{ path: 'browsers', message: problem }] : [];
+}
+
+/** Product rule: whoever creates a job confirms that the website may be tested (last step). */
+function confirmationIssues(draft: WizardDraft): Issue[] {
+  return draft.confirmed
+    ? []
+    : [{ path: 'confirmed', message: 'Bitte bestätigen, dass ihr diese Website testen dürft.' }];
 }
 
 /**
@@ -501,21 +517,14 @@ function scheduleIssues(schedule: ScheduleDraft, now: Date, original?: ScheduleD
 /** Problems that keep the user on `step`. Empty means "Weiter" may continue. */
 export function validateWizardStep(draft: WizardDraft, step: WizardStep, now: Date): Issue[] {
   switch (step) {
-    case 'website':
-      return websiteIssues(draft);
-    case 'flow': {
-      const parsed = flowSchema.safeParse(toNewJobInput(draft, now).flow);
-      return parsed.success ? [] : issuesFrom('flow', parsed.error);
-    }
+    case 'job':
+      return jobIssues(draft);
+    case 'flow':
+      return [...startUrlIssues(draft), ...flowIssues(draft, now)];
     case 'schedule':
       return scheduleIssues(draft.schedule, now);
-    case 'devices': {
-      if (draft.devices.length === 0) {
-        return [{ path: 'devices', message: 'Mindestens ein Gerät wählen.' }];
-      }
-      const problem = browserProblem(draft.devices, draft.browsers);
-      return problem ? [{ path: 'browsers', message: problem }] : [];
-    }
+    case 'devices':
+      return [...deviceIssues(draft), ...confirmationIssues(draft)];
   }
 }
 
@@ -530,10 +539,11 @@ export function toJobUpdateInput(draft: WizardDraft, now: Date): JobUpdateDraftI
 /** Problems that keep the editor from saving; `original` is the job as loaded. */
 export function validateJobEdit(draft: WizardDraft, original: WizardDraft, now: Date): Issue[] {
   return [
-    ...websiteIssues(draft),
-    ...validateWizardStep(draft, 'flow', now),
+    ...jobIssues(draft),
+    ...startUrlIssues(draft),
+    ...flowIssues(draft, now),
     ...scheduleIssues(draft.schedule, now, original.schedule),
-    ...validateWizardStep(draft, 'devices', now),
+    ...deviceIssues(draft),
   ];
 }
 
@@ -638,12 +648,29 @@ export function removeStep(
   return { steps: remaining, selected };
 }
 
+/**
+ * Sets the start address. While the flow is empty or still begins with opening the old address,
+ * the first step follows; a first step changed by hand stays as it is.
+ */
+export function withStartUrl(
+  draft: WizardDraft,
+  startUrl: string,
+): Pick<WizardDraft, 'startUrl' | 'steps'> {
+  const [first, ...rest] = draft.steps;
+  if (!first) return { startUrl, steps: [newStep('open', [], startUrl)] };
+  if (first.type === 'open' && first.url === normaliseUrl(draft.startUrl)) {
+    return { startUrl, steps: [{ ...first, url: normaliseUrl(startUrl) }, ...rest] };
+  }
+  return { startUrl, steps: draft.steps };
+}
+
 /** The wizard step that shows the field at `path`, e.g. after the server rejected the job. */
 export function wizardStepOf(path: string): WizardStep {
   const [head] = path.split('.');
   if (head === 'flow' || head === 'schedule' || head === 'devices') return head;
-  if (head === 'browsers') return 'devices';
-  return 'website';
+  if (head === 'startUrl') return 'flow';
+  if (head === 'browsers' || head === 'confirmed') return 'devices';
+  return 'job';
 }
 
 /** First message per path, for fields that show a single error. */

@@ -9,6 +9,7 @@ import {
   scheduleErrors,
   stepErrors,
   summarise,
+  withStartUrl,
   toNewJobInput,
   validateWizardStep,
   wizardStepOf,
@@ -265,28 +266,37 @@ describe('toNewJobInput', () => {
 
 describe('validateWizardStep', () => {
   it('accepts a complete first step', () => {
-    expect(validateWizardStep(draft(), 'website', now)).toEqual([]);
+    expect(validateWizardStep(draft(), 'job', now)).toEqual([]);
   });
 
-  it('reports every missing field of the first step at once', () => {
+  it('asks only for project and name in the first step', () => {
     const issues = validateWizardStep(
-      draft({ customerId: '', name: ' ', startUrl: 'ftp://x', confirmed: false }),
-      'website',
+      draft({ customerId: '', name: ' ', startUrl: '', confirmed: false }),
+      'job',
       now,
     );
     expect(issues).toEqual([
       { path: 'customerId', message: 'Bitte ein Projekt wählen.' },
-      { path: 'startUrl', message: 'Start-URL muss mit http:// oder https:// beginnen.' },
       { path: 'name', message: 'Name fehlt.' },
-      {
-        path: 'confirmed',
-        message: 'Bitte bestätigen, dass ihr diese Website testen dürft.',
-      },
     ]);
   });
 
+  it('needs the start address together with the flow', () => {
+    expect(validateWizardStep(draft({ startUrl: 'ftp://x' }), 'flow', now)).toContainEqual({
+      path: 'startUrl',
+      message: 'Start-URL muss mit http:// oder https:// beginnen.',
+    });
+  });
+
   it('accepts a start URL without scheme, because https:// is added', () => {
-    expect(validateWizardStep(draft({ startUrl: 'beispiel.de' }), 'website', now)).toEqual([]);
+    const steps = [step('open', { url: 'https://beispiel.de' })];
+    expect(validateWizardStep(draft({ startUrl: 'beispiel.de', steps }), 'flow', now)).toEqual([]);
+  });
+
+  it('needs the confirmation that testing is allowed before the job is created', () => {
+    expect(validateWizardStep(draft({ confirmed: false }), 'devices', now)).toEqual([
+      { path: 'confirmed', message: 'Bitte bestätigen, dass ihr diese Website testen dürft.' },
+    ]);
   });
 
   it('reports flow problems with paths to the step fields', () => {
@@ -364,17 +374,39 @@ describe('validateWizardStep', () => {
   });
 });
 
+describe('withStartUrl', () => {
+  it('starts the flow with opening the start address', () => {
+    const changed = withStartUrl(draft({ startUrl: '', steps: [] }), 'beispiel.de');
+    expect(changed.startUrl).toBe('beispiel.de');
+    expect(changed.steps).toMatchObject([{ type: 'open', url: 'https://beispiel.de' }]);
+  });
+
+  it('keeps the first step in line with the start address while typing', () => {
+    const empty = draft({ startUrl: '', steps: [] });
+    const first = withStartUrl(empty, 'beisp');
+    const next = withStartUrl({ ...empty, ...first }, 'beispiel.de');
+    expect(next.steps).toHaveLength(1);
+    expect(next.steps[0]).toMatchObject({ id: first.steps[0]?.id, url: 'https://beispiel.de' });
+  });
+
+  it('leaves a first step alone that was changed by hand', () => {
+    const steps = [step('open', { url: '/kontakt' }), step('click')];
+    const changed = withStartUrl(draft({ startUrl: 'beispiel.de', steps }), 'beispiel.de/neu');
+    expect(changed.steps).toBe(steps);
+  });
+});
+
 describe('wizardStepOf', () => {
   it.each([
-    ['customerId', 'website'],
-    ['startUrl', 'website'],
-    ['name', 'website'],
-    ['confirmed', 'website'],
+    ['customerId', 'job'],
+    ['startUrl', 'flow'],
+    ['name', 'job'],
+    ['confirmed', 'devices'],
     ['flow.steps.2.target.label', 'flow'],
     ['schedule.slots.0.time', 'schedule'],
     ['devices', 'devices'],
     ['browsers', 'devices'],
-    ['something.else', 'website'],
+    ['something.else', 'job'],
   ])('sends %s to the %s step', (path, wizardStep) => {
     expect(wizardStepOf(path)).toBe(wizardStep);
   });

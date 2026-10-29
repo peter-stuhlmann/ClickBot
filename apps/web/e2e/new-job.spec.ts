@@ -7,14 +7,14 @@ test.describe('Neuer Job', () => {
     await page.getByRole('link', { name: 'Neuer Job' }).click();
     await expect(page.getByRole('heading', { level: 1, name: 'Neuer Job' })).toBeVisible();
 
-    // 1 · Website
+    // 1 · Job
     await page.getByRole('combobox', { name: 'Projekt' }).selectOption({ label: 'Beispiel GmbH' });
+    await page.getByRole('textbox', { name: 'Job-Name' }).fill('E2E Kontaktseite');
+    await page.getByRole('button', { name: 'Weiter' }).click();
+    // The start address is asked for with the flow.
     await page
       .getByRole('textbox', { name: 'Website (Start-URL)' })
       .fill('http://127.0.0.1:4100/kontakt.html');
-    await page.getByRole('textbox', { name: 'Job-Name' }).fill('E2E Kontaktseite');
-    await page.getByRole('checkbox', { name: /Test freigegeben/ }).check();
-    await page.getByRole('button', { name: 'Weiter' }).click();
 
     // 2 · Ablauf: the open step is there, add a check.
     await expect(page.getByRole('button', { name: /^Schritt 1: Öffne/ })).toBeVisible();
@@ -37,6 +37,7 @@ test.describe('Neuer Job', () => {
     await expect(page.getByRole('complementary', { name: 'Zusammenfassung' })).toContainText(
       'Desktop (Chrome), Desktop (Firefox), iPhone 15 (Safari)',
     );
+    await page.getByRole('checkbox', { name: /Test freigegeben/ }).check();
     await page.getByRole('button', { name: 'Job anlegen' }).click();
 
     await expect(page).toHaveURL('/');
@@ -46,12 +47,16 @@ test.describe('Neuer Job', () => {
     await expect(row.getByText('Aktiv', { exact: true })).toBeVisible();
   });
 
-  test('refuses to continue without the confirmation that testing is allowed', async ({ page }) => {
+  test('creates no job without the confirmation that testing is allowed', async ({ page }) => {
     await page.goto('/jobs/neu');
     await page.getByRole('combobox', { name: 'Projekt' }).selectOption({ label: 'Beispiel GmbH' });
-    await page.getByRole('textbox', { name: 'Website (Start-URL)' }).fill('beispiel.de');
     await page.getByRole('textbox', { name: 'Job-Name' }).fill('Ohne Freigabe');
     await page.getByRole('button', { name: 'Weiter' }).click();
+    await page.getByRole('textbox', { name: 'Website (Start-URL)' }).fill('beispiel.de');
+    for (let step = 2; step <= 3; step += 1) {
+      await page.getByRole('button', { name: 'Weiter' }).click();
+    }
+    await page.getByRole('button', { name: 'Job anlegen' }).click();
 
     // Next.js has its own role="alert" (route announcer), so filter by text.
     await expect(
@@ -60,5 +65,6 @@ test.describe('Neuer Job', () => {
     await expect(
       page.getByRole('checkbox', { name: /Test freigegeben/ }),
     ).toHaveAccessibleDescription('Bitte bestätigen, dass ihr diese Website testen dürft.');
+    await expect(page).toHaveURL('/jobs/neu');
   });
 });

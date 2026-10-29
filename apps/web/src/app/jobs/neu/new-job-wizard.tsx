@@ -5,14 +5,16 @@ import { Button } from '@/components/atoms/Button';
 import { Icon } from '@/components/atoms/Icon';
 import { AiFlowPanel } from '@/components/organisms/AiFlowPanel';
 import { AnalyticsMarkingForm } from '@/components/organisms/AnalyticsMarkingForm';
+import { ApprovalCard } from '@/components/organisms/ApprovalCard';
 import { DevicePicker } from '@/components/organisms/DevicePicker';
+import { JobBasicsForm } from '@/components/organisms/JobBasicsForm';
 import { JobSummary } from '@/components/organisms/JobSummary';
 import { LiveBrowser } from '@/components/organisms/LiveBrowser';
 import { MethodPicker, type FlowMethod } from '@/components/organisms/MethodPicker';
 import { ScheduleForm } from '@/components/organisms/ScheduleForm';
+import { StartUrlCard } from '@/components/organisms/StartUrlCard';
 import { StepForm } from '@/components/organisms/StepForm';
 import { StepList } from '@/components/organisms/StepList';
-import { WebsiteForm } from '@/components/organisms/WebsiteForm';
 import { WizardStepper } from '@/components/organisms/WizardStepper';
 import { WizardLayout } from '@/components/templates/WizardLayout';
 import { toggleBrowser, toggleDevice } from '@/lib/devices';
@@ -22,12 +24,12 @@ import {
   emptyDraft,
   errorsByPath,
   moveStep,
-  newStep,
   removeStep,
   scheduleErrors,
   stepErrors,
   summarise,
   validateWizardStep,
+  withStartUrl,
   WIZARD_STEPS,
   wizardStepOf,
   type Issue,
@@ -107,10 +109,6 @@ export function NewJobWizard({
     const found = validateWizardStep(draft, step.key, new Date());
     if (found.length > 0) return showIssues(found);
     if (isLast) return save();
-    if (step.key === 'website' && draft.steps.length === 0) {
-      update({ steps: [newStep('open', [], draft.startUrl)] });
-      setSelected(0);
-    }
     goTo(current + 1);
   }
 
@@ -154,14 +152,19 @@ export function NewJobWizard({
 
   let content: ReactNode;
   switch (step.key) {
-    case 'website':
+    case 'job':
       content = (
-        <WebsiteForm values={draft} customers={customers} errors={errors} onChange={update} />
+        <JobBasicsForm values={draft} customers={customers} errors={errors} onChange={update} />
       );
       break;
     case 'flow':
       content = (
         <>
+          <StartUrlCard
+            value={draft.startUrl}
+            error={errors.startUrl}
+            onChange={(startUrl) => update(withStartUrl(draft, startUrl))}
+          />
           <MethodPicker method={method} onChoose={chooseMethod} />
           {method === 'record' ? (
             <LiveBrowser
@@ -262,6 +265,11 @@ export function NewJobWizard({
           <AnalyticsMarkingForm
             marking={draft.analyticsMarking}
             onChange={(analyticsMarking) => update({ analyticsMarking })}
+          />
+          <ApprovalCard
+            confirmed={draft.confirmed}
+            error={errors.confirmed}
+            onChange={(confirmed) => update({ confirmed })}
           />
         </>
       );

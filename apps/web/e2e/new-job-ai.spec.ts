@@ -51,12 +51,12 @@ test.describe('Neuer Job – Mit KI beschreiben', () => {
 
     await page.goto('/jobs/neu');
     await page.getByRole('combobox', { name: 'Projekt' }).selectOption({ label: 'Beispiel GmbH' });
+    await page.getByRole('textbox', { name: 'Job-Name' }).fill('KI-Kontakt');
+    await page.getByRole('button', { name: 'Weiter' }).click();
+    // The start address is asked for with the flow.
     await page
       .getByRole('textbox', { name: 'Website (Start-URL)' })
       .fill('http://127.0.0.1:4100/kontakt.html');
-    await page.getByRole('textbox', { name: 'Job-Name' }).fill('KI-Kontakt');
-    await page.getByRole('checkbox', { name: /Test freigegeben/ }).check();
-    await page.getByRole('button', { name: 'Weiter' }).click();
 
     await page.getByRole('button', { name: /Mit KI beschreiben/ }).click();
     await page

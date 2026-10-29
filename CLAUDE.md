@@ -18,8 +18,9 @@ die Einstellungen der KI-Anbieter stehen.
   - `apps/web`:
     - App-Rahmen mit Sidebar
     - Screen 01 „Jobs“ mit echten Daten, inklusive Pausieren und Fortsetzen
-    - Screen 05 „Neuer Job“ (`/jobs/neu`): Assistent in vier Schritten (Website, Ablauf,
-      Zeitplan, Geräte). Am Ende wird der Job aktiv angelegt und läuft nach Zeitplan. Den
+    - Screen 05 „Neuer Job“ (`/jobs/neu`): Assistent in vier Schritten: Job (nur Projekt und
+      Name), Ablauf (Start-URL oben, der erste Schritt „Seite öffnen“ folgt ihr, solange er nicht
+      von Hand geändert wurde), Zeitplan, Geräte (mit der Freigabe am Ende). Am Ende wird der Job aktiv angelegt und läuft nach Zeitplan. Den
       Ablauf gibt es zusammengeklickt, „Mit KI beschreiben“ (Screen 06, siehe Abschnitt KI) oder
       „Im Browser aufnehmen“ (Screen 04, siehe Worker → Live-Browser).
     - Screen 02 „Editor“ (`/jobs/<id>`, über den Job-Namen in der Liste): Name, Start-URL,
@@ -60,8 +61,8 @@ Was als „geplant“ markiert ist, existiert noch nicht.
 ## Produktregeln (nicht verhandelbar)
 
 - Nur für eigene oder vom Kunden freigegebene Websites. Das Tool ist ein Testwerkzeug.
-  - Wer einen Job anlegt, bestätigt das im Assistenten. `createJobAction` prüft die
-    Bestätigung auf dem Server noch einmal.
+  - Wer einen Job anlegt, bestätigt das im letzten Schritt des Assistenten, direkt vor „Job
+    anlegen“. `createJobAction` prüft die Bestätigung auf dem Server noch einmal.
 - Keine Umgehung von Captchas, Bot-Erkennung, Rate-Limits oder Ländersperren fremder Seiten.
   Kein Fingerprint-Spoofing und kein Captcha-Solving.
 - Kein künstlicher Traffic, der Kennzahlen aufbläht (Klick-KPIs, Werbeanzeigen, Analytics).

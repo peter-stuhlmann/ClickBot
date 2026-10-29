@@ -95,12 +95,12 @@ test.describe('Auf dem Handy', () => {
     await page.goto('/jobs/neu');
     await expectFits(page);
     await page.getByRole('combobox', { name: 'Projekt' }).selectOption({ label: 'Beispiel GmbH' });
+    await page.getByRole('textbox', { name: 'Job-Name' }).fill('Handy-Test');
+    await page.getByRole('button', { name: 'Weiter' }).click();
+    // The start address is asked for with the flow.
     await page
       .getByRole('textbox', { name: 'Website (Start-URL)' })
       .fill('http://127.0.0.1:4100/kontakt.html');
-    await page.getByRole('textbox', { name: 'Job-Name' }).fill('Handy-Test');
-    await page.getByRole('checkbox', { name: /Test freigegeben/ }).check();
-    await page.getByRole('button', { name: 'Weiter' }).click();
 
     await expect(page.getByRole('button', { name: /^Schritt 1: Öffne/ })).toBeVisible();
     await page.getByRole('button', { name: 'Schritt hinzufügen' }).click();
