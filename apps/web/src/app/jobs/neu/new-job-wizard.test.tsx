@@ -1,8 +1,8 @@
-import { fireEvent, render, screen, within } from '@testing-library/react';
+import { act, fireEvent, render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { newStep, type Issue, type WizardDraft } from '@/lib/job-draft';
-import type { SuggestFlowAction } from '@/lib/views';
+import type { StartRecordingAction, SuggestFlowAction } from '@/lib/views';
 import { NewJobWizard } from './new-job-wizard';
 
 // 13:30 in Berlin. Only Date is faked, so user-event's timers keep working.
@@ -20,10 +20,12 @@ afterEach(() => {
 type CreateAction = (draft: WizardDraft) => Promise<{ issues: Issue[] }>;
 
 const noSuggestion: SuggestFlowAction = async () => ({ ok: false, message: 'nicht im Test' });
+const noRecording: StartRecordingAction = async () => ({ ok: false, message: 'nicht im Test' });
 
 function renderWizard(
   createAction = vi.fn<CreateAction>(async () => ({ issues: [] })),
   suggestAction: SuggestFlowAction = noSuggestion,
+  startRecording: StartRecordingAction = noRecording,
 ) {
   render(
     <NewJobWizard
@@ -31,9 +33,33 @@ function renderWizard(
       now={NOW}
       createAction={createAction}
       suggestAction={suggestAction}
+      startRecording={startRecording}
     />,
   );
   return createAction;
+}
+
+/** Stands in for the connection to the worker's live browser. */
+class FakeLiveSocket {
+  static OPEN = 1;
+  static last: FakeLiveSocket | null = null;
+  readyState = 1;
+  sent: unknown[] = [];
+  onmessage: ((event: { data: string }) => void) | null = null;
+  onclose: (() => void) | null = null;
+  onerror: (() => void) | null = null;
+  constructor(readonly url: string) {
+    FakeLiveSocket.last = this;
+  }
+  send(data: string) {
+    this.sent.push(JSON.parse(data));
+  }
+  close() {
+    this.readyState = 3;
+  }
+  receive(message: unknown) {
+    act(() => this.onmessage?.({ data: JSON.stringify(message) }));
+  }
 }
 
 const weiter = () => screen.getByRole('button', { name: 'Weiter' });
@@ -52,6 +78,56 @@ async function fillWebsite(user: ReturnType<typeof userEvent.setup>) {
 }
 
 describe('NewJobWizard', () => {
+  it('records steps in the live browser and takes them over', async () => {
+    vi.stubGlobal('WebSocket', FakeLiveSocket);
+    const user = userEvent.setup();
+    const startRecording = vi.fn<StartRecordingAction>(async () => ({
+      ok: true,
+      url: 'ws://localhost:4200/live?token=t',
+    }));
+    renderWizard(undefined, undefined, startRecording);
+    await fillWebsite(user);
+    await user.click(weiter());
+
+    await user.click(screen.getByRole('button', { name: /Im Browser aufnehmen/ }));
+    await user.click(screen.getByRole('button', { name: 'Aufnahme starten' }));
+    expect(startRecording).toHaveBeenCalledWith('127.0.0.1:4100/kontakt.html');
+    const socket = FakeLiveSocket.last as FakeLiveSocket;
+    expect(socket.url).toBe('ws://localhost:4200/live?token=t');
+
+    const url = 'https://127.0.0.1:4100/kontakt.html';
+    socket.receive({ type: 'ready', viewport: { width: 1280, height: 800 }, url });
+    socket.receive({ type: 'step', step: { type: 'open', url } });
+    socket.receive({
+      type: 'step',
+      step: { type: 'click', target: { by: 'role', role: 'button', name: 'Absenden' } },
+    });
+    expect(screen.getByRole('textbox', { name: 'Adresse' })).toHaveValue(url);
+
+    await user.click(screen.getByRole('radio', { name: 'Nur bedienen' }));
+    expect(socket.sent).toEqual([{ type: 'mode', mode: 'browse' }]);
+
+    await user.click(
+      screen.getByRole('button', { name: 'Aufnahme beenden · 2 Schritte übernehmen' }),
+    );
+    expect(socket.readyState).toBe(3);
+    expect(screen.getByRole('button', { name: 'Schritt 2: Klicke auf „Absenden“' })).toBeVisible();
+    vi.unstubAllGlobals();
+  });
+
+  it('says why the live browser does not start', async () => {
+    const user = userEvent.setup();
+    renderWizard(undefined, undefined, async () => ({
+      ok: false,
+      message: 'Der Worker ist offline. Ohne ihn gibt es keinen Live-Browser.',
+    }));
+    await fillWebsite(user);
+    await user.click(weiter());
+    await user.click(screen.getByRole('button', { name: /Im Browser aufnehmen/ }));
+    await user.click(screen.getByRole('button', { name: 'Aufnahme starten' }));
+    expect(await screen.findByText(/Der Worker ist offline/)).toBeVisible();
+  });
+
   it('takes over the steps the AI suggests for a description, with the answers asked for', async () => {
     const user = userEvent.setup();
     const suggestAction = vi.fn<SuggestFlowAction>(async () => ({

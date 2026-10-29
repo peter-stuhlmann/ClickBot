@@ -50,6 +50,13 @@
       "when": 1793299381134,
       "tag": "0006_page_analyses",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1793301725463,
+      "tag": "0007_recording_sessions",
+      "breakpoints": true
     }
   ]
 }

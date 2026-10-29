@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="de">
+  <head>
+    <meta charset="utf-8" />
+    <title>Anmelden – Beispiel GmbH</title>
+  </head>
+  <body>
+    <nav><a href="/kontakt.html">Kontakt</a></nav>
+    <form id="login">
+      <label for="user">Benutzername</label>
+      <input id="user" name="user" />
+
+      <label for="pw">Passwort</label>
+      <input id="pw" name="pw" type="password" />
+
+      <label for="topic">Bereich</label>
+      <select id="topic">
+        <option value="">Bitte wählen</option>
+        <option value="shop">Shop</option>
+      </select>
+
+      <label><input type="checkbox" id="remember" /> Angemeldet bleiben</label>
+      <button type="submit">Anmelden</button>
+    </form>
+
+    <!-- Two buttons with the same name: the recorder must fall back to something unique. -->
+    <section><button type="button" id="more-news">Mehr</button></section>
+    <section><button type="button" id="more-events">Mehr</button></section>
+
+    <p id="state"></p>
+    <script>
+      document.getElementById('login').addEventListener('submit', (event) => {
+        event.preventDefault();
+        document.getElementById('state').textContent = 'Angemeldet.';
+      });
+    </script>
+  </body>
+</html>

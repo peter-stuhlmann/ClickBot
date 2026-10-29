@@ -3,7 +3,9 @@
 import {
   createCustomer,
   createJob,
+  createRecordingSession,
   getJob,
+  getWorkerStatus,
   NotFoundError,
   queueTestRun,
   secureStepPasswords,
@@ -15,6 +17,7 @@ import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
 import {
   jobToDraft,
+  normaliseUrl,
   toJobUpdateInput,
   toNewJobInput,
   validateJobEdit,
@@ -24,6 +27,7 @@ import {
   type WizardDraft,
 } from '@/lib/job-draft';
 import type { CustomerFormState } from '@/components/organisms/CustomerForm';
+import type { StartRecordingAction } from '@/lib/views';
 import { requireUser } from '@/server/auth';
 import { getCipher } from '@/server/cipher';
 import { getDb } from '@/server/db';
@@ -147,4 +151,24 @@ export async function createCustomerAction(
   }
   revalidatePath('/projekte');
   redirect('/projekte');
+}
+
+/**
+ * "Im Browser aufnehmen": a one-time token for the live browser on the worker, valid for two
+ * minutes. The browser connects to LIVE_URL with it; nothing else opens the live browser.
+ */
+export async function startRecordingAction(startUrl: string): ReturnType<StartRecordingAction> {
+  const user = await requireUser();
+  const url = normaliseUrl(String(startUrl ?? ''));
+  if (!/^https?:\/\/\S+$/.test(url)) {
+    return { ok: false, message: 'Bitte zuerst in Schritt 1 die Website angeben.' };
+  }
+  const db = getDb();
+  const now = new Date();
+  if (!(await getWorkerStatus(db, now)).online) {
+    return { ok: false, message: 'Der Worker ist offline. Ohne ihn gibt es keinen Live-Browser.' };
+  }
+  const { token } = await createRecordingSession(db, { userId: user.id, startUrl: url }, now);
+  const base = (process.env.LIVE_URL ?? 'ws://localhost:4200').replace(/\/+$/, '');
+  return { ok: true, url: `${base}/live?token=${encodeURIComponent(token)}` };
 }

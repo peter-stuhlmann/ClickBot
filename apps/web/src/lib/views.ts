@@ -188,3 +188,23 @@ export type SuggestFlowAction = (input: {
   description: string;
   answers: { question: string; answer: string }[];
 }) => Promise<FlowSuggestionResult>;
+
+/** "Im Browser aufnehmen": record turns actions into steps, browse only uses the page, assert checks the next element clicked. */
+export type LiveMode = 'record' | 'browse' | 'assert';
+
+/** Input for the live browser on the worker (see parseClientMessage in the worker). */
+export type LiveInput =
+  | { type: 'click'; x: number; y: number }
+  | { type: 'move'; x: number; y: number }
+  | { type: 'wheel'; dx: number; dy: number }
+  | { type: 'key'; key: string }
+  | { type: 'text'; text: string }
+  | { type: 'navigate'; url: string }
+  | { type: 'back' }
+  | { type: 'forward' }
+  | { type: 'reload' }
+  | { type: 'mode'; mode: LiveMode };
+
+export type StartRecordingAction = (
+  startUrl: string,
+) => Promise<{ ok: true; url: string } | { ok: false; message: string }>;

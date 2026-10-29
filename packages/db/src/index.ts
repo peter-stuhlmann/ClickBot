@@ -102,3 +102,9 @@ export {
   waitForPageAnalysis,
   type PageAnalysisState,
 } from './page-analyses';
+export {
+  claimRecordingSession,
+  createRecordingSession,
+  endRecordingSession,
+  type ClaimedRecording,
+} from './recordings';

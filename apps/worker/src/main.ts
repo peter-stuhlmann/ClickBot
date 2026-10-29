@@ -14,6 +14,8 @@ import { chromium, firefox, webkit } from 'playwright';
 import { createFileArtifactStore } from './artifacts';
 import { createBrowserManager, type BrowserManager } from './browser-manager';
 import { contextOptionsFor } from './devices';
+import { originPolicy, startLiveServer } from './live-server';
+import { LIVE_VIEWPORT } from './live-session';
 import { createWorker } from './worker';
 
 /**
@@ -58,6 +60,20 @@ const worker = createWorker({
   log,
 });
 
+// "Im Browser aufnehmen": the live browser, in the shared Chromium, for the web app only.
+const liveServer = await startLiveServer(Number(process.env.LIVE_PORT ?? 4200), {
+  db: connection.db,
+  newContext: async () =>
+    (await browsers.chromium.get()).newContext({
+      viewport: LIVE_VIEWPORT,
+      locale: 'de-DE',
+      timezoneId: 'Europe/Berlin',
+    }),
+  allowOrigin: originPolicy(process.env.APP_URL, process.env.NODE_ENV === 'production'),
+  maxSessions: Number(process.env.LIVE_MAX_SESSIONS ?? 2),
+  log,
+});
+
 const orphaned = await recoverStaleRuns(connection.db, { now: new Date(), staleAfterMs: 0 });
 if (orphaned > 0)
   log(`${orphaned} abgebrochene Läufe vom letzten Start als fehlgeschlagen markiert.`);
@@ -94,11 +110,14 @@ const timers = [
   setInterval(beat, HEARTBEAT_MS),
   setInterval(stale, STALE_RUN_MS),
 ];
-log(`bereit · bis zu ${maxConcurrent} Browser gleichzeitig · Bildschirmfotos in ${artifactsDir}`);
+log(
+  `bereit · bis zu ${maxConcurrent} Browser gleichzeitig · Bildschirmfotos in ${artifactsDir} · Live-Browser auf Port ${liveServer.port}`,
+);
 
 async function shutdown(signal: string) {
   log(`${signal} empfangen, warte auf laufende Läufe …`);
   timers.forEach(clearInterval);
+  await liveServer.close();
   await worker.stop();
   await Promise.all(Object.values(browsers).map((manager) => manager.close()));
   await connection.close();

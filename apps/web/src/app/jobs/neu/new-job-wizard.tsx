@@ -7,6 +7,7 @@ import { AiFlowPanel } from '@/components/organisms/AiFlowPanel';
 import { AnalyticsMarkingForm } from '@/components/organisms/AnalyticsMarkingForm';
 import { DevicePicker } from '@/components/organisms/DevicePicker';
 import { JobSummary } from '@/components/organisms/JobSummary';
+import { LiveBrowser } from '@/components/organisms/LiveBrowser';
 import { MethodPicker, type FlowMethod } from '@/components/organisms/MethodPicker';
 import { ScheduleForm } from '@/components/organisms/ScheduleForm';
 import { StepForm } from '@/components/organisms/StepForm';
@@ -35,7 +36,8 @@ import {
   type WizardDraft,
 } from '@/lib/job-draft';
 import { describeStep } from '@/lib/step-view';
-import type { FlowSuggestionResult, SuggestFlowAction } from '@/lib/views';
+import type { FlowSuggestionResult, StartRecordingAction, SuggestFlowAction } from '@/lib/views';
+import { useLiveRecording } from './use-live-recording';
 
 export type NewJobWizardProps = {
   customers: { id: string; name: string }[];
@@ -44,13 +46,21 @@ export type NewJobWizardProps = {
   createAction: (draft: WizardDraft) => Promise<{ issues: Issue[] }>;
   /** "Mit KI beschreiben": suggested steps for a description. */
   suggestAction: SuggestFlowAction;
+  /** "Im Browser aufnehmen": a one-time address of the live browser. */
+  startRecording: StartRecordingAction;
 };
 
 const NOT_SAVED =
   'Gespeichert wird erst am Ende. Bis dahin ist der Job ein Entwurf und läuft nicht.';
 
 /** State and navigation of the "Neuer Job" wizard (screens 05 and 05b). */
-export function NewJobWizard({ customers, now, createAction, suggestAction }: NewJobWizardProps) {
+export function NewJobWizard({
+  customers,
+  now,
+  createAction,
+  suggestAction,
+  startRecording,
+}: NewJobWizardProps) {
   const renderedAt = useMemo(() => new Date(now), [now]);
   const [draft, setDraft] = useState(() => emptyDraft(renderedAt));
   const [current, setCurrent] = useState(0);
@@ -62,6 +72,7 @@ export function NewJobWizard({ customers, now, createAction, suggestAction }: Ne
   const [aiAnswers, setAiAnswers] = useState<Record<string, string>>({});
   const [aiResult, setAiResult] = useState<FlowSuggestionResult | null>(null);
   const [generating, startGenerating] = useTransition();
+  const recording = useLiveRecording(startRecording);
 
   const step = WIZARD_STEPS[current] ?? WIZARD_STEPS[0];
   const isLast = current === WIZARD_STEPS.length - 1;
@@ -114,13 +125,22 @@ export function NewJobWizard({ customers, now, createAction, suggestAction }: Ne
     });
   }
 
-  /** The suggestion replaces the flow; the step builder shows it for changes. */
-  function acceptSuggestion() {
-    if (!aiResult?.ok) return;
-    setSteps(aiResult.steps);
+  /** Suggested or recorded steps replace the flow; the step builder shows them for changes. */
+  function takeOver(steps: StepDraft[]) {
+    setSteps(steps);
     setSelected(null);
     setIssues([]);
     setMethod('editor');
+  }
+
+  function acceptSuggestion() {
+    if (aiResult?.ok) takeOver(aiResult.steps);
+  }
+
+  function chooseMethod(next: FlowMethod) {
+    // Leaving the recording closes the live browser on the server.
+    if (method === 'record' && next !== 'record') recording.stop();
+    setMethod(next);
   }
 
   function applySteps(next: StepListState, clearIssues = true) {
@@ -142,8 +162,26 @@ export function NewJobWizard({ customers, now, createAction, suggestAction }: Ne
     case 'flow':
       content = (
         <>
-          <MethodPicker method={method} onChoose={setMethod} />
-          {method === 'ai' ? (
+          <MethodPicker method={method} onChoose={chooseMethod} />
+          {method === 'record' ? (
+            <LiveBrowser
+              status={recording.status}
+              frame={recording.frame}
+              url={recording.url}
+              viewport={recording.viewport}
+              mode={recording.mode}
+              error={recording.error}
+              steps={recording.steps.map(describeStep)}
+              onStart={() => recording.start(draft.startUrl, recording.status === 'ended')}
+              onInput={recording.send}
+              onRemoveStep={recording.removeStep}
+              onFinish={() => {
+                recording.stop();
+                takeOver(recording.steps);
+              }}
+              onCancel={() => chooseMethod('editor')}
+            />
+          ) : method === 'ai' ? (
             <AiFlowPanel
               description={aiDescription}
               onDescriptionChange={setAiDescription}

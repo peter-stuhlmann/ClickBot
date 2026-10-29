@@ -2,10 +2,10 @@ import { Card } from '@/components/atoms/Card';
 import type { IconName } from '@/components/atoms/Icon';
 import { ChoiceCard } from '@/components/molecules/ChoiceCard';
 
-/** The ways to a flow that exist so far. */
-export type FlowMethod = 'ai' | 'editor';
+/** The ways to a flow. */
+export type FlowMethod = 'ai' | 'record' | 'editor';
 
-const METHODS: { key: FlowMethod | null; icon: IconName; title: string; description: string }[] = [
+const METHODS: { key: FlowMethod; icon: IconName; title: string; description: string }[] = [
   {
     key: 'ai',
     icon: 'sparkles',
@@ -14,7 +14,7 @@ const METHODS: { key: FlowMethod | null; icon: IconName; title: string; descript
       'Beschreibe in normaler Sprache, was passieren soll. Die KI schlägt die Schritte vor.',
   },
   {
-    key: null,
+    key: 'record',
     icon: 'record',
     title: 'Im Browser aufnehmen',
     description: 'Du klickst dich live durch die Seite, jeder Klick wird ein Schritt.',
@@ -33,15 +33,14 @@ export type MethodPickerProps = {
 };
 
 /**
- * The three ways to a flow (screen 05). Describing with AI and the step builder exist; recording
- * is shown as planned. All of them lead to the same steps. Writing code is deliberately not
- * offered: own code would run on the server next to keys and database.
+ * The three ways to a flow (screen 05), all leading to the same steps. Writing code is
+ * deliberately not offered: own code would run on the server next to keys and database.
  */
 export function MethodPicker({ method, onChoose }: MethodPickerProps) {
   return (
     <Card
       title="Wie soll der Ablauf entstehen?"
-      description="Alle Wege erzeugen dieselben Schritte. Das Aufnehmen folgt."
+      description="Alle drei Wege erzeugen dieselben Schritte, die du danach einzeln ändern kannst."
     >
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
         {METHODS.map(({ key, ...card }) => (
@@ -49,8 +48,7 @@ export function MethodPicker({ method, onChoose }: MethodPickerProps) {
             key={card.title}
             {...card}
             selected={key === method}
-            unavailable={key ? undefined : 'geplant'}
-            onClick={key ? () => onChoose(key) : undefined}
+            onClick={() => onChoose(key)}
           />
         ))}
       </div>

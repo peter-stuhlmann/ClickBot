@@ -4,7 +4,7 @@ import { AppShell } from '@/components/templates/AppShell';
 import { getDb } from '@/server/db';
 import { getCurrentUser } from '@/server/session';
 import { suggestFlowAction } from '../../ai-actions';
-import { createJobAction } from '../../actions';
+import { createJobAction, startRecordingAction } from '../../actions';
 import { NewJobWizard } from './new-job-wizard';
 
 export const dynamic = 'force-dynamic';
@@ -25,6 +25,7 @@ export default async function NewJobPage() {
         now={now.toISOString()}
         createAction={createJobAction}
         suggestAction={suggestFlowAction}
+        startRecording={startRecordingAction}
       />
     </AppShell>
   );

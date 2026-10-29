@@ -20,7 +20,8 @@ die Einstellungen der KI-Anbieter stehen.
     - Screen 01 „Jobs“ mit echten Daten, inklusive Pausieren und Fortsetzen
     - Screen 05 „Neuer Job“ (`/jobs/neu`): Assistent in vier Schritten (Website, Ablauf,
       Zeitplan, Geräte). Am Ende wird der Job aktiv angelegt und läuft nach Zeitplan. Den
-      Ablauf gibt es zusammengeklickt oder „Mit KI beschreiben“ (Screen 06, siehe Abschnitt KI).
+      Ablauf gibt es zusammengeklickt, „Mit KI beschreiben“ (Screen 06, siehe Abschnitt KI) oder
+      „Im Browser aufnehmen“ (Screen 04, siehe Worker → Live-Browser).
     - Screen 02 „Editor“ (`/jobs/<id>`, über den Job-Namen in der Liste): Name, Start-URL,
       Zeitplan, Geräte und Ablauf eines bestehenden Jobs ändern. Zwei Spalten statt der drei
       aus dem Design, weil die Terminzeilen sonst zu schmal werden.
@@ -48,7 +49,7 @@ die Einstellungen der KI-Anbieter stehen.
     Analytics-Werkzeuge als GA4
   - E-Mail-Versand (Einladungslinks werden angezeigt und von Hand weitergegeben), Konten
     sperren oder löschen, Rate-Limit je IP-Adresse beim Login
-  - im Assistenten: Aufnehmen, Standort-Profile je Termin; im Editor die KI; Schritte vom Typ „auslesen“ lassen sich noch nicht anlegen
+  - im Assistenten: Standort-Profile je Termin; im Editor KI und Aufnehmen; Schritte vom Typ „auslesen“ lassen sich noch nicht anlegen
   - im Lauf-Report: PDF, „Erneut ausführen“, KI-Eingriffe, Konsolenfehler und ausgelesene
     Werte (dafür speichert der Worker noch keine Daten)
   - im Editor: KI-Box, „Erfolg & Daten“ und Variablen-Liste aus dem Design
@@ -214,8 +215,8 @@ Hochziehen erst, wenn beide Pakete die neue Version offiziell unterstützen.
   - iPhone und iPad laufen immer einmal in WebKit, egal welche Browser gewählt sind: Auf iOS ist
     jeder Browser WebKit. Android gibt es nur mit Chrome oder Firefox (`browserProblem`).
   - Läufe und Jobs von vor der Auswahl sind Chrome.
-- **Live-Browser:** CDP-Screencast über WebSocket direkt vom Worker (CDP gibt es nur in
-  Chromium; für Firefox und WebKit braucht es einen anderen Weg). Next.js gibt dafür einen
+- **Live-Browser:** CDP-Screencast über WebSocket direkt vom Worker, nur in Chromium (siehe
+  Worker → Live-Browser). Next.js gibt dafür einen
   kurzlebigen Token aus.
 - **PDF:** dasselbe HTML wie der Report auf dem Bildschirm, gerendert mit `page.pdf()`,
   Kundenlogo im Kopf.
@@ -296,6 +297,25 @@ Hochziehen erst, wenn beide Pakete die neue Version offiziell unterstützen.
   startet mit dem Worker, Firefox und WebKit beim ersten Lauf, der sie braucht. Stürzt einer ab,
   scheitern nur die Läufe darin, mit der Meldung des Browsers. Der nächste Lauf startet einen
   neuen. Ein gescheiterter Start wird beim nächsten Lauf erneut versucht.
+- **Live-Browser** („Im Browser aufnehmen“, `live-server.ts`, `live-session.ts`, `recorder.ts`):
+  - `startRecordingAction` legt eine Sitzung mit einmaligem Token an (`recording_sessions`, nur
+    SHA-256, 2 Min. gültig, eine je Nutzer). Der Browser verbindet sich damit zu
+    `LIVE_URL/live?token=…` (Worker-Port `LIVE_PORT`, Standard 4200).
+  - Der Worker prüft Herkunft (`originPolicy`: `APP_URL`, außerhalb von Produktion jeder
+    localhost-Port) und Token, höchstens `LIVE_MAX_SESSIONS` (2) gleichzeitig, je 15 Min.
+  - Ein Kontext im gemeinsamen Chromium, 1280 × 800, GA4 markiert wie bei Läufen (Laufnummer 0).
+    Bild als JPEG über CDP-Screencast. Eingehende Nachrichten prüft `parseClientMessage` streng:
+    nur Klick, Mausbewegung, Scrollen, einfache Tasten, Text, Webadresse, Zurück/Vor/Neu laden,
+    Modus. Eingaben laufen der Reihe nach, auch wenn sie vor dem Seitenaufbau kommen.
+  - Der Rekorder (Skript in jeder Seite und jedem iframe) schlägt je Aktion Ziele vor (Rolle mit
+    Name, Label, Test-ID, Text, ID, CSS-Pfad). Der Worker nimmt das erste, das über alle Frames
+    genau ein Element trifft. Ist das Element schon weg (Banner, die sich beim Klick entfernen),
+    das beste nicht mehrdeutige. Enter im Formular wird ein Klick auf den Absende-Button.
+  - Passwortfelder werden nie mitgeschnitten, der Schritt bekommt `{{secret.passwort}}`.
+  - Modi: Aufnehmen, Nur bedienen, „Prüfung hinzufügen“ (der nächste Klick wird eine Prüfung
+    „Element sichtbar“, die Seite reagiert nicht darauf). Eine neue Adresse in der Adressleiste
+    wird ein Schritt „Seite öffnen“, Zurück und Vor auch (mit der Adresse, auf der man landet).
+  - Neue Tabs öffnen sich im selben Tab.
 - **Lebenszeichen:** Alle 10 s schreibt der Worker in `worker_heartbeats`. Die Web-App zeigt
   „online“, wenn der letzte Eintrag höchstens 30 s alt ist.
 - **Geräte** (`contextOptionsFor`):
@@ -379,6 +399,8 @@ Hochziehen erst, wenn beide Pakete die neue Version offiziell unterstützen.
 - Hostinger VPS KVM 2 (2 vCPU, 8 GB RAM) mit Docker Compose: web, worker, postgres, Caddy
   (TLS).
 - Shared Hosting geht nicht: kein Chromium, keine dauerhaft laufenden Prozesse, kein WebSocket.
+- Caddy leitet `wss://<domain>/live` an den Worker-Port `LIVE_PORT` weiter. `LIVE_URL` und
+  `APP_URL` zeigen auf die öffentliche Adresse.
 - Das Worker-Image braucht Chromium, Firefox und WebKit samt Systembibliotheken (z. B. das
   offizielle Playwright-Image). Jede Engine ist ein eigener Prozess und kostet RAM.
 - `MAX_CONCURRENT_BROWSERS=6` auf KVM 2. Der echte Wert kommt aus einem Lasttest, nicht aus

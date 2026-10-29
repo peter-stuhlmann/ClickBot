@@ -302,6 +302,31 @@ export const pageAnalyses = pgTable(
   (t) => [index('page_analyses_status_idx').on(t.status, t.createdAt)],
 );
 
+/**
+ * "Im Browser aufnehmen": the web app hands out a one-time token, the worker opens the live
+ * browser for it. Only the token's SHA-256 is stored, as with sessions.
+ */
+export const recordingSessions = pgTable(
+  'recording_sessions',
+  {
+    id: id(),
+    userId: uuid('user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    startUrl: text('start_url').notNull(),
+    tokenHash: text('token_hash').notNull(),
+    createdAt: createdAt(),
+    /** The token must be used before this. */
+    expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
+    claimedAt: timestamp('claimed_at', { withTimezone: true }),
+    endedAt: timestamp('ended_at', { withTimezone: true }),
+  },
+  (t) => [
+    uniqueIndex('recording_sessions_token_unique').on(t.tokenHash),
+    index('recording_sessions_user_idx').on(t.userId),
+  ],
+);
+
 export const workerHeartbeats = pgTable('worker_heartbeats', {
   workerId: text('worker_id').primaryKey(),
   startedAt: timestamp('started_at', { withTimezone: true }).notNull(),
