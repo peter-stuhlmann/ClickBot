@@ -46,6 +46,13 @@ async function finishedRun(
 }
 
 describe('listJobOverview', () => {
+  it('lists only the jobs of a campaign', async () => {
+    const mine = await job('Meins');
+    await job('Fremd');
+    const rows = await listJobOverview(db, { campaignId: mine.campaignId });
+    expect(rows.map((row) => row.name)).toEqual(['Meins']);
+  });
+
   it('lists only the jobs of the chosen project', async () => {
     const mine = await job('Meins');
     await job('Fremd');

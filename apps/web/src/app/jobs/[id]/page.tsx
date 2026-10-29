@@ -1,4 +1,4 @@
-import { getJob, listStartedSlots, NotFoundError } from '@click-bot/db';
+import { getJob, listCampaigns, listStartedSlots, NotFoundError } from '@click-bot/db';
 import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 import { Notice } from '@/components/molecules/Notice';
@@ -8,7 +8,12 @@ import { jobToDraft } from '@/lib/job-draft';
 import { getDb } from '@/server/db';
 import { getShell } from '@/server/shell';
 import { toJobHeader } from '@/server/job-editor-view';
-import { selectProjectAction, startTestRunAction, updateJobAction } from '../../actions';
+import {
+  deleteJobAction,
+  selectProjectAction,
+  startTestRunAction,
+  updateJobAction,
+} from '../../actions';
 import { JobEditor } from './job-editor';
 
 export const dynamic = 'force-dynamic';
@@ -30,7 +35,10 @@ export default async function JobEditorPage({ params }: Props) {
   });
   if (!job) notFound();
 
-  const startedSlots = await listStartedSlots(db, job.id);
+  const [startedSlots, campaigns] = await Promise.all([
+    listStartedSlots(db, job.id),
+    listCampaigns(db, job.customerId),
+  ]);
   const loaded = jobToDraft(job, now);
   const header = toJobHeader(job);
 
@@ -45,6 +53,8 @@ export default async function JobEditorPage({ params }: Props) {
           startedSlots={startedSlots}
           saveAction={updateJobAction}
           testRunAction={startTestRunAction}
+          campaigns={campaigns}
+          deleteAction={deleteJobAction}
         />
       ) : (
         <>

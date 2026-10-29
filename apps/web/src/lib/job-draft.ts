@@ -529,11 +529,11 @@ export function validateWizardStep(draft: WizardDraft, step: WizardStep, now: Da
   }
 }
 
-export type JobUpdateDraftInput = Omit<NewJobDraftInput, 'campaignId' | 'status'>;
+export type JobUpdateDraftInput = Omit<NewJobDraftInput, 'status'>;
 
-/** Input for updateJob from the editor: the job keeps its customer and status. */
+/** Input for updateJob from the editor: the job keeps its status and may change campaign. */
 export function toJobUpdateInput(draft: WizardDraft, now: Date): JobUpdateDraftInput {
-  const { campaignId: _campaign, status: _status, ...input } = toNewJobInput(draft, now);
+  const { status: _status, ...input } = toNewJobInput(draft, now);
   return input;
 }
 

@@ -121,7 +121,7 @@ Die Pakete unter `packages/` liefern TypeScript-Quelltext aus, ohne eigenen Buil
   heißen sie weiter `customer`. „Kunde“ bleibt in der Oberfläche nur, wo der Auftraggeber
   gemeint ist, z. B. bei der Freigabe des Tests. Namen sind eindeutig, ohne Groß- und Kleinschreibung. Das
   Kürzel (`slug`) entsteht aus dem Namen („Müller Shop“ → `mueller-shop`), bei Bedarf mit
-  `-2`, `-3`. Bearbeiten und Löschen gibt es noch nicht.
+  `-2`, `-3`. Umbenennen (`updateCustomer`) lässt das Kürzel, wie es ist.
 - **Kampagnen** (`campaigns.ts`, Tabelle `campaigns`): Jedes Projekt hat Kampagnen, jeder Job
   gehört zu genau einer (`jobs.campaign_id`, Pflicht). Ein zusammengesetzter Fremdschlüssel
   (`campaign_id`, `customer_id`) sorgt dafür, dass Job und Kampagne im selben Projekt liegen.
@@ -129,7 +129,11 @@ Die Pakete unter `packages/` liefern TypeScript-Quelltext aus, ohne eigenen Buil
     Ende nicht vor dem Start.
   - Ein neues Projekt startet mit der Kampagne „Allgemein“ (`createCustomer`). Die Jobs von vor
     den Kampagnen liegen in „Allgemein“ ihres Projekts (Migration 0008).
-  - `createJob` bekommt die Kampagne; das Projekt des Jobs ergibt sich daraus.
+  - `createJob` bekommt die Kampagne; das Projekt des Jobs ergibt sich daraus. Im Editor kann
+    ein Job in eine andere Kampagne desselben Projekts wechseln (`updateJob`, `campaignId`),
+    nie in ein anderes Projekt: Läufe, Zugangsdaten und Reports gehören zum Projekt.
+  - Bearbeiten: `/projekte/<id>` (Name) und `/kampagnen/<id>` (Name, Zeitraum, Notiz und die
+    Jobs der Kampagne). Löschen jeweils unten mit Rückfrage (`DeleteSection`).
 - **Jobs** legt `createJob` als Entwurf an. Mit `status: 'active'` (Assistent) plant der
   Worker sie sofort ein.
 - **Jobs ändern** (`updateJob`, Editor):
@@ -187,8 +191,11 @@ Die Pakete unter `packages/` liefern TypeScript-Quelltext aus, ohne eigenen Buil
 - **Laufnummern** (`{{run_nr}}`) vergibt `allocateRunNumber` atomar per
   `UPDATE … RETURNING`, nie über `max()+1`.
 - **Löschregeln:**
-  - Ein Kunde mit Kampagnen und eine Kampagne mit Jobs lassen sich nicht löschen.
-  - Ein Job nimmt seine Läufe und Schritte mit.
+  - Ein Projekt lässt sich erst löschen, wenn es keine Jobs mehr hat (`deleteCustomer`). Seine
+    leeren Kampagnen und seine Zugangsdaten gehen mit.
+  - Eine Kampagne lässt sich erst löschen, wenn sie keine Jobs mehr hat (`deleteCampaign`).
+  - Ein Job nimmt seine Läufe und Schritte mit (`deleteJob`, „Job löschen“ im Editor). Die
+    Web-App entfernt danach die Bildschirmfotos dieser Läufe (`removeRunArtifacts`).
 - **Tests:**
   - Laufen gegen `db-test`. Vor jedem Testlauf wird die Datenbank aus den Migrationen neu
     aufgebaut (`test/global-setup.ts`), vor jedem Test werden alle Tabellen geleert.

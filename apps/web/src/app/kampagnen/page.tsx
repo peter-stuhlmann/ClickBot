@@ -37,9 +37,14 @@ export default async function CampaignsPage() {
         }
         actions={
           shell.project ? (
-            <Button href="/kampagnen/neu" icon={<Icon name="plus" size={16} />}>
-              Kampagne anlegen
-            </Button>
+            <>
+              <Button variant="secondary" href={`/projekte/${shell.project.id}`}>
+                Projekt bearbeiten
+              </Button>
+              <Button href="/kampagnen/neu" icon={<Icon name="plus" size={16} />}>
+                Kampagne anlegen
+              </Button>
+            </>
           ) : (
             <Button href="/projekte/neu" icon={<Icon name="plus" size={16} />}>
               Projekt anlegen

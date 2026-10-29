@@ -1,5 +1,6 @@
 import 'server-only';
-import { isAbsolute, relative, resolve } from 'node:path';
+import { rm } from 'node:fs/promises';
+import { isAbsolute, join, relative, resolve } from 'node:path';
 
 // Letters, digits, "-", "_" and dots, but no leading dot: no "..", no hidden files.
 const SEGMENT = /^[A-Za-z0-9_-][A-Za-z0-9_.-]*$/;
@@ -21,4 +22,18 @@ export function resolveArtifact(root: string, segments: string[]): string | null
   const file = resolve(root, ...segments);
   const inside = relative(resolve(root), file);
   return inside && !inside.startsWith('..') && !isAbsolute(inside) ? file : null;
+}
+
+const RUN_ID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+/**
+ * Removes the screenshot folders of deleted runs (runs/<id>, as the worker stores them). Only
+ * well-formed run ids are used, so no other path below or above `root` can be reached.
+ */
+export async function removeRunArtifacts(root: string, runIds: string[]): Promise<void> {
+  await Promise.all(
+    runIds
+      .filter((id) => RUN_ID.test(id))
+      .map((id) => rm(join(resolve(root), 'runs', id), { recursive: true, force: true })),
+  );
 }

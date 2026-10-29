@@ -67,4 +67,30 @@ test.describe('Neuer Job', () => {
     ).toHaveAccessibleDescription('Bitte bestätigen, dass ihr diese Website testen dürft.');
     await expect(page).toHaveURL('/jobs/neu');
   });
+
+  // Uses the job created above.
+  test('moves a job to another campaign and deletes it', async ({ page }) => {
+    await page.goto('/kampagnen/neu');
+    await page.getByRole('textbox', { name: 'Name' }).fill('E2E Verschoben');
+    await page.getByRole('button', { name: 'Kampagne anlegen' }).click();
+
+    await page.goto('/');
+    await page.getByRole('link', { name: 'E2E Kontaktseite', exact: true }).click();
+    await page
+      .getByRole('combobox', { name: 'Kampagne' })
+      .selectOption({ label: 'E2E Verschoben' });
+    await page.getByRole('button', { name: 'Speichern' }).click();
+    await expect(page.getByRole('status').filter({ hasText: 'Gespeichert' })).toBeVisible();
+
+    await page.goto('/');
+    await expect(page.getByRole('row', { name: /E2E Kontaktseite/ })).toContainText(
+      'E2E Verschoben',
+    );
+
+    await page.getByRole('link', { name: 'E2E Kontaktseite', exact: true }).click();
+    await page.getByRole('button', { name: 'Job löschen' }).click();
+    await page.getByRole('button', { name: 'Endgültig löschen' }).click();
+    await expect(page).toHaveURL('/');
+    await expect(page.getByRole('row', { name: /E2E Kontaktseite/ })).toHaveCount(0);
+  });
 });

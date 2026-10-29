@@ -4,6 +4,11 @@ import {
   createCampaign,
   createCustomer,
   createJob,
+  deleteCampaign,
+  deleteCustomer,
+  deleteJob,
+  updateCampaign,
+  updateCustomer,
   listCustomers,
   createRecordingSession,
   getCampaign,
@@ -34,6 +39,7 @@ import type { CustomerFormState } from '@/components/organisms/CustomerForm';
 import { field, toFormState } from '@/lib/form-state';
 import type { FormState, StartRecordingAction } from '@/lib/views';
 import { requireUser } from '@/server/auth';
+import { artifactsDir, removeRunArtifacts } from '@/server/artifacts';
 import { getCipher } from '@/server/cipher';
 import { getDb } from '@/server/db';
 import { getShell, PROJECT_COOKIE } from '@/server/shell';
@@ -229,4 +235,96 @@ export async function startRecordingAction(startUrl: string): ReturnType<StartRe
   const { token } = await createRecordingSession(db, { userId: user.id, startUrl: url }, now);
   const base = (process.env.LIVE_URL ?? 'ws://localhost:4200').replace(/\/+$/, '');
   return { ok: true, url: `${base}/live?token=${encodeURIComponent(token)}` };
+}
+
+/** Runs a delete; a refusal (e.g. "hat noch Jobs") comes back as the form's error. */
+async function refusalOf(remove: () => Promise<unknown>): Promise<FormState | null> {
+  try {
+    await remove();
+    return null;
+  } catch (error) {
+    if (error instanceof ValidationError) return { error: error.issues[0]?.message };
+    if (error instanceof NotFoundError) return { error: 'Das gibt es nicht mehr.' };
+    throw error;
+  }
+}
+
+/** Renames a project ("Projekt bearbeiten"). */
+export async function updateProjectAction(
+  _state: CustomerFormState,
+  formData: FormData,
+): Promise<CustomerFormState> {
+  await requireUser();
+  const name = field(formData, 'name');
+  try {
+    await updateCustomer(getDb(), field(formData, 'id'), { name });
+  } catch (error) {
+    if (error instanceof ValidationError) return { error: error.issues[0]?.message, name };
+    if (error instanceof NotFoundError)
+      return { error: 'Dieses Projekt gibt es nicht mehr.', name };
+    throw error;
+  }
+  revalidatePath('/', 'layout');
+  redirect('/kampagnen');
+}
+
+/** Deletes a project without jobs; the switcher then shows the first project left. */
+export async function deleteProjectAction(
+  _state: FormState,
+  formData: FormData,
+): Promise<FormState> {
+  await requireUser();
+  const refused = await refusalOf(() => deleteCustomer(getDb(), field(formData, 'id')));
+  if (refused) return refused;
+  revalidatePath('/', 'layout');
+  redirect('/kampagnen');
+}
+
+/** Changes name, period and note of a campaign. */
+export async function updateCampaignAction(
+  _state: FormState,
+  formData: FormData,
+): Promise<FormState> {
+  await requireUser();
+  const values = {
+    name: field(formData, 'name'),
+    startsOn: field(formData, 'startsOn'),
+    endsOn: field(formData, 'endsOn'),
+    description: field(formData, 'description'),
+  };
+  try {
+    await updateCampaign(getDb(), field(formData, 'id'), values);
+  } catch (error) {
+    if (error instanceof ValidationError) return toFormState(error.issues, values);
+    if (error instanceof NotFoundError) return { error: 'Diese Kampagne gibt es nicht mehr.' };
+    throw error;
+  }
+  revalidatePath('/kampagnen');
+  redirect('/kampagnen');
+}
+
+/** Deletes a campaign without jobs. */
+export async function deleteCampaignAction(
+  _state: FormState,
+  formData: FormData,
+): Promise<FormState> {
+  await requireUser();
+  const refused = await refusalOf(() => deleteCampaign(getDb(), field(formData, 'id')));
+  if (refused) return refused;
+  revalidatePath('/kampagnen');
+  redirect('/kampagnen');
+}
+
+/** "Job löschen" in the editor: the job with its runs, reports and screenshots. */
+export async function deleteJobAction(_state: FormState, formData: FormData): Promise<FormState> {
+  await requireUser();
+  let runIds: string[] = [];
+  const refused = await refusalOf(async () => {
+    runIds = (await deleteJob(getDb(), field(formData, 'id'))).runIds;
+  });
+  if (refused) return refused;
+  // Screenshots live outside the database; a leftover file is no reason to fail.
+  await removeRunArtifacts(artifactsDir(), runIds).catch(() => undefined);
+  revalidatePath('/', 'layout');
+  redirect('/');
 }

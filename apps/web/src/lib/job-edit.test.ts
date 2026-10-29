@@ -129,6 +129,7 @@ describe('toJobUpdateInput', () => {
   it('saves an untouched job exactly as it was', () => {
     const input = toJobUpdateInput(draftOf(), now);
     expect(input).toEqual({
+      campaignId: 'campaign-1',
       name: 'Kontaktformular-Test',
       startUrl: 'https://beispiel.de/kontakt',
       flow: {

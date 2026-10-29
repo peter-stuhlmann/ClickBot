@@ -7,6 +7,7 @@ import { Button } from '@/components/atoms/Button';
 import { Icon } from '@/components/atoms/Icon';
 import { AnalyticsMarkingForm } from '@/components/organisms/AnalyticsMarkingForm';
 import { DevicePicker } from '@/components/organisms/DevicePicker';
+import { DeleteSection } from '@/components/organisms/DeleteSection';
 import { JobSettingsForm } from '@/components/organisms/JobSettingsForm';
 import { PageHeader } from '@/components/organisms/PageHeader';
 import { ScheduleForm } from '@/components/organisms/ScheduleForm';
@@ -28,7 +29,7 @@ import {
   type WizardDraft,
 } from '@/lib/job-draft';
 import { describeStep } from '@/lib/step-view';
-import type { JobHeaderView } from '@/lib/views';
+import type { FormState, JobHeaderView } from '@/lib/views';
 
 export type JobEditorProps = {
   jobId: string;
@@ -40,6 +41,10 @@ export type JobEditorProps = {
   /** Positions of the dates that already have runs; they cannot move. */
   startedSlots: number[];
   saveAction: (jobId: string, draft: WizardDraft) => Promise<{ issues: Issue[] }>;
+  /** The campaigns of the job's project, to move the job between them. */
+  campaigns: { id: string; name: string }[];
+  /** "Job löschen"; redirects to the job list. */
+  deleteAction: (state: FormState, formData: FormData) => Promise<FormState>;
   /** Saves `draft` first if given, then queues a test run. */
   testRunAction: (
     jobId: string,
@@ -56,6 +61,8 @@ export function JobEditor({
   startedSlots,
   saveAction,
   testRunAction,
+  campaigns,
+  deleteAction,
 }: JobEditorProps) {
   const router = useRouter();
   const renderedAt = useMemo(() => new Date(now), [now]);
@@ -186,7 +193,7 @@ export function JobEditor({
       }
       settings={
         <>
-          <JobSettingsForm values={draft} errors={errors} onChange={update} />
+          <JobSettingsForm values={draft} campaigns={campaigns} errors={errors} onChange={update} />
           <ScheduleForm
             schedule={draft.schedule}
             errors={scheduleErrors(issues)}
@@ -209,6 +216,13 @@ export function JobEditor({
           <AnalyticsMarkingForm
             marking={draft.analyticsMarking}
             onChange={(analyticsMarking) => update({ analyticsMarking })}
+          />
+          <DeleteSection
+            title="Job löschen"
+            description="Der Job verschwindet mit allen Läufen, Reports und Bildschirmfotos."
+            buttonLabel="Job löschen"
+            fields={{ id: jobId }}
+            action={deleteAction}
           />
         </>
       }

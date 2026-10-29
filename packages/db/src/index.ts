@@ -3,21 +3,32 @@ export { createCipher, parseKey, type Cipher } from './crypto';
 export {
   createCampaign,
   DEFAULT_CAMPAIGN,
+  deleteCampaign,
   getCampaign,
   getCampaignStats,
   listCampaignOverview,
   listCampaigns,
+  updateCampaign,
   type Campaign,
   type CampaignOption,
   type CampaignOverviewRow,
   type CampaignStats,
   type NewCampaignInput,
 } from './campaigns';
-export { createCustomer, listCustomers, type Customer, type CustomerOption } from './customers';
+export {
+  createCustomer,
+  deleteCustomer,
+  getCustomer,
+  listCustomers,
+  updateCustomer,
+  type Customer,
+  type CustomerOption,
+} from './customers';
 export { NotFoundError, ValidationError, type ValidationIssue } from './errors';
 export {
   allocateRunNumber,
   createJob,
+  deleteJob,
   getJob,
   listStartedSlots,
   plannedRunCount,

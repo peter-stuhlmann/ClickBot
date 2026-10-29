@@ -40,4 +40,21 @@ describe('CustomerForm', () => {
     render(<CustomerForm action={async () => ({})} />);
     expect(screen.getByRole('link', { name: 'Abbrechen' })).toHaveAttribute('href', '/kampagnen');
   });
+
+  it('changes the name of an existing project', async () => {
+    const user = userEvent.setup();
+    const action = vi.fn(async () => ({}));
+    render(<CustomerForm action={action} project={{ id: 'p1', name: 'Müller Shop' }} />);
+    const name = screen.getByRole('textbox', { name: 'Name' });
+    expect(name).toHaveValue('Müller Shop');
+    await user.clear(name);
+    await user.type(name, 'Müller Online');
+    await user.click(screen.getByRole('button', { name: 'Speichern' }));
+    expect(
+      Object.fromEntries((action.mock.calls[0] as unknown as [unknown, FormData])[1].entries()),
+    ).toEqual({
+      id: 'p1',
+      name: 'Müller Online',
+    });
+  });
 });

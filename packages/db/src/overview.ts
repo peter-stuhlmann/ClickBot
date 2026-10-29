@@ -30,11 +30,14 @@ export type JobOverviewRow = {
   successRate: number | null;
 };
 
-/** Restricts figures to one project (customer); without it they cover everything. */
-export type ProjectScope = { customerId?: string };
+/** Restricts figures to one project (customer) or campaign; without it they cover everything. */
+export type ProjectScope = { customerId?: string; campaignId?: string };
 
 const inProject = (scope: ProjectScope) =>
-  scope.customerId ? eq(jobs.customerId, scope.customerId) : undefined;
+  and(
+    scope.customerId ? eq(jobs.customerId, scope.customerId) : undefined,
+    scope.campaignId ? eq(jobs.campaignId, scope.campaignId) : undefined,
+  );
 
 export async function listJobOverview(
   db: Database,

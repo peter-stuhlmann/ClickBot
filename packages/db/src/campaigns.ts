@@ -1,6 +1,6 @@
-import { and, asc, desc, eq, gte, inArray, isNotNull, lt, sql } from 'drizzle-orm';
+import { and, asc, desc, eq, gte, inArray, isNotNull, lt, ne, sql } from 'drizzle-orm';
 import type { Database } from './client';
-import { ValidationError, type ValidationIssue } from './errors';
+import { NotFoundError, ValidationError, type ValidationIssue } from './errors';
 import { isUuid } from './ids';
 import { FINISHED } from './overview';
 import { campaigns, customers, jobs, runs } from './schema';
@@ -38,8 +38,18 @@ const blankToNull = (value: string | null | undefined) => {
   return trimmed === '' ? null : trimmed;
 };
 
-/** Creates a campaign in a project. Names are unique per project, ignoring case. */
-export async function createCampaign(db: Database, input: NewCampaignInput): Promise<Campaign> {
+type CampaignFields = Pick<Campaign, 'name' | 'startsOn' | 'endsOn' | 'description'>;
+
+/**
+ * Checks a campaign of `customerId` and returns the values to store, or throws ValidationError
+ * with every problem. `except` is the campaign itself when it is changed.
+ */
+async function checkedFields(
+  db: Database,
+  customerId: string,
+  input: Omit<NewCampaignInput, 'customerId'>,
+  except?: string,
+): Promise<CampaignFields> {
   const issues: ValidationIssue[] = [];
   const name = input.name.trim();
   const startsOn = blankToNull(input.startsOn);
@@ -47,9 +57,9 @@ export async function createCampaign(db: Database, input: NewCampaignInput): Pro
   const description = blankToNull(input.description);
 
   const project =
-    isUuid(input.customerId) &&
+    isUuid(customerId) &&
     (await db.query.customers.findFirst({
-      where: eq(customers.id, input.customerId),
+      where: eq(customers.id, customerId),
       columns: { id: true },
     }));
   if (!project) issues.push({ path: 'customerId', message: 'Projekt nicht gefunden.' });
@@ -63,8 +73,9 @@ export async function createCampaign(db: Database, input: NewCampaignInput): Pro
       .from(campaigns)
       .where(
         and(
-          eq(campaigns.customerId, input.customerId),
+          eq(campaigns.customerId, customerId),
           sql`lower(${campaigns.name}) = lower(${name})`,
+          except ? ne(campaigns.id, except) : undefined,
         ),
       )
       .limit(1);
@@ -83,12 +94,50 @@ export async function createCampaign(db: Database, input: NewCampaignInput): Pro
     issues.push({ path: 'description', message: `Höchstens ${MAX_DESCRIPTION} Zeichen.` });
   }
   if (issues.length > 0) throw new ValidationError(issues);
+  return { name, startsOn, endsOn, description };
+}
 
+/** Creates a campaign in a project. Names are unique per project, ignoring case. */
+export async function createCampaign(db: Database, input: NewCampaignInput): Promise<Campaign> {
+  const fields = await checkedFields(db, input.customerId, input);
   const [campaign] = await db
     .insert(campaigns)
-    .values({ customerId: input.customerId, name, startsOn, endsOn, description })
+    .values({ customerId: input.customerId, ...fields })
     .returning();
   return campaign as Campaign;
+}
+
+/** Changes name, period and note; the campaign stays in its project. */
+export async function updateCampaign(
+  db: Database,
+  id: string,
+  input: Omit<NewCampaignInput, 'customerId'>,
+): Promise<Campaign> {
+  const current = await getCampaign(db, id);
+  if (!current) throw new NotFoundError('Kampagne', id);
+  const fields = await checkedFields(db, current.customerId, input, id);
+  const [campaign] = await db.update(campaigns).set(fields).where(eq(campaigns.id, id)).returning();
+  return campaign as Campaign;
+}
+
+/** Deletes a campaign that has no jobs (any more): every job needs its campaign. */
+export async function deleteCampaign(db: Database, id: string): Promise<void> {
+  if (!(await getCampaign(db, id))) throw new NotFoundError('Kampagne', id);
+  await db.transaction(async (tx) => {
+    await tx.select({ id: campaigns.id }).from(campaigns).where(eq(campaigns.id, id)).for('update');
+    const [{ count } = { count: 0 }] = await tx
+      .select({ count: sql<number>`count(*)`.mapWith(Number) })
+      .from(jobs)
+      .where(eq(jobs.campaignId, id));
+    if (count > 0) {
+      const message =
+        count === 1
+          ? 'Die Kampagne hat noch 1 Job. Verschiebe ihn im Editor in eine andere Kampagne oder lösche ihn.'
+          : `Die Kampagne hat noch ${count} Jobs. Verschiebe sie im Editor in eine andere Kampagne oder lösche sie.`;
+      throw new ValidationError([{ path: 'form', message }]);
+    }
+    await tx.delete(campaigns).where(eq(campaigns.id, id));
+  });
 }
 
 export async function getCampaign(db: Database, campaignId: string): Promise<Campaign | null> {

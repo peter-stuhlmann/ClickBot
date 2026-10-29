@@ -52,4 +52,31 @@ describe('CampaignForm', () => {
     });
     expect(name).toHaveValue('Sommer');
   });
+
+  it('changes an existing campaign', async () => {
+    const user = userEvent.setup();
+    const action = vi.fn(async (_state: FormState, _data: FormData): Promise<FormState> => ({}));
+    render(
+      <CampaignForm
+        projectName="Müller Shop"
+        action={action}
+        campaign={{
+          id: 'k1',
+          name: 'Black Friday',
+          startsOn: '2026-11-20',
+          endsOn: null,
+          description: null,
+        }}
+      />,
+    );
+    expect(screen.getByRole('textbox', { name: 'Name' })).toHaveValue('Black Friday');
+    expect(screen.getByLabelText('Start (optional)')).toHaveValue('2026-11-20');
+    await user.click(screen.getByRole('button', { name: 'Speichern' }));
+    expect(Object.fromEntries((action.mock.calls[0]?.[1] as FormData).entries())).toMatchObject({
+      id: 'k1',
+      name: 'Black Friday',
+      startsOn: '2026-11-20',
+      endsOn: '',
+    });
+  });
 });

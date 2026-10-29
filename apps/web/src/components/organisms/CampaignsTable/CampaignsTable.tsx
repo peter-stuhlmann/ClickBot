@@ -80,7 +80,12 @@ export function CampaignsTable({ rows }: CampaignsTableProps) {
               className="grid grid-flow-row-dense grid-cols-2 gap-x-4 gap-y-3 border-b border-divider p-4 last:border-0 xl:table-row xl:p-0"
             >
               <td role="cell" className="col-span-2 min-w-0 xl:py-3.5 xl:pr-4 xl:pl-5">
-                <div className="truncate text-body font-medium text-text">{row.name}</div>
+                <Link
+                  href={`/kampagnen/${row.id}`}
+                  className="block truncate rounded-chip text-body font-medium text-text hover:underline focus-visible:outline-2 focus-visible:outline-primary"
+                >
+                  {row.name}
+                </Link>
                 <div className="truncate font-mono text-small text-text-muted">{row.detail}</div>
               </td>
               <td role="cell" className="xl:py-3.5">

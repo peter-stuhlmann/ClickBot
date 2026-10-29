@@ -176,6 +176,8 @@ export type JobUpdateInput = {
   browsers?: Browser[];
   /** Omitted: the job keeps its marking. */
   analyticsMarking?: unknown;
+  /** Another campaign of the same project; omitted: the job stays where it is. */
+  campaignId?: string;
 };
 
 /** Slots (times) and interval starts that already have runs, by position, in order. */
@@ -236,14 +238,41 @@ export async function updateJob(db: Database, jobId: string, input: JobUpdateInp
       const started = await listStartedSlots(tx, jobId);
       issues.push(...startedScheduleIssues(started, current.schedule, fields.schedule));
     }
+    const campaignId = input.campaignId ?? current.campaignId;
+    if (campaignId !== current.campaignId) {
+      // Only within the project: runs, secrets and reports belong to it.
+      const target = await campaignProject(tx, campaignId);
+      if ('issue' in target || target.customerId !== current.customerId) {
+        issues.push({ path: 'campaignId', message: 'Kampagne nicht gefunden.' });
+      }
+    }
     if (!fields || issues.length > 0) throw new ValidationError(issues);
 
     const [job] = await tx
       .update(jobs)
-      .set({ ...fields, updatedAt: new Date() })
+      .set({ ...fields, campaignId, updatedAt: new Date() })
       .where(eq(jobs.id, jobId))
       .returning();
     return job as Job;
+  });
+}
+
+/**
+ * Deletes a job with its runs and their steps. Returns the ids of the runs, so the caller can
+ * remove their screenshots, which live outside the database.
+ */
+export async function deleteJob(db: Database, jobId: string): Promise<{ runIds: string[] }> {
+  if (!isUuid(jobId)) throw new NotFoundError('Job', jobId);
+  return db.transaction(async (tx) => {
+    const [job] = await tx
+      .select({ id: jobs.id })
+      .from(jobs)
+      .where(eq(jobs.id, jobId))
+      .for('update');
+    if (!job) throw new NotFoundError('Job', jobId);
+    const owned = await tx.select({ id: runs.id }).from(runs).where(eq(runs.jobId, jobId));
+    await tx.delete(jobs).where(eq(jobs.id, jobId));
+    return { runIds: owned.map((run) => run.id) };
   });
 }
 

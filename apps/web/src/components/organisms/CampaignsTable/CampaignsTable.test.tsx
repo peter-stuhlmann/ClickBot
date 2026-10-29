@@ -42,7 +42,10 @@ describe('CampaignsTable', () => {
     const [, dataRow] = screen.getAllByRole('row');
     const cells = within(dataRow as HTMLElement);
 
-    expect(cells.getByText('Black Friday')).toBeVisible();
+    expect(cells.getByRole('link', { name: 'Black Friday' })).toHaveAttribute(
+      'href',
+      '/kampagnen/c1',
+    );
     expect(cells.getByText('20.11.–30.11.2026 · beispiel.de · 3 Websites')).toBeVisible();
     expect(cells.getByText('4 Jobs')).toBeVisible();
     expect(cells.getByText('3 aktiv · 1 beendet')).toBeVisible();

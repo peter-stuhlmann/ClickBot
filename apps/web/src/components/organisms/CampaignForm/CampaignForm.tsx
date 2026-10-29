@@ -12,19 +12,38 @@ import type { FormState } from '@/lib/views';
 export type CampaignFormProps = {
   /** The current project, in which the campaign is created. */
   projectName: string;
-  /** Server action; reads name, startsOn, endsOn and description and redirects on success. */
+  /** Server action; reads name, startsOn, endsOn, description (and id) and redirects on success. */
   action: (state: FormState, formData: FormData) => Promise<FormState>;
+  /** The campaign to change; omitted for a new one. */
+  campaign?: {
+    id: string;
+    name: string;
+    startsOn: string | null;
+    endsOn: string | null;
+    description: string | null;
+  };
 };
 
-/** "Kampagne anlegen": works without JavaScript, because it is a plain form. */
-export function CampaignForm({ projectName, action }: CampaignFormProps) {
+/** "Kampagne anlegen" or changing one: works without JavaScript, it is a plain form. */
+export function CampaignForm({ projectName, action, campaign }: CampaignFormProps) {
   const [state, formAction, pending] = useActionState(action, {});
   const errors = state.fieldErrors ?? {};
-  const values = state.values ?? {};
+  // What was typed wins over what is stored, so a rejected change is not lost.
+  const values = state.values ?? {
+    name: campaign?.name ?? '',
+    startsOn: campaign?.startsOn ?? '',
+    endsOn: campaign?.endsOn ?? '',
+    description: campaign?.description ?? '',
+  };
   return (
-    <form action={formAction} aria-label="Kampagne anlegen" className="max-w-xl">
+    <form
+      action={formAction}
+      aria-label={campaign ? 'Kampagne bearbeiten' : 'Kampagne anlegen'}
+      className="max-w-xl"
+    >
+      {campaign && <input type="hidden" name="id" value={campaign.id} />}
       <Card
-        title="Neue Kampagne"
+        title={campaign ? 'Kampagne' : 'Neue Kampagne'}
         description={`Im Projekt „${projectName}“. Eine Kampagne fasst Jobs zusammen, z. B. für eine Aktion oder eine Landingpage.`}
       >
         {state.error && <p className="text-small text-danger">{state.error}</p>}
@@ -69,7 +88,7 @@ export function CampaignForm({ projectName, action }: CampaignFormProps) {
             Abbrechen
           </Button>
           <Button type="submit" loading={pending} icon={<Icon name="check" size={16} />}>
-            Kampagne anlegen
+            {campaign ? 'Speichern' : 'Kampagne anlegen'}
           </Button>
         </div>
       </Card>

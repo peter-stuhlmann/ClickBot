@@ -84,6 +84,11 @@ function renderEditor({
       startedSlots={startedSlots}
       saveAction={saveAction}
       testRunAction={testRunAction}
+      campaigns={[
+        { id: 'k1', name: 'Allgemein' },
+        { id: 'k2', name: 'Black Friday' },
+      ]}
+      deleteAction={async () => ({})}
     />,
   );
   return { saveAction, testRunAction };
@@ -92,6 +97,21 @@ function renderEditor({
 const saveButton = () => screen.getByRole('button', { name: 'Speichern' });
 
 describe('JobEditor', () => {
+  it('moves the job to another campaign of its project', async () => {
+    const user = userEvent.setup();
+    const { saveAction } = renderEditor();
+    await user.selectOptions(screen.getByRole('combobox', { name: 'Kampagne' }), 'Black Friday');
+    await user.click(screen.getByRole('button', { name: 'Speichern' }));
+    expect(saveAction.mock.calls[0]?.[1]).toMatchObject({ campaignId: 'k2' });
+  });
+
+  it('offers to delete the job, after one more question', async () => {
+    const user = userEvent.setup();
+    renderEditor();
+    await user.click(screen.getByRole('button', { name: 'Job löschen' }));
+    expect(screen.getByRole('button', { name: 'Endgültig löschen' })).toBeVisible();
+  });
+
   it('shows the stored job and has nothing to save yet', () => {
     renderEditor();
     expect(screen.getByRole('heading', { level: 1, name: 'Kontaktformular-Test' })).toBeVisible();
