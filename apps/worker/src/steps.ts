@@ -3,7 +3,7 @@ import type { Locator, Page } from 'playwright';
 import type { Ga4Recorder } from './analytics';
 import { basicAuthHeader, hasBasicAuth, useBasicAuth } from './basic-auth';
 import { StepError, ambiguousCount, formatSeconds, isTimeout } from './errors';
-import { describeTarget, findTarget, waitForVisibleText } from './targets';
+import { describeTarget, findTarget, notFound, waitForVisibleText } from './targets';
 
 export type StepContext = {
   vars: VariableContext;
@@ -36,11 +36,7 @@ async function onTarget<T>(
     if (count !== null) {
       throw new StepError(`Mehrdeutig: ${describeTarget(target)} passt auf ${count} Elemente.`);
     }
-    if (isTimeout(error)) {
-      throw new StepError(
-        `Element nicht gefunden: ${describeTarget(target)} (nach ${formatSeconds(timeoutMs)}).`,
-      );
-    }
+    if (isTimeout(error)) throw notFound(target, timeoutMs);
     throw error;
   }
 }

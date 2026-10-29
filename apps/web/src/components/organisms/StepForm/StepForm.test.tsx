@@ -37,6 +37,21 @@ const labels = () =>
   [...document.querySelectorAll('label')].map((label) => label.textContent?.trim());
 
 describe('StepForm', () => {
+  it('warns while a CSS selector names an element that does not exist', async () => {
+    const user = userEvent.setup();
+    render(<Harness initial={step('click', { targetBy: 'css', targetValue: '' })} />);
+    const field = screen.getByRole('textbox', { name: 'CSS-Selektor' });
+
+    await user.type(field, 'decline');
+    expect(field).toHaveAccessibleDescription(
+      '„decline“ sucht ein Element <decline>, das es in HTML nicht gibt. Gemeint ist wohl .decline (Klasse) oder #decline (ID).',
+    );
+
+    await user.clear(field);
+    await user.type(field, '.decline');
+    expect(field).not.toHaveAccessibleDescription(/sucht ein Element/);
+  });
+
   it('is titled with the position and the action of the step', () => {
     render(<Harness initial={step('click')} />);
     expect(screen.getByRole('region', { name: 'Schritt 3 bearbeiten' })).toHaveTextContent(

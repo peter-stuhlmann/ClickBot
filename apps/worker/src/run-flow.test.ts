@@ -426,6 +426,20 @@ describe('runFlow – failures', () => {
     expect(result.steps[1]?.message).toBe('Seite kommt nicht zur Ruhe (nach 0,5 s).');
   });
 
+  it('says what a CSS selector like „decline“ really looks for', async () => {
+    const result = await run([
+      step('open', { type: 'open', url: '/kontakt.html' }),
+      step('decline', {
+        type: 'click',
+        target: { by: 'css', selector: 'decline' },
+        timeoutMs: 300,
+      }),
+    ]);
+    expect(result.steps[1]?.message).toBe(
+      'Element nicht gefunden: CSS „decline“ (nach 0,3 s). „decline“ sucht ein Element <decline>, das es in HTML nicht gibt. Gemeint ist wohl .decline (Klasse) oder #decline (ID).',
+    );
+  });
+
   it('reports an element that never appears while waiting for it', async () => {
     const result = await run([
       step('open', { type: 'open', url: '/kontakt.html' }),

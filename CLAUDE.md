@@ -235,6 +235,9 @@ Hochziehen erst, wenn beide Pakete die neue Version offiziell unterstützen.
   - Sie sind deutsch und für den Report formuliert (`StepError`), z. B.
     „Element nicht gefunden: Rolle „button“ mit Name „Absenden“ (nach 10 s).“
   - Unbekannte Browserfehler werden auf ihre erste Zeile gekürzt.
+  - Nennt ein CSS-Selektor ein Element, das es nicht gibt (z. B. `decline` statt `.decline`),
+    erklärt `unknownTagHint` (`packages/shared`) das in der Meldung und schon beim Eintippen im
+    Schrittformular.
   - Werte von Zugangsdaten werden überall maskiert: in Meldungen und ausgelesenen Werten.
 - **Elemente:** Namen und Labels werden exakt gesucht. Passt ein Ziel auf mehrere Elemente,
   schlägt der Schritt fehl („Mehrdeutig …“), statt zu raten.

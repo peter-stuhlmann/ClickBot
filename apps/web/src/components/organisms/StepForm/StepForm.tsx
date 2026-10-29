@@ -1,3 +1,4 @@
+import { unknownTagHint } from '@click-bot/shared';
 import { Card } from '@/components/atoms/Card';
 import { Checkbox } from '@/components/atoms/Checkbox';
 import { Input } from '@/components/atoms/Input';
@@ -79,6 +80,8 @@ export function StepForm({ index, step, errors, onChange }: StepFormProps) {
     set(step.targetValue.trim() ? { type } : { type, targetBy: defaultTargetBy(type) });
   const value = valueField(step);
   const typeLabel = STEP_TYPE_OPTIONS.find((option) => option.value === step.type)?.label;
+  // A word like „decline“ is an element name in CSS; most likely .decline or #decline was meant.
+  const cssHint = step.targetBy === 'css' ? unknownTagHint(step.targetValue) : null;
 
   return (
     <Card title={`Schritt ${index + 1} bearbeiten`} description={typeLabel}>
@@ -216,6 +219,7 @@ export function StepForm({ index, step, errors, onChange }: StepFormProps) {
             <Field
               id="step-target-value"
               label={TARGET_VALUE_LABEL[step.targetBy]}
+              hint={cssHint && <span className="text-warning">{cssHint}</span>}
               error={errors.targetValue}
             >
               {(control) => (
