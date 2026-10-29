@@ -14,7 +14,6 @@ const DASH = '–';
 const OTHER_TITLES: Partial<Record<Step['type'], string>> = {
   extract: 'Wert auslesen',
   ai: 'KI-Schritt',
-  code: 'Code-Schritt',
 };
 
 function describe(step: Step | undefined, stepId: string): { title: string; detail: string } {

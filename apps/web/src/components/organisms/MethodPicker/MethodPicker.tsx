@@ -25,12 +25,6 @@ const METHODS: { key: FlowMethod | null; icon: IconName; title: string; descript
     title: 'Schritte zusammenklicken',
     description: 'Schritt für Schritt aus Bausteinen wie Klicken, Ausfüllen, Prüfen.',
   },
-  {
-    key: null,
-    icon: 'code',
-    title: 'Code schreiben',
-    description: 'Für Entwickler: Playwright-Code mit Variablen und Hilfsfunktionen.',
-  },
 ];
 
 export type MethodPickerProps = {
@@ -39,16 +33,17 @@ export type MethodPickerProps = {
 };
 
 /**
- * The four ways to a flow (screen 05). Describing with AI and the step builder exist; recording
- * and code are shown as planned. All of them lead to the same steps.
+ * The three ways to a flow (screen 05). Describing with AI and the step builder exist; recording
+ * is shown as planned. All of them lead to the same steps. Writing code is deliberately not
+ * offered: own code would run on the server next to keys and database.
  */
 export function MethodPicker({ method, onChoose }: MethodPickerProps) {
   return (
     <Card
       title="Wie soll der Ablauf entstehen?"
-      description="Alle Wege erzeugen dieselben Schritte. Aufnehmen und Code folgen."
+      description="Alle Wege erzeugen dieselben Schritte. Das Aufnehmen folgt."
     >
-      <div className="grid grid-cols-2 gap-3 xl:grid-cols-4">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
         {METHODS.map(({ key, ...card }) => (
           <ChoiceCard
             key={card.title}

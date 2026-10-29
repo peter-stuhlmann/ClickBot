@@ -194,9 +194,6 @@ export async function executeStep(page: Page, step: Step, ctx: StepContext): Pro
 
     case 'ai':
       throw new StepError('KI-Schritte sind noch nicht verfügbar.');
-
-    case 'code':
-      throw new StepError('Code-Schritte sind noch nicht verfügbar.');
   }
   return {};
 }

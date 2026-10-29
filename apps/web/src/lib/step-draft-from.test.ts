@@ -88,7 +88,6 @@ describe('toStepDraft', () => {
   it.each([
     { ...base, id: 'x', type: 'extract', target: { by: 'css', selector: '#nr' }, saveAs: 'nr' },
     { ...base, id: 'k', type: 'ai', instruction: 'Akzeptiere das Cookie-Banner.' },
-    { ...base, id: 'p', type: 'code', source: 'await page.reload();' },
   ] as Step[])('has no form for $type steps yet', (step) => {
     expect(toStepDraft(step)).toBeNull();
   });

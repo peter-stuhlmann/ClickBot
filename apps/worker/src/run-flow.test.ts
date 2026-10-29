@@ -372,12 +372,9 @@ describe('runFlow – failures', () => {
     expect(result.steps[1]?.message).toBe('Text „Passwort ••••“ ist nicht sichtbar (nach 0,3 s).');
   });
 
-  it.each([
-    ['ai', { type: 'ai', instruction: 'Akzeptiere Cookies' }, 'KI-Schritte'],
-    ['code', { type: 'code', source: 'await page.goto("/")' }, 'Code-Schritte'],
-  ])('fails %s steps clearly until they are supported', async (_, fields, label) => {
-    const result = await run([step('x', fields)]);
-    expect(result.steps[0]?.message).toBe(`${label} sind noch nicht verfügbar.`);
+  it('fails ai steps clearly until they are supported', async () => {
+    const result = await run([step('x', { type: 'ai', instruction: 'Akzeptiere Cookies' })]);
+    expect(result.steps[0]?.message).toBe('KI-Schritte sind noch nicht verfügbar.');
   });
 
   it('reports the current URL when the expected one is not reached', async () => {

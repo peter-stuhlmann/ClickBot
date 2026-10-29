@@ -345,7 +345,7 @@ function targetFields(target: Target): Pick<StepDraft, 'targetBy' | 'targetRole'
  * the forms do not offer yet (extract, AI, code).
  */
 export function toStepDraft(step: Step): StepDraft | null {
-  if (step.type === 'extract' || step.type === 'ai' || step.type === 'code') return null;
+  if (step.type === 'extract' || step.type === 'ai') return null;
   const draft: StepDraft = {
     ...newStep(step.type, [], ''),
     id: step.id,

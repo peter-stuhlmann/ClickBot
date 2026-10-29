@@ -21,12 +21,12 @@ describe('MethodPicker', () => {
     expect(onChoose).toHaveBeenCalledWith('ai');
   });
 
-  it('marks recording and code as planned', () => {
+  it('offers three ways, recording still planned, and no code', () => {
     render(<MethodPicker method="editor" onChoose={vi.fn()} />);
-    for (const planned of ['Im Browser aufnehmen', 'Code schreiben']) {
-      const card = screen.getByRole('button', { name: new RegExp(planned) });
-      expect(card).toBeDisabled();
-      expect(card).toHaveTextContent('geplant');
-    }
+    expect(screen.getAllByRole('button')).toHaveLength(3);
+    const recording = screen.getByRole('button', { name: /Im Browser aufnehmen/ });
+    expect(recording).toBeDisabled();
+    expect(recording).toHaveTextContent('geplant');
+    expect(screen.queryByRole('button', { name: /Code schreiben/ })).not.toBeInTheDocument();
   });
 });

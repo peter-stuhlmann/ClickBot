@@ -102,20 +102,22 @@ describe('stepSchema', () => {
     expect(stepSchema.safeParse({ id: 's', type: 'wait', until: idle }).success).toBe(true);
   });
 
-  it('accepts screenshot, ai and code steps', () => {
+  it('accepts screenshot and ai steps', () => {
     expect(stepSchema.safeParse({ id: 's', type: 'screenshot' }).success).toBe(true);
     expect(
       stepSchema.safeParse({ id: 's', type: 'ai', instruction: 'Akzeptiere das Cookie-Banner' })
         .success,
     ).toBe(true);
-    expect(
-      stepSchema.safeParse({ id: 's', type: 'code', source: "await page.goto('/')" }).success,
-    ).toBe(true);
   });
 
-  it('rejects empty ai instructions and empty code', () => {
+  it('rejects empty ai instructions', () => {
     expect(stepSchema.safeParse({ id: 's', type: 'ai', instruction: '' }).success).toBe(false);
-    expect(stepSchema.safeParse({ id: 's', type: 'code', source: '' }).success).toBe(false);
+  });
+
+  it('has no code steps: own code on the server is deliberately not offered', () => {
+    expect(
+      stepSchema.safeParse({ id: 's', type: 'code', source: "await page.goto('/')" }).success,
+    ).toBe(false);
   });
 });
 

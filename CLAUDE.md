@@ -44,12 +44,11 @@ die Einstellungen der KI-Anbieter stehen.
     - meldet seinen Status an die Web-App
     - führt Läufe in Chrome, Firefox und Safari (WebKit) aus und emuliert Geräte
 - **Noch nicht gebaut:**
-  - im Worker: Proxies und Standort-Profile, KI- und
-    Code-Schritte, KI-Suche nach Elementen, Live-Stream; Markierung für andere
+  - im Worker: Proxies und Standort-Profile, KI-Schritte, KI-Suche nach Elementen, Live-Stream; Markierung für andere
     Analytics-Werkzeuge als GA4
   - E-Mail-Versand (Einladungslinks werden angezeigt und von Hand weitergegeben), Konten
     sperren oder löschen, Rate-Limit je IP-Adresse beim Login
-  - im Assistenten: Aufnehmen und Code, Standort-Profile je Termin; im Editor die KI; Schritte vom Typ „auslesen“ lassen sich noch nicht anlegen
+  - im Assistenten: Aufnehmen, Standort-Profile je Termin; im Editor die KI; Schritte vom Typ „auslesen“ lassen sich noch nicht anlegen
   - im Lauf-Report: PDF, „Erneut ausführen“, KI-Eingriffe, Konsolenfehler und ausgelesene
     Werte (dafür speichert der Worker noch keine Daten)
   - im Editor: KI-Box, „Erfolg & Daten“ und Variablen-Liste aus dem Design
@@ -128,7 +127,7 @@ Die Pakete unter `packages/` liefern TypeScript-Quelltext aus, ohne eigenen Buil
   - Starts in der Vergangenheit sind erlaubt, wenn sie schon gespeichert waren
     (`validateJobEdit`). Eine gespeicherte Intervall-Startzeit bleibt sekundengenau, solange
     Datum und Uhrzeit im Formular unverändert sind.
-  - Jobs mit Schritten ohne Formular (Auslesen, KI, Code) zeigt der Editor nur an, damit
+  - Jobs mit Schritten ohne Formular (Auslesen, KI) zeigt der Editor nur an, damit
     Speichern sie nicht verliert.
 - **Zugangsdaten:**
   - Gespeichert wird nur der verschlüsselte Wert (`createCipher`: AES-256-GCM, Schlüssel aus
@@ -190,14 +189,16 @@ Hochziehen erst, wenn beide Pakete die neue Version offiziell unterstützen.
   pg-boss und ohne Redis. So gibt es nur eine Quelle der Wahrheit (siehe Abschnitt Worker).
 - **Ablauf:** wird als JSON-Schrittliste gespeichert, validiert mit Zod aus `packages/shared`.
   - Schritt-Typen: öffnen, klicken, ausfüllen, auswählen, prüfen, auslesen, warten,
-    screenshot, analytics, Passwortschutz (.htaccess, `basicAuth`), KI-Schritt, Code.
+    screenshot, analytics, Passwortschutz (.htaccess, `basicAuth`), KI-Schritt.
   - Variablen: `{{faker.*}}`, `{{run_nr}}`, `{{bot_nr}}`, `{{secret.name}}`.
-- **Vier Wege zum Ablauf:**
+- **Drei Wege zum Ablauf:**
   - KI: Beschreibung → Schrittvorschlag + Rückfragen.
   - Aufnehmen: Live-Browser.
   - Editor: Baukasten.
-  - Code: Playwright/TypeScript in einer Sandbox.
-  - Alle vier erzeugen dieselbe Schrittliste.
+  - Alle drei erzeugen dieselbe Schrittliste.
+  - **Kein eigener Code (bewusst entschieden):** Weder ein Weg „Code schreiben“ noch ein
+    Schritt-Typ dafür. Nutzer-Code liefe auf dem Server neben Datenbank, `SECRETS_KEY` und
+    Zugangsdaten. Screen 07 aus dem Design wird nicht gebaut.
 - **KI-Fallback pro Schritt:** Findet der Bot ein Element nicht, sucht die KI ein passendes
   und protokolliert das im Report.
 - **Zeitplan:** `{ type: "interval" | "times", slots: [{ date, time, bots }], stagger }`.
@@ -260,8 +261,7 @@ Hochziehen erst, wenn beide Pakete die neue Version offiziell unterstützen.
   ausgeschaltete lassen sie unverändert; sind alle aus, bleibt die Anfrage ganz unverändert
   (`jobs.analytics_marking`, Schema `analyticsMarkingSchema` in `packages/shared`). Erkannt werden
   Googles Adressen und server-seitiges Tagging auf eigener Domain (`/g/collect` mit `tid=G-…`).
-- **Noch nicht verfügbar:** KI- und Code-Schritte schlagen mit klarer Meldung fehl, bis sie
-  gebaut sind.
+- **Noch nicht verfügbar:** KI-Schritte schlagen mit klarer Meldung fehl, bis sie gebaut sind.
 - **Warteschlange** (`packages/db/src/queue.ts`), pro Takt (1 s) in `createWorker`:
   1. `planDueRuns` legt für aktive Jobs die fälligen Starts als `queued`-Läufe an.
      - Ein Start ist Termin × Bot × Gerät × Browser (`runTargets`).
@@ -341,7 +341,7 @@ Hochziehen erst, wenn beide Pakete die neue Version offiziell unterstützen.
      Seitenaufbau. Der Prompt erklärt die Schritt-Typen an einem Beispiel, das ein Test gegen
      `flowSchema` prüft, und behandelt den Seitenaufbau als Daten, nie als Anweisung.
   3. `parseFlowSuggestion` prüft jeden Schritt mit `stepSchema`. Erlaubt sind nur Typen, die das
-     Formular kann (kein KI-, Code-, Auslese- oder Passwortschritt). Eine erfundene echte
+     Formular kann (kein KI-, Auslese- oder Passwortschritt). Eine erfundene echte
      E-Mail-Adresse wird zu `{{faker.email}}`. Fehlt „Seite öffnen“ am Anfang, kommt es dazu.
      Eine ungültige Antwort bekommt eine zweite Chance mit der Fehlermeldung.
   4. Nichts wird gespeichert oder ausgeführt, bis die Schritte übernommen werden. Ohne Worker
@@ -596,7 +596,7 @@ Screens (Node-IDs):
 | 05  | Neuer Job              | 5:1140  |
 | 05b | Standort & Gerät       | 5:1520  |
 | 06  | Ablauf mit KI          | 5:1166  |
-| 07  | Code                   | 5:1179  |
+| 07  | Code (entfällt)        | 5:1179  |
 | 08a | Zugangsdaten           | 5:2059  |
 | 08b | Proxies & Standorte    | 5:1898  |
 | 08c | Benachrichtigungen     | 5:2141  |
