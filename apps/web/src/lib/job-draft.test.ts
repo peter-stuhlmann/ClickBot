@@ -428,6 +428,7 @@ describe('summarise', () => {
       { label: 'Ablauf', value: '–' },
       { label: 'Zeitplan', value: 'alle 60 Min. · max. 24 Läufe' },
       { label: 'Geräte', value: 'Desktop' },
+      { label: 'GA4-Markierung', value: 'alle an' },
     ]);
   });
 
@@ -457,6 +458,7 @@ describe('summarise', () => {
       { label: 'Ablauf', value: '2 Schritte' },
       { label: 'Zeitplan', value: '2 Termine · 10 Bots' },
       { label: 'Geräte', value: 'Desktop, iPhone 15' },
+      { label: 'GA4-Markierung', value: 'alle an' },
     ]);
   });
 
@@ -524,5 +526,36 @@ describe('addSlot', () => {
   it('copies date and time of a last slot that is not filled in yet', () => {
     const slots = [{ key: 'slot-1', date: '', time: '', bots: 1 }];
     expect(addSlot(slots)[1]).toMatchObject({ date: '', time: '' });
+  });
+});
+
+describe('GA4 marking in the wizard', () => {
+  it('starts with every marking on and sends it to createJob', () => {
+    expect(emptyDraft(now).analyticsMarking).toEqual({
+      debugMode: true,
+      internalTraffic: true,
+      botFlag: true,
+      runNumber: true,
+    });
+    const marking = { debugMode: false, internalTraffic: true, botFlag: true, runNumber: false };
+    expect(toNewJobInput(draft({ analyticsMarking: marking }), now).analyticsMarking).toEqual(
+      marking,
+    );
+  });
+
+  it('names what is switched off in the summary', () => {
+    const rows = summarise(
+      draft({
+        analyticsMarking: {
+          debugMode: false,
+          internalTraffic: true,
+          botFlag: true,
+          runNumber: true,
+        },
+      }),
+      [],
+      now,
+    );
+    expect(rows.at(-1)).toEqual({ label: 'GA4-Markierung', value: 'Aus: Debug-Modus' });
   });
 });

@@ -172,3 +172,29 @@ describe('deleting', () => {
     expect(await db.select().from(runSteps)).toHaveLength(0);
   });
 });
+
+describe('GA4 marking of a job', () => {
+  it('marks everything unless the job says otherwise', async () => {
+    expect((await newJob()).analyticsMarking).toEqual({
+      debugMode: true,
+      internalTraffic: true,
+      botFlag: true,
+      runNumber: true,
+    });
+  });
+
+  it('stores markings that were switched off', async () => {
+    const job = await newJob({ analyticsMarking: { debugMode: false, runNumber: false } });
+    expect(job.analyticsMarking).toEqual({
+      debugMode: false,
+      internalTraffic: true,
+      botFlag: true,
+      runNumber: false,
+    });
+  });
+
+  it('rejects anything but switches', async () => {
+    const error = await newJob({ analyticsMarking: { debugMode: 'aus' } }).catch((e: unknown) => e);
+    expect(issuePaths(error)).toEqual(['analyticsMarking.debugMode']);
+  });
+});

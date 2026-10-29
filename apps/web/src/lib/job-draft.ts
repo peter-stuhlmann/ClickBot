@@ -1,8 +1,11 @@
 import {
+  ALL_MARKINGS_ON,
   DEFAULT_TIMEZONE,
+  describeMarking,
   flowSchema,
   localToUtc,
   scheduleSchema,
+  type AnalyticsMarking,
   type Flow,
   type Schedule,
   type Step,
@@ -85,6 +88,8 @@ export type WizardDraft = {
   steps: StepDraft[];
   schedule: ScheduleDraft;
   devices: DeviceKey[];
+  /** Which GA4 markers the bot runs set (all on by default). */
+  analyticsMarking: AnalyticsMarking;
 };
 
 export type Issue = { path: string; message: string };
@@ -96,6 +101,7 @@ export type NewJobDraftInput = {
   flow: { version: 1; steps: Record<string, unknown>[] };
   schedule: Record<string, unknown>;
   devices: DeviceKey[];
+  analyticsMarking: AnalyticsMarking;
   status: 'active';
 };
 
@@ -141,6 +147,7 @@ export function emptyDraft(now: Date): WizardDraft {
       staggerSeconds: STAGGER_SECONDS,
     },
     devices: ['desktop'],
+    analyticsMarking: ALL_MARKINGS_ON,
   };
 }
 
@@ -385,6 +392,7 @@ export function toNewJobInput(draft: WizardDraft, now: Date): NewJobDraftInput {
     flow: { version: 1, steps: draft.steps.map(toStep) },
     schedule: toSchedule(draft.schedule, now),
     devices: draft.devices,
+    analyticsMarking: draft.analyticsMarking,
     status: 'active',
   };
 }
@@ -497,6 +505,7 @@ export type StoredJob = {
   flow: Flow;
   schedule: Schedule;
   devices: readonly DeviceKey[];
+  analyticsMarking: AnalyticsMarking;
 };
 
 /**
@@ -552,6 +561,7 @@ export function jobToDraft(
       steps: steps as StepDraft[],
       schedule: scheduleDraft,
       devices: [...job.devices],
+      analyticsMarking: job.analyticsMarking,
     },
   };
 }
@@ -681,6 +691,7 @@ export function summarise(
     },
     { label: 'Zeitplan', value: scheduleText },
     { label: 'Geräte', value: draft.devices.map(deviceLabel).join(', ') || DASH },
+    { label: 'GA4-Markierung', value: describeMarking(draft.analyticsMarking) ?? 'alle an' },
   ];
 }
 

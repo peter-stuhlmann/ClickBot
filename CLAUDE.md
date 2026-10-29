@@ -58,7 +58,12 @@ Was als „geplant“ markiert ist, existiert noch nicht.
 - Keine Umgehung von Captchas, Bot-Erkennung, Rate-Limits oder Ländersperren fremder Seiten.
   Kein Fingerprint-Spoofing und kein Captcha-Solving.
 - Kein künstlicher Traffic, der Kennzahlen aufbläht (Klick-KPIs, Werbeanzeigen, Analytics).
-  Bot-Läufe sind markiert (`debug_mode` bzw. eigener Parameter) und in Analytics filterbar.
+  Bot-Läufe sind standardmäßig in GA4 markiert (Debug-Modus, interner Traffic, eigene Kennung)
+  und damit filterbar.
+  - Pro Job lassen sich die Markierungen einzeln oder alle abschalten, z. B. um die Zuordnung in
+    den normalen GA4-Berichten zu testen. Die Oberfläche warnt dann deutlich.
+  - Jeder Lauf speichert die Markierung, mit der er lief (`runs.analytics_marking`). Sein Report
+    vermerkt, wenn sie eingeschränkt oder aus war.
 - Proxies und Standort-Profile dienen nur Geo-Tests: Ländersperren, standortabhängige Inhalte
   und die GA-Zuordnung.
 - Zugangsdaten (Secrets) sind verschlüsselt gespeichert und erscheinen nie in Reports,
@@ -209,7 +214,9 @@ Hochziehen erst, wenn beide Pakete die neue Version offiziell unterstützen.
 - **Bot-Läufe sind in GA4 markiert** (`bot-marking.ts`, Produktregel): Jede GA4-Anfrage eines
   Laufs bekommt vor dem Verlassen des Browsers `_dbg=1` (nur DebugView, nie in Berichten),
   `ep.traffic_type=internal` (Datenfilter „Interner Traffic“), `ep.click_bot=1` und
-  `epn.click_bot_run=<Laufnummer>`. Werte der Website werden überschrieben. Erkannt werden
+  `epn.click_bot_run=<Laufnummer>`. Eingeschaltete Merkmale überschreiben Werte der Website,
+  ausgeschaltete lassen sie unverändert; sind alle aus, bleibt die Anfrage ganz unverändert
+  (`jobs.analytics_marking`, Schema `analyticsMarkingSchema` in `packages/shared`). Erkannt werden
   Googles Adressen und server-seitiges Tagging auf eigener Domain (`/g/collect` mit `tid=G-…`).
 - **Noch nicht verfügbar:** KI- und Code-Schritte schlagen mit klarer Meldung fehl, bis sie
   gebaut sind.

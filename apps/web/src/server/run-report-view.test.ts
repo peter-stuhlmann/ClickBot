@@ -76,6 +76,7 @@ function report(
       startedAt: seconds(1),
       finishedAt: seconds(9.4),
       error: null,
+      analyticsMarking: { debugMode: true, internalTraffic: true, botFlag: true, runNumber: true },
       createdAt: scheduled,
       ...overrides.run,
     },
@@ -251,5 +252,55 @@ describe('toRunReportView', () => {
     ['passed', true, null],
   ] as const)('tells what a %s run is waiting for (worker online: %s)', (status, online, live) => {
     expect(toRunReportView(report({ run: { status } }), { workerOnline: online }).live).toBe(live);
+  });
+
+  describe('GA4 marking of the run', () => {
+    it('says nothing when the run was marked completely', () => {
+      expect(toRunReportView(report()).marking).toBeNull();
+    });
+
+    it('notes which markings were off, as the run recorded them', () => {
+      const view = toRunReportView(
+        report({
+          run: {
+            analyticsMarking: {
+              debugMode: false,
+              internalTraffic: false,
+              botFlag: true,
+              runNumber: true,
+            },
+          },
+        }),
+      );
+      expect(view.marking).toEqual({
+        title: 'GA4-Markierung eingeschränkt',
+        message:
+          'Aus: Debug-Modus, Interner Traffic. Die GA4-Ereignisse dieses Laufs können in den normalen Berichten erscheinen.',
+      });
+    });
+
+    it('warns plainly when the run was not marked at all', () => {
+      const view = toRunReportView(
+        report({
+          run: {
+            analyticsMarking: {
+              debugMode: false,
+              internalTraffic: false,
+              botFlag: false,
+              runNumber: false,
+            },
+          },
+        }),
+      );
+      expect(view.marking).toEqual({
+        title: 'Ohne GA4-Markierung',
+        message:
+          'Dieser Lauf war in GA4 nicht als Bot erkennbar. Seine Ereignisse zählen dort wie echte Besuche.',
+      });
+    });
+
+    it('says nothing for runs from before the marking was recorded', () => {
+      expect(toRunReportView(report({ run: { analyticsMarking: null } })).marking).toBeNull();
+    });
   });
 });

@@ -50,6 +50,7 @@ function draftOf(schedule: Schedule = interval): WizardDraft {
       flow,
       schedule,
       devices: ['desktop'],
+      analyticsMarking: { debugMode: true, internalTraffic: true, botFlag: true, runNumber: true },
     },
     new Date(NOW),
   );
@@ -126,6 +127,21 @@ describe('JobEditor', () => {
     });
     expect(screen.queryByRole('status')).not.toBeInTheDocument();
     expect(saveButton()).toBeEnabled();
+  });
+
+  it('saves a switched-off GA4 marking with the job', async () => {
+    const user = userEvent.setup();
+    const { saveAction } = renderEditor();
+
+    await user.click(screen.getByRole('switch', { name: 'Debug-Modus' }));
+    await user.click(saveButton());
+
+    expect(saveAction.mock.calls[0]?.[1].analyticsMarking).toEqual({
+      debugMode: false,
+      internalTraffic: true,
+      botFlag: true,
+      runNumber: true,
+    });
   });
 
   it('keeps a stored start in the past, but checks everything else before saving', async () => {

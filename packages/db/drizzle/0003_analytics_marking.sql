@@ -1,0 +1,2 @@
+ALTER TABLE "jobs" ADD COLUMN "analytics_marking" jsonb DEFAULT '{"debugMode":true,"internalTraffic":true,"botFlag":true,"runNumber":true}'::jsonb NOT NULL;--> statement-breakpoint
+ALTER TABLE "runs" ADD COLUMN "analytics_marking" jsonb;

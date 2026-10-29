@@ -1,7 +1,9 @@
 import {
+  analyticsMarkingSchema,
   expandSchedule,
   flowSchema,
   scheduleSchema,
+  type AnalyticsMarking,
   type Flow,
   type Schedule,
 } from '@click-bot/shared';
@@ -24,6 +26,8 @@ export type NewJobInput = {
   /** Untrusted input, validated with scheduleSchema. */
   schedule: unknown;
   devices?: Device[];
+  /** Untrusted input, validated with analyticsMarkingSchema. Default: everything marked. */
+  analyticsMarking?: unknown;
   /** "active" lets the planner pick the job up right away. Default: draft. */
   status?: 'draft' | 'active';
 };
@@ -55,11 +59,19 @@ type JobFields = {
   flow: Flow;
   schedule: Schedule;
   devices: Device[];
+  analyticsMarking: AnalyticsMarking;
 };
 
 /** Checks the editable fields of a job; adds problems to `issues`, returns null if any. */
 function validateFields(
-  input: { name: string; startUrl: string; flow: unknown; schedule: unknown; devices?: Device[] },
+  input: {
+    name: string;
+    startUrl: string;
+    flow: unknown;
+    schedule: unknown;
+    devices?: Device[];
+    analyticsMarking?: unknown;
+  },
   issues: ValidationIssue[],
 ): JobFields | null {
   const name = input.name.trim();
@@ -77,7 +89,17 @@ function validateFields(
   const schedule = scheduleSchema.safeParse(input.schedule);
   if (!schedule.success) issues.push(...issuesFromZod('schedule', schedule.error));
 
-  if (!name || !startUrl.success || !devices.success || !flow.success || !schedule.success) {
+  const marking = analyticsMarkingSchema.safeParse(input.analyticsMarking);
+  if (!marking.success) issues.push(...issuesFromZod('analyticsMarking', marking.error));
+
+  if (
+    !name ||
+    !startUrl.success ||
+    !devices.success ||
+    !flow.success ||
+    !schedule.success ||
+    !marking.success
+  ) {
     return null;
   }
   return {
@@ -86,6 +108,7 @@ function validateFields(
     flow: flow.data,
     schedule: schedule.data,
     devices: devices.data,
+    analyticsMarking: marking.data,
   };
 }
 
@@ -112,6 +135,8 @@ export type JobUpdateInput = {
   /** Untrusted input, validated with scheduleSchema. */
   schedule: unknown;
   devices: Device[];
+  /** Omitted: the job keeps its marking. */
+  analyticsMarking?: unknown;
 };
 
 /** Slots (times) and interval starts that already have runs, by position, in order. */
@@ -160,7 +185,10 @@ export async function updateJob(db: Database, jobId: string, input: JobUpdateInp
     if (!current) throw new NotFoundError('Job', jobId);
 
     const issues: ValidationIssue[] = [];
-    const fields = validateFields(input, issues);
+    const fields = validateFields(
+      { ...input, analyticsMarking: input.analyticsMarking ?? current.analyticsMarking },
+      issues,
+    );
     if (fields) {
       const started = await listStartedSlots(tx, jobId);
       issues.push(...startedScheduleIssues(started, current.schedule, fields.schedule));

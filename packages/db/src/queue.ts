@@ -12,7 +12,7 @@ import { jobs, runSteps, runs, workerHeartbeats } from './schema';
 export type Run = typeof runs.$inferSelect;
 export type ClaimedRun = {
   run: Run;
-  job: Pick<Job, 'id' | 'name' | 'customerId' | 'startUrl' | 'flow'>;
+  job: Pick<Job, 'id' | 'name' | 'customerId' | 'startUrl' | 'flow' | 'analyticsMarking'>;
 };
 
 export type PlanOptions = {
@@ -120,7 +120,7 @@ export async function planDueRuns(
 export async function claimNextRun(db: Database, now: Date): Promise<ClaimedRun | null> {
   return db.transaction(async (tx) => {
     const [next] = await tx
-      .select({ id: runs.id })
+      .select({ id: runs.id, analyticsMarking: jobs.analyticsMarking })
       .from(runs)
       .innerJoin(jobs, eq(jobs.id, runs.jobId))
       .where(
@@ -138,7 +138,8 @@ export async function claimNextRun(db: Database, now: Date): Promise<ClaimedRun 
 
     const [run] = await tx
       .update(runs)
-      .set({ status: 'running', startedAt: now })
+      // The run keeps the marking it ran with, even if the job changes later.
+      .set({ status: 'running', startedAt: now, analyticsMarking: next.analyticsMarking })
       .where(eq(runs.id, next.id))
       .returning();
     const [job] = await tx
@@ -148,6 +149,7 @@ export async function claimNextRun(db: Database, now: Date): Promise<ClaimedRun 
         customerId: jobs.customerId,
         startUrl: jobs.startUrl,
         flow: jobs.flow,
+        analyticsMarking: jobs.analyticsMarking,
       })
       .from(jobs)
       .where(eq(jobs.id, (run as Run).jobId));

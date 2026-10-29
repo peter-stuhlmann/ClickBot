@@ -71,4 +71,28 @@ test.describe('Job-Editor', () => {
     await page.getByRole('button', { name: 'Testlauf starten' }).click();
     await expect(page).toHaveURL(reportUrl);
   });
+
+  test('switches the GA4 marking of a job off, with a warning, and keeps it', async ({ page }) => {
+    await page.goto('/');
+    await page.getByRole('link', { name: 'Kontaktformular-Test', exact: true }).click();
+    const main = page.getByRole('switch', { name: 'Bot-Läufe in GA4 markieren' });
+    await expect(main).toBeChecked();
+
+    await main.click();
+    await expect(page.getByRole('switch', { name: 'Debug-Modus' })).not.toBeChecked();
+    await expect(
+      page.getByRole('region', { name: 'Bot-Läufe zählen in GA4 wie echte Besuche' }),
+    ).toBeVisible();
+
+    await page.getByRole('switch', { name: 'Bot-Kennung' }).click();
+    await page.getByRole('button', { name: 'Speichern' }).click();
+    await expect(page.getByRole('status').filter({ hasText: 'Gespeichert.' })).toBeVisible();
+
+    await page.reload();
+    await expect(page.getByRole('switch', { name: 'Bot-Kennung' })).toBeChecked();
+    await expect(page.getByRole('switch', { name: 'Debug-Modus' })).not.toBeChecked();
+    await expect(page.getByRole('region', { name: 'Markierung eingeschränkt' })).toContainText(
+      'Aus: Debug-Modus, Interner Traffic, Laufnummer',
+    );
+  });
 });

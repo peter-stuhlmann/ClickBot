@@ -55,6 +55,7 @@ async function executeRun(deps: WorkerDeps, { run, job }: ClaimedRun): Promise<v
       runNr: run.runNr,
       botNr: run.botNr,
       secrets,
+      analyticsMarking: job.analyticsMarking,
     });
 
     const screenshots = new Map<string, string>();

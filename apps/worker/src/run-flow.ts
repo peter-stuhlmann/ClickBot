@@ -1,4 +1,4 @@
-import { maskSecrets, type Flow } from '@click-bot/shared';
+import { ALL_MARKINGS_ON, maskSecrets, type AnalyticsMarking, type Flow } from '@click-bot/shared';
 import type { BrowserContext } from 'playwright';
 import { createGa4Recorder } from './analytics';
 import { markBotTraffic } from './bot-marking';
@@ -15,6 +15,8 @@ export type RunOptions = {
   botNr: number;
   /** Secrets this run may use (see resolveSecretsForRun); masked in everything it returns. */
   secrets: Record<string, string>;
+  /** How the GA4 requests of the run are marked; default: everything. */
+  analyticsMarking?: AnalyticsMarking;
 };
 
 export type StepResult = {
@@ -42,7 +44,7 @@ export async function runFlow(
   flow: Flow,
   options: RunOptions,
 ): Promise<RunResult> {
-  await markBotTraffic(context, options.runNr);
+  await markBotTraffic(context, options.runNr, options.analyticsMarking ?? ALL_MARKINGS_ON);
   const analytics = createGa4Recorder();
   context.on('request', (request) => analytics.record(request.url(), request.postData()));
   const page = await context.newPage();

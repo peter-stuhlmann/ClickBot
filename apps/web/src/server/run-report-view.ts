@@ -1,6 +1,6 @@
 import 'server-only';
 import type { RunReport, RunStepRow } from '@click-bot/db';
-import type { Step } from '@click-bot/shared';
+import { describeMarking, markingState, type AnalyticsMarking, type Step } from '@click-bot/shared';
 import { deviceLabel } from '@/lib/devices';
 import { formatClock, formatDateLong, formatDuration, plural } from '@/lib/format';
 import { toStepDraft } from '@/lib/job-draft';
@@ -76,6 +76,27 @@ function runTitle(runNr: number, slotIndex: number | null, planned: number): str
   return runNr <= planned ? `Lauf #${runNr} von ${planned}` : `Lauf #${runNr}`;
 }
 
+/** Report note when the run did not mark its GA4 requests completely (product rule). */
+function markingNote(marking: AnalyticsMarking | null): RunReportView['marking'] {
+  if (!marking) return null;
+  const state = markingState(marking);
+  if (state === 'on') return null;
+  if (state === 'off') {
+    return {
+      title: 'Ohne GA4-Markierung',
+      message:
+        'Dieser Lauf war in GA4 nicht als Bot erkennbar. Seine Ereignisse zählen dort wie echte Besuche.',
+    };
+  }
+  const reports = marking.debugMode
+    ? 'Die GA4-Ereignisse dieses Laufs sind nur zum Teil gekennzeichnet.'
+    : 'Die GA4-Ereignisse dieses Laufs können in den normalen Berichten erscheinen.';
+  return {
+    title: 'GA4-Markierung eingeschränkt',
+    message: `${describeMarking(marking)}. ${reports}`,
+  };
+}
+
 function liveHint(status: RunReport['run']['status'], workerOnline: boolean): string | null {
   if (status === 'running') return 'Läuft gerade. Der Report aktualisiert sich selbst.';
   if (status !== 'queued') return null;
@@ -145,6 +166,7 @@ export function toRunReportView(
           }
         : null,
     live: liveHint(run.status, workerOnline),
+    marking: markingNote(run.analyticsMarking),
     screenshot: lastScreenshot?.screenshotPath
       ? {
           url: artifactUrl(lastScreenshot.screenshotPath),

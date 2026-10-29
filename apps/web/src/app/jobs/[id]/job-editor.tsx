@@ -4,6 +4,7 @@ import { useRouter } from 'next/navigation';
 import { useMemo, useState, useTransition } from 'react';
 import { Button } from '@/components/atoms/Button';
 import { Icon } from '@/components/atoms/Icon';
+import { AnalyticsMarkingForm } from '@/components/organisms/AnalyticsMarkingForm';
 import { DevicePicker } from '@/components/organisms/DevicePicker';
 import { JobSettingsForm } from '@/components/organisms/JobSettingsForm';
 import { PageHeader } from '@/components/organisms/PageHeader';
@@ -196,6 +197,10 @@ export function JobEditor({
             selected={draft.devices}
             error={errors.devices}
             onToggle={(device) => update({ devices: toggleDevice(draft.devices, device) })}
+          />
+          <AnalyticsMarkingForm
+            marking={draft.analyticsMarking}
+            onChange={(analyticsMarking) => update({ analyticsMarking })}
           />
         </>
       }

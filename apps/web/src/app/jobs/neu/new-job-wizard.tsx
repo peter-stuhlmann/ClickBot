@@ -3,6 +3,7 @@
 import { useMemo, useState, useTransition, type ReactNode } from 'react';
 import { Button } from '@/components/atoms/Button';
 import { Icon } from '@/components/atoms/Icon';
+import { AnalyticsMarkingForm } from '@/components/organisms/AnalyticsMarkingForm';
 import { DevicePicker } from '@/components/organisms/DevicePicker';
 import { JobSummary } from '@/components/organisms/JobSummary';
 import { MethodPicker } from '@/components/organisms/MethodPicker';
@@ -153,11 +154,17 @@ export function NewJobWizard({ customers, now, createAction }: NewJobWizardProps
       break;
     case 'devices':
       content = (
-        <DevicePicker
-          selected={draft.devices}
-          error={errors.devices}
-          onToggle={(device) => update({ devices: toggleDevice(draft.devices, device) })}
-        />
+        <>
+          <DevicePicker
+            selected={draft.devices}
+            error={errors.devices}
+            onToggle={(device) => update({ devices: toggleDevice(draft.devices, device) })}
+          />
+          <AnalyticsMarkingForm
+            marking={draft.analyticsMarking}
+            onChange={(analyticsMarking) => update({ analyticsMarking })}
+          />
+        </>
       );
       break;
   }

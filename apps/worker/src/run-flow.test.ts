@@ -79,6 +79,43 @@ describe('runFlow – bot runs never count as real visits', () => {
   });
 });
 
+describe('runFlow – GA4 marking switched off by the job', () => {
+  it('sends the GA4 requests of the website unchanged', async () => {
+    const context = await browser.newContext();
+    const sent: string[] = [];
+    await context.route(/\/g\/collect/, (route) => {
+      sent.push(route.request().url());
+      return route.fallback();
+    });
+    try {
+      await runFlow(context, flow(contactFlow), {
+        baseUrl: browser.origin(),
+        runNr: 42,
+        botNr: 1,
+        secrets: {},
+        analyticsMarking: {
+          debugMode: false,
+          internalTraffic: false,
+          botFlag: false,
+          runNumber: false,
+        },
+      });
+    } finally {
+      await context.close();
+    }
+
+    expect(sent).toHaveLength(2);
+    for (const url of sent) {
+      const params = new URL(url).searchParams;
+      expect(
+        ['_dbg', 'ep.traffic_type', 'ep.click_bot', 'epn.click_bot_run'].filter((key) =>
+          params.has(key),
+        ),
+      ).toEqual([]);
+    }
+  });
+});
+
 describe('runFlow – happy path', () => {
   it('fills and sends the contact form and checks the result', async () => {
     const result = await run(contactFlow);

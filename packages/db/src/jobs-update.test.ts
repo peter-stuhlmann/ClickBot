@@ -211,3 +211,27 @@ describe('getJob', () => {
     await expect(getJob(db, 'job-7')).rejects.toBeInstanceOf(NotFoundError);
   });
 });
+
+describe('updateJob and the GA4 marking', () => {
+  it('switches markings off and on again', async () => {
+    const job = await newJob();
+    const off = await update(job, {
+      analyticsMarking: { debugMode: false, internalTraffic: false },
+    });
+    expect(off.analyticsMarking).toMatchObject({
+      debugMode: false,
+      internalTraffic: false,
+      botFlag: true,
+    });
+
+    const on = await update(job, { analyticsMarking: {} });
+    expect(on.analyticsMarking).toMatchObject({ debugMode: true, internalTraffic: true });
+  });
+
+  it('keeps the marking when the update does not mention it', async () => {
+    const job = await newJob();
+    await update(job, { analyticsMarking: { botFlag: false } });
+    const later = await update(job, { name: 'Kontakt neu' });
+    expect(later.analyticsMarking.botFlag).toBe(false);
+  });
+});

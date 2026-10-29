@@ -54,6 +54,7 @@ const job = (overrides: Partial<Parameters<typeof jobToDraft>[0]> = {}) => ({
   flow,
   schedule: interval,
   devices: ['desktop', 'iphone'] as const,
+  analyticsMarking: { debugMode: false, internalTraffic: true, botFlag: true, runNumber: true },
   ...overrides,
 });
 
@@ -143,6 +144,8 @@ describe('toJobUpdateInput', () => {
       // The exact stored start, not 10:00:00: the starts must not move by merely saving.
       schedule: { type: 'interval', everyMinutes: 15, maxRuns: 20, startAt: interval.startAt },
       devices: ['desktop', 'iphone'],
+      // The job's own GA4 marking, not the default.
+      analyticsMarking: { debugMode: false, internalTraffic: true, botFlag: true, runNumber: true },
     });
 
     expect(toJobUpdateInput(draftOf(job({ schedule: times })), now).schedule).toEqual(times);

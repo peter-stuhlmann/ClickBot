@@ -65,6 +65,8 @@ export type RunReportView = {
   screenshot: { url: string; caption: string } | null;
   /** While the run waits or runs: what it is waiting for. The page then refreshes itself. */
   live: string | null;
+  /** Set when the run marked its GA4 requests only partly or not at all. */
+  marking: { title: string; message: string } | null;
 };
 
 /** Title line of the editor: name, status badge, schedule and devices. */

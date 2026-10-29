@@ -1,4 +1,4 @@
-import type { Flow, Schedule } from '@click-bot/shared';
+import type { AnalyticsMarking, Flow, Schedule } from '@click-bot/shared';
 import { sql } from 'drizzle-orm';
 import {
   boolean,
@@ -122,6 +122,11 @@ export const jobs = pgTable(
       .notNull()
       .default(sql`ARRAY['desktop']::device[]`),
     status: jobStatus('status').notNull().default('draft'),
+    /** How bot runs mark their GA4 requests; see analyticsMarkingSchema in @click-bot/shared. */
+    analyticsMarking: jsonb('analytics_marking')
+      .$type<AnalyticsMarking>()
+      .notNull()
+      .default({ debugMode: true, internalTraffic: true, botFlag: true, runNumber: true }),
     /** Last handed-out run number; increased atomically, see allocateRunNumber. */
     runCounter: integer('run_counter').notNull().default(0),
     createdAt: createdAt(),
@@ -216,6 +221,8 @@ export const runs = pgTable(
     startedAt: timestamp('started_at', { withTimezone: true }),
     finishedAt: timestamp('finished_at', { withTimezone: true }),
     error: text('error'),
+    /** The GA4 marking the run ran with (copied from the job when it starts). */
+    analyticsMarking: jsonb('analytics_marking').$type<AnalyticsMarking>(),
     createdAt: createdAt(),
   },
   (t) => [

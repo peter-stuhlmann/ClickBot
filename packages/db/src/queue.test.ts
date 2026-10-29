@@ -164,6 +164,26 @@ describe('claimNextRun', () => {
     expect(claimed?.job.flow.steps[0]?.id).toBe('open');
   });
 
+  it('records on the run the GA4 marking it runs with, so later changes of the job do not alter it', async () => {
+    const job = await activeJob(wave(), { analyticsMarking: { debugMode: false } });
+    await planDueRuns(db, { now, lookaheadMs: 2 * MIN });
+    const claimed = await claimNextRun(db, at(2 * MIN));
+
+    const marking = { debugMode: false, internalTraffic: true, botFlag: true, runNumber: true };
+    expect(claimed?.job.analyticsMarking).toEqual(marking);
+    expect(claimed?.run.analyticsMarking).toEqual(marking);
+
+    await db
+      .update(jobs)
+      .set({ analyticsMarking: { ...marking, botFlag: false } })
+      .where(eq(jobs.id, job.id));
+    const [stored] = await db
+      .select()
+      .from(runs)
+      .where(eq(runs.id, claimed?.run.id as string));
+    expect(stored?.analyticsMarking).toEqual(marking);
+  });
+
   it('does not hand out runs before their time', async () => {
     await activeJob(wave());
     await planDueRuns(db, { now, lookaheadMs: 2 * MIN });
