@@ -1,15 +1,19 @@
 export { createDb, type Database, type DbConnection } from './client';
 export { createCipher, parseKey, type Cipher } from './crypto';
 export {
-  createCustomer,
-  getCustomerStats,
-  listCustomerOverview,
-  listCustomers,
-  type Customer,
-  type CustomerOption,
-  type CustomerOverviewRow,
-  type CustomerStats,
-} from './customers';
+  createCampaign,
+  DEFAULT_CAMPAIGN,
+  getCampaign,
+  getCampaignStats,
+  listCampaignOverview,
+  listCampaigns,
+  type Campaign,
+  type CampaignOption,
+  type CampaignOverviewRow,
+  type CampaignStats,
+  type NewCampaignInput,
+} from './campaigns';
+export { createCustomer, listCustomers, type Customer, type CustomerOption } from './customers';
 export { NotFoundError, ValidationError, type ValidationIssue } from './errors';
 export {
   allocateRunNumber,
@@ -33,6 +37,7 @@ export {
   setJobActive,
   type DashboardStats,
   type JobOverviewRow,
+  type ProjectScope,
 } from './overview';
 export { DEFAULT_DEMO_SITE_URL, seedDemoData } from './seed';
 export { getRunReport, type RunReport, type RunStepRow } from './reports';

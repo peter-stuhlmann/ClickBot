@@ -20,6 +20,7 @@ const row = (overrides: Partial<RunListRow> = {}): RunListRow => ({
   jobId: 'job-1',
   jobName: 'Kontaktformular-Test',
   customerName: 'Beispiel GmbH',
+  campaignName: 'Black Friday',
   ...overrides,
 });
 
@@ -31,7 +32,7 @@ describe('toRunListRow', () => {
       jobName: 'Kontaktformular-Test',
       detail: 'Lauf #7 · iPhone 15 · Safari · Bot 2',
       testRun: false,
-      customer: 'Beispiel GmbH',
+      campaign: 'Black Friday',
       when: '05.11. 14:30',
       duration: '8,4 s',
       status: { tone: 'warning', label: 'Mit Hinweis' },

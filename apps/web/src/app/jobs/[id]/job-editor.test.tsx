@@ -44,7 +44,7 @@ const interval: Schedule = {
 function draftOf(schedule: Schedule = interval): WizardDraft {
   const loaded = jobToDraft(
     {
-      customerId: 'c1',
+      campaignId: 'k1',
       name: 'Kontaktformular-Test',
       startUrl: 'https://beispiel.de/kontakt',
       flow,

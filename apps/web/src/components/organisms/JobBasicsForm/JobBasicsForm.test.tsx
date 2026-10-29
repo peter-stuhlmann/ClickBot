@@ -3,53 +3,49 @@ import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
 import { JobBasicsForm } from './JobBasicsForm';
 
-const empty = { customerId: '', name: '' };
-const customers = [
-  { id: 'c1', name: 'Beispiel GmbH' },
-  { id: 'c2', name: 'Zahnarzt Müller' },
+const empty = { campaignId: '', name: '' };
+const campaigns = [
+  { id: 'k1', name: 'Allgemein' },
+  { id: 'k2', name: 'Black Friday' },
 ];
 
 describe('JobBasicsForm', () => {
-  it('asks only for project and name, and reports each as it changes', async () => {
+  it('asks only for campaign and name, and reports each as it changes', async () => {
     const user = userEvent.setup();
     const onChange = vi.fn();
-    render(<JobBasicsForm values={empty} customers={customers} errors={{}} onChange={onChange} />);
+    render(<JobBasicsForm values={empty} campaigns={campaigns} errors={{}} onChange={onChange} />);
     expect(screen.getAllByRole('combobox')).toHaveLength(1);
     expect(screen.getAllByRole('textbox')).toHaveLength(1);
-    expect(screen.queryByRole('checkbox')).not.toBeInTheDocument();
 
-    await user.selectOptions(screen.getByRole('combobox', { name: 'Projekt' }), 'Beispiel GmbH');
+    await user.selectOptions(screen.getByRole('combobox', { name: 'Kampagne' }), 'Black Friday');
     fireEvent.change(screen.getByRole('textbox', { name: 'Job-Name' }), {
       target: { value: 'Kontakt' },
     });
-    expect(onChange.mock.calls).toEqual([[{ customerId: 'c1' }], [{ name: 'Kontakt' }]]);
+    expect(onChange.mock.calls).toEqual([[{ campaignId: 'k2' }], [{ name: 'Kontakt' }]]);
   });
 
   it('shows the errors next to their fields', () => {
     render(
       <JobBasicsForm
         values={empty}
-        customers={customers}
-        errors={{ customerId: 'Bitte ein Projekt wählen.', name: 'Name fehlt.' }}
+        campaigns={campaigns}
+        errors={{ campaignId: 'Bitte eine Kampagne wählen.', name: 'Name fehlt.' }}
         onChange={vi.fn()}
       />,
     );
-    expect(screen.getByRole('combobox', { name: 'Projekt' })).toHaveAccessibleDescription(
-      'Bitte ein Projekt wählen.',
+    expect(screen.getByRole('combobox', { name: 'Kampagne' })).toHaveAccessibleDescription(
+      /Bitte eine Kampagne wählen\./,
     );
     expect(screen.getByRole('textbox', { name: 'Job-Name' })).toHaveAccessibleDescription(
       /Name fehlt\./,
     );
   });
 
-  it('says so when there are no projects yet', () => {
-    render(<JobBasicsForm values={empty} customers={[]} errors={{}} onChange={vi.fn()} />);
-    expect(screen.getByRole('combobox', { name: 'Projekt' })).toHaveAccessibleDescription(
-      'Noch keine Projekte angelegt. Projekt anlegen',
-    );
-    expect(screen.getByRole('link', { name: 'Projekt anlegen' })).toHaveAttribute(
+  it('offers to create a campaign', () => {
+    render(<JobBasicsForm values={empty} campaigns={campaigns} errors={{}} onChange={vi.fn()} />);
+    expect(screen.getByRole('link', { name: 'Neue Kampagne' })).toHaveAttribute(
       'href',
-      '/projekte/neu',
+      '/kampagnen/neu',
     );
   });
 });

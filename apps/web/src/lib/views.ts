@@ -16,6 +16,8 @@ export type StatCardView = {
 export type JobRowView = {
   id: string;
   name: string;
+  /** Name of the campaign the job belongs to. */
+  campaign: string;
   url: string;
   schedule: { primary: string; secondary: string };
   progress: { label: string; value: number };
@@ -78,12 +80,12 @@ export type JobHeaderView = {
   description: string;
 };
 
-/** One row of the customer table (screen 10). */
-export type CustomerRowView = {
+/** One row of the campaign table. */
+export type CampaignRowView = {
   id: string;
   name: string;
-  /** "beispiel.de · 3 Websites" */
-  websites: string;
+  /** "20.11.–30.11.2026 · beispiel.de · 3 Websites" */
+  detail: string;
   jobs: { primary: string; secondary: string };
   /** Runs of the last 30 days; `value` is the share of successful ones, 0–1. */
   runs: { label: string; value: number };
@@ -100,7 +102,8 @@ export type RunListRowView = {
   detail: string;
   /** Started from the editor, outside the schedule. */
   testRun: boolean;
-  customer: string;
+  /** Campaign of the job. */
+  campaign: string;
   /** "05.11. 14:30", start or planned start. */
   when: string;
   duration: string;

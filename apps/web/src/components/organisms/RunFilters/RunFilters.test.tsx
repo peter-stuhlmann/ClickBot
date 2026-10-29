@@ -3,8 +3,8 @@ import { describe, expect, it } from 'vitest';
 import { RunFilters } from './RunFilters';
 
 const props = {
-  values: { projekt: 'c2', ergebnis: 'fehlgeschlagen', zeitraum: '24h', geraet: '' },
-  customers: [
+  values: { kampagne: 'c2', ergebnis: 'fehlgeschlagen', zeitraum: '24h', geraet: '' },
+  campaigns: [
     { value: 'c1', label: 'Beispiel GmbH' },
     { value: 'c2', label: 'Müller Shop' },
   ],
@@ -22,13 +22,13 @@ describe('RunFilters', () => {
     const form = screen.getByRole('form', { name: 'Läufe filtern' });
     expect(form).toHaveAttribute('method', 'get');
     expect(form).toHaveAttribute('action', '/laeufe');
-    expect(screen.getByRole('combobox', { name: 'Projekt' })).toHaveAttribute('name', 'projekt');
+    expect(screen.getByRole('combobox', { name: 'Kampagne' })).toHaveAttribute('name', 'kampagne');
     expect(screen.getByRole('combobox', { name: 'Gerät' })).toHaveAttribute('name', 'geraet');
   });
 
   it('shows the current filters', () => {
     render(<RunFilters {...props} />);
-    expect(screen.getByRole('combobox', { name: 'Projekt' })).toHaveValue('c2');
+    expect(screen.getByRole('combobox', { name: 'Kampagne' })).toHaveValue('c2');
     expect(screen.getByRole('combobox', { name: 'Ergebnis' })).toHaveValue('fehlgeschlagen');
     expect(screen.getByRole('combobox', { name: 'Zeitraum' })).toHaveValue('24h');
     expect(screen.getByRole('combobox', { name: 'Gerät' })).toHaveValue('');
@@ -49,9 +49,9 @@ describe('RunFilters', () => {
   it('shows new filters after a navigation within the app, e.g. "Filter zurücksetzen"', () => {
     const { rerender } = render(<RunFilters {...props} />);
     rerender(
-      <RunFilters {...props} values={{ projekt: '', ergebnis: '', zeitraum: '7d', geraet: '' }} />,
+      <RunFilters {...props} values={{ kampagne: '', ergebnis: '', zeitraum: '7d', geraet: '' }} />,
     );
-    expect(screen.getByRole('combobox', { name: 'Projekt' })).toHaveValue('');
+    expect(screen.getByRole('combobox', { name: 'Kampagne' })).toHaveValue('');
     expect(screen.getByRole('combobox', { name: 'Ergebnis' })).toHaveValue('');
     expect(screen.getByRole('combobox', { name: 'Zeitraum' })).toHaveValue('7d');
   });

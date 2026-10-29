@@ -1,6 +1,6 @@
 import { eq } from 'drizzle-orm';
 import { describe, expect, it } from 'vitest';
-import { db, insertCustomer } from '../test/db';
+import { db, insertCampaign } from '../test/db';
 import { createJob, getJob, type Job } from './jobs';
 import {
   claimNextRun,
@@ -19,9 +19,9 @@ const MIN = 60_000;
 const flow = { version: 1, steps: [{ id: 'open', type: 'open', url: '/kontakt' }] };
 
 async function activeJob(schedule: unknown, overrides: Record<string, unknown> = {}): Promise<Job> {
-  const customer = await insertCustomer();
+  const { campaignId } = await insertCampaign();
   const job = await createJob(db, {
-    customerId: customer.id,
+    campaignId,
     name: 'Kontaktformular-Test',
     startUrl: 'https://beispiel.de',
     flow,

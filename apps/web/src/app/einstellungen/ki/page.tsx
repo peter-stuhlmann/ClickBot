@@ -1,4 +1,4 @@
-import { getWorkerStatus, listAiProviders } from '@click-bot/db';
+import { listAiProviders } from '@click-bot/db';
 import type { Metadata } from 'next';
 import { InfoCard } from '@/components/molecules/InfoCard';
 import { Tabs } from '@/components/molecules/Tabs';
@@ -10,13 +10,14 @@ import { SETTINGS_TABS } from '@/lib/settings-tabs';
 import { toAiProviderViews } from '@/server/ai-settings-view';
 import { requireUser } from '@/server/auth';
 import { getDb } from '@/server/db';
-import { getCurrentUser } from '@/server/session';
+import { getShell } from '@/server/shell';
 import {
   deleteAiProviderAction,
   saveAiProviderAction,
   setDefaultAiProviderAction,
   testAiProviderAction,
 } from '../../ai-actions';
+import { selectProjectAction } from '../../actions';
 
 export const dynamic = 'force-dynamic';
 
@@ -47,16 +48,12 @@ const FACTS = [
 /** "Einstellungen → KI & API": the AI providers and their keys. */
 export default async function AiSettingsPage() {
   const signedIn = await requireUser();
-  const user = await getCurrentUser();
   const isAdmin = signedIn.role === 'admin';
   const db = getDb();
-  const [providers, worker] = await Promise.all([
-    listAiProviders(db),
-    getWorkerStatus(db, new Date()),
-  ]);
+  const [shell, providers] = await Promise.all([getShell(db, new Date()), listAiProviders(db)]);
 
   return (
-    <AppShell active="einstellungen" user={user} worker={worker}>
+    <AppShell active="einstellungen" {...shell} selectProject={selectProjectAction}>
       <SettingsLayout
         header={
           <PageHeader

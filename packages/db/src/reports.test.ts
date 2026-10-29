@@ -1,6 +1,6 @@
 import { ne } from 'drizzle-orm';
 import { describe, expect, it } from 'vitest';
-import { db, insertCustomer } from '../test/db';
+import { db, insertCampaign } from '../test/db';
 import { NotFoundError } from './errors';
 import { createJob } from './jobs';
 import type { Run } from './queue';
@@ -16,9 +16,9 @@ const flow = {
 };
 
 async function jobWithRuns() {
-  const customer = await insertCustomer();
+  const { campaignId } = await insertCampaign();
   const job = await createJob(db, {
-    customerId: customer.id,
+    campaignId,
     name: 'Kontaktformular-Test',
     startUrl: 'https://beispiel.de',
     flow,

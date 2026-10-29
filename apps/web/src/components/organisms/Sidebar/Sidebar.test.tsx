@@ -1,23 +1,28 @@
 import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { Sidebar } from './Sidebar';
 
 const worker = { online: false, activeRuns: 0 };
+const projects = [
+  { id: 'p1', name: 'Beispiel GmbH' },
+  { id: 'p2', name: 'Müller Shop' },
+];
+const shell = { projects, project: projects[0] ?? null, selectProject: () => {} };
 
 describe('Sidebar', () => {
   it('shows the six sections of the design in order', () => {
-    render(<Sidebar active="jobs" worker={worker} user={null} />);
+    render(<Sidebar active="jobs" worker={worker} user={null} {...shell} />);
     const nav = screen.getByRole('navigation', { name: 'Hauptnavigation' });
     expect(
       within(nav)
         .getAllByRole('link')
         .map((link) => link.textContent),
-    ).toEqual(['Projekte', 'Jobs', 'Kalender', 'Läufe', 'Vorlagen', 'Einstellungen']);
+    ).toEqual(['Kampagnen', 'Jobs', 'Kalender', 'Läufe', 'Vorlagen', 'Einstellungen']);
   });
 
   it('marks exactly the active section', () => {
-    render(<Sidebar active="kalender" worker={worker} user={null} />);
+    render(<Sidebar active="kalender" worker={worker} user={null} {...shell} />);
     const current = screen
       .getAllByRole('link')
       .filter((link) => link.getAttribute('aria-current') === 'page');
@@ -30,6 +35,7 @@ describe('Sidebar', () => {
         active="jobs"
         worker={{ online: true, activeRuns: 1 }}
         user={{ name: 'Peter Stuhlmann', role: 'Admin' }}
+        {...shell}
       />,
     );
     // Once in the top bar of small screens, once in the column.
@@ -38,8 +44,25 @@ describe('Sidebar', () => {
     expect(screen.getByText('Peter Stuhlmann')).toBeInTheDocument();
   });
 
+  it('shows the current project above the navigation and switches it', async () => {
+    const user = userEvent.setup();
+    const selectProject = vi.fn();
+    render(
+      <Sidebar
+        active="jobs"
+        worker={worker}
+        user={null}
+        {...shell}
+        selectProject={selectProject}
+      />,
+    );
+    await user.click(screen.getByRole('button', { name: 'Projekt: Beispiel GmbH' }));
+    await user.click(screen.getByRole('option', { name: 'Müller Shop' }));
+    expect(selectProject).toHaveBeenCalledWith('p2');
+  });
+
   it('leaves out the user block while nobody is signed in', () => {
-    render(<Sidebar active="jobs" worker={worker} user={null} />);
+    render(<Sidebar active="jobs" worker={worker} user={null} {...shell} />);
     expect(screen.queryByText('Admin')).not.toBeInTheDocument();
   });
 });
@@ -49,7 +72,7 @@ describe('Sidebar on small screens', () => {
 
   it('opens the menu from the top bar and closes it with its close button', async () => {
     const user = userEvent.setup();
-    render(<Sidebar active="jobs" worker={worker} user={null} />);
+    render(<Sidebar active="jobs" worker={worker} user={null} {...shell} />);
     expect(menuButton()).toHaveAttribute('aria-expanded', 'false');
 
     await user.click(menuButton());
@@ -63,7 +86,7 @@ describe('Sidebar on small screens', () => {
 
   it('closes the menu with Escape and by tapping beside it', async () => {
     const user = userEvent.setup();
-    render(<Sidebar active="jobs" worker={worker} user={null} />);
+    render(<Sidebar active="jobs" worker={worker} user={null} {...shell} />);
 
     await user.click(menuButton());
     await user.keyboard('{Escape}');
@@ -76,7 +99,7 @@ describe('Sidebar on small screens', () => {
 
   it('closes the menu when a section is chosen', async () => {
     const user = userEvent.setup();
-    render(<Sidebar active="jobs" worker={worker} user={null} />);
+    render(<Sidebar active="jobs" worker={worker} user={null} {...shell} />);
 
     await user.click(menuButton());
     await user.click(screen.getByRole('link', { name: 'Läufe' }));

@@ -69,8 +69,12 @@ async function dueJob(steps: unknown[], bots = 1) {
     .insert(schema.customers)
     .values({ name: 'Beispiel GmbH', slug: 'beispiel' })
     .returning();
+  const [campaign] = await db
+    .insert(schema.campaigns)
+    .values({ customerId: customer?.id as string, name: 'Allgemein' })
+    .returning();
   const job = await createJob(db, {
-    customerId: customer?.id as string,
+    campaignId: campaign?.id as string,
     name: 'Kontaktformular-Test',
     startUrl: `${browser.origin()}/kontakt.html`,
     flow: { version: 1, steps },

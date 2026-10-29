@@ -22,7 +22,7 @@ export function CustomerForm({ action }: CustomerFormProps) {
     <form action={formAction} aria-label="Projekt anlegen" className="max-w-xl">
       <Card
         title="Neues Projekt"
-        description="Jeder Job gehört zu einem Projekt. Das Kürzel für Adressen entsteht aus dem Namen."
+        description="Ein Projekt fasst Kampagnen und ihre Jobs zusammen. Das Kürzel für Adressen entsteht aus dem Namen."
       >
         <Field id="customer-name" label="Name" error={state.error}>
           {(control) => (
@@ -38,7 +38,7 @@ export function CustomerForm({ action }: CustomerFormProps) {
           )}
         </Field>
         <div className="flex justify-end gap-3">
-          <Button variant="secondary" href="/projekte">
+          <Button variant="secondary" href="/kampagnen">
             Abbrechen
           </Button>
           <Button type="submit" loading={pending} icon={<Icon name="check" size={16} />}>

@@ -24,7 +24,7 @@ import type { SummaryRowView } from './views';
  */
 
 export const WIZARD_STEPS = [
-  { key: 'job', label: 'Job', question: 'Zu welchem Projekt gehört der Job?' },
+  { key: 'job', label: 'Job', question: 'Zu welcher Kampagne gehört der Job?' },
   { key: 'flow', label: 'Ablauf', question: 'Wo beginnt der Test, und was soll passieren?' },
   { key: 'schedule', label: 'Zeitplan', question: 'Wann soll der Bot laufen?' },
   {
@@ -99,7 +99,8 @@ export type ScheduleDraft = {
 };
 
 export type WizardDraft = {
-  customerId: string;
+  /** The campaign the job belongs to (its project is the current one). */
+  campaignId: string;
   startUrl: string;
   name: string;
   /** The user confirmed that the website is their own or the customer approved the test. */
@@ -116,7 +117,7 @@ export type WizardDraft = {
 export type Issue = { path: string; message: string };
 
 export type NewJobDraftInput = {
-  customerId: string;
+  campaignId: string;
   name: string;
   startUrl: string;
   flow: { version: 1; steps: Record<string, unknown>[] };
@@ -151,7 +152,7 @@ export function emptyDraft(now: Date): WizardDraft {
   const date = berlinDate.format(nextHour);
   const time = berlinTime.format(nextHour);
   return {
-    customerId: '',
+    campaignId: '',
     startUrl: '',
     name: '',
     confirmed: false,
@@ -421,7 +422,7 @@ function toSchedule(schedule: ScheduleDraft, now: Date): Record<string, unknown>
 /** Input for createJob. The job starts as active: saving is the last step of the wizard. */
 export function toNewJobInput(draft: WizardDraft, now: Date): NewJobDraftInput {
   return {
-    customerId: draft.customerId,
+    campaignId: draft.campaignId,
     name: draft.name.trim(),
     startUrl: normaliseUrl(draft.startUrl),
     flow: { version: 1, steps: draft.steps.map(toStep) },
@@ -445,8 +446,8 @@ function issuesFrom(prefix: string, error: SchemaError): Issue[] {
 /** Step 1: project and name. */
 function jobIssues(draft: WizardDraft): Issue[] {
   const issues: Issue[] = [];
-  if (!draft.customerId) {
-    issues.push({ path: 'customerId', message: 'Bitte ein Projekt wählen.' });
+  if (!draft.campaignId) {
+    issues.push({ path: 'campaignId', message: 'Bitte eine Kampagne wählen.' });
   }
   if (!draft.name.trim()) issues.push({ path: 'name', message: 'Name fehlt.' });
   return issues;
@@ -528,11 +529,11 @@ export function validateWizardStep(draft: WizardDraft, step: WizardStep, now: Da
   }
 }
 
-export type JobUpdateDraftInput = Omit<NewJobDraftInput, 'customerId' | 'status'>;
+export type JobUpdateDraftInput = Omit<NewJobDraftInput, 'campaignId' | 'status'>;
 
 /** Input for updateJob from the editor: the job keeps its customer and status. */
 export function toJobUpdateInput(draft: WizardDraft, now: Date): JobUpdateDraftInput {
-  const { customerId: _customer, status: _status, ...input } = toNewJobInput(draft, now);
+  const { campaignId: _campaign, status: _status, ...input } = toNewJobInput(draft, now);
   return input;
 }
 
@@ -548,7 +549,7 @@ export function validateJobEdit(draft: WizardDraft, original: WizardDraft, now: 
 }
 
 export type StoredJob = {
-  customerId: string;
+  campaignId: string;
   name: string;
   startUrl: string;
   flow: Flow;
@@ -603,7 +604,7 @@ export function jobToDraft(
 
   return {
     draft: {
-      customerId: job.customerId,
+      campaignId: job.campaignId,
       name: job.name,
       startUrl: job.startUrl,
       // Confirmed when the job was created.
@@ -745,7 +746,7 @@ const DASH = '–';
 /** The "Zusammenfassung" card next to the wizard. */
 export function summarise(
   draft: WizardDraft,
-  customers: { id: string; name: string }[],
+  campaigns: { id: string; name: string }[],
   now: Date,
 ): SummaryRowView[] {
   const schedule = scheduleSchema.safeParse(toSchedule(draft.schedule, now));
@@ -754,8 +755,8 @@ export function summarise(
     : DASH;
   return [
     {
-      label: 'Projekt',
-      value: customers.find((customer) => customer.id === draft.customerId)?.name ?? DASH,
+      label: 'Kampagne',
+      value: campaigns.find((campaign) => campaign.id === draft.campaignId)?.name ?? DASH,
     },
     {
       label: 'Website',

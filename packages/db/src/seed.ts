@@ -1,7 +1,8 @@
 import { eq, sql } from 'drizzle-orm';
 import type { Database } from './client';
+import { DEFAULT_CAMPAIGN } from './campaigns';
 import { createJob } from './jobs';
-import { customers, jobs, runSteps, runs } from './schema';
+import { campaigns, customers, jobs, runSteps, runs } from './schema';
 
 type DemoJob = {
   name: string;
@@ -123,6 +124,11 @@ export async function seedDemoData(
       .values({ name: 'Beispiel GmbH', slug: 'beispiel' })
       .returning();
     if (!customer) throw new Error('Demo customer could not be created.');
+    const [campaign] = await tx
+      .insert(campaigns)
+      .values({ customerId: customer.id, name: DEFAULT_CAMPAIGN })
+      .returning();
+    if (!campaign) throw new Error('Demo campaign could not be created.');
 
     for (const [index, demo] of DEMO_JOBS.entries()) {
       const intervalMs = demo.everyMinutes * 60_000;
@@ -131,7 +137,7 @@ export async function seedDemoData(
 
       const startUrl = new URL(demo.path, demoSiteUrl).href;
       const job = await createJob(tx, {
-        customerId: customer.id,
+        campaignId: campaign.id,
         name: demo.name,
         startUrl,
         flow: {

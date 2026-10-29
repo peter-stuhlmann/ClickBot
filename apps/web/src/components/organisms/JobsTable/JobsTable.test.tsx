@@ -7,6 +7,7 @@ import { JobsTable } from './JobsTable';
 const row = (overrides: Partial<JobRowView> = {}): JobRowView => ({
   id: 'job-1',
   name: 'Kontaktformular-Test',
+  campaign: 'Black Friday',
   url: 'beispiel.de/kontakt',
   schedule: { primary: 'alle 15 Min.', secondary: 'max. 20 Läufe' },
   progress: { label: '7 / 20 Läufe', value: 0.35 },
@@ -38,6 +39,7 @@ describe('JobsTable', () => {
 
     expect(cells.getByText('Kontaktformular-Test')).toBeInTheDocument();
     expect(cells.getByText('beispiel.de/kontakt')).toBeInTheDocument();
+    expect(cells.getByText('Black Friday')).toBeInTheDocument();
     expect(cells.getByText('alle 15 Min.')).toBeInTheDocument();
     expect(cells.getByText('7 / 20 Läufe')).toBeInTheDocument();
     expect(

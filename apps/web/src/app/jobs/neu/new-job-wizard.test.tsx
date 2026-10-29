@@ -7,7 +7,10 @@ import { NewJobWizard } from './new-job-wizard';
 
 // 13:30 in Berlin. Only Date is faked, so user-event's timers keep working.
 const NOW = '2026-11-05T12:30:00.000Z';
-const customers = [{ id: 'c1', name: 'Beispiel GmbH' }];
+const campaigns = [
+  { id: 'k1', name: 'Allgemein' },
+  { id: 'k2', name: 'Black Friday' },
+];
 
 beforeEach(() => {
   vi.useFakeTimers({ toFake: ['Date'], now: new Date(NOW) });
@@ -29,7 +32,7 @@ function renderWizard(
 ) {
   render(
     <NewJobWizard
-      customers={customers}
+      campaigns={campaigns}
       now={NOW}
       createAction={createAction}
       suggestAction={suggestAction}
@@ -68,7 +71,7 @@ const subtitle = () => screen.getByText(/^Schritt \d von 4/);
 
 /** Step 1 asks only for project and name. */
 async function fillJob(user: ReturnType<typeof userEvent.setup>) {
-  await user.selectOptions(screen.getByRole('combobox', { name: 'Projekt' }), 'Beispiel GmbH');
+  await user.selectOptions(screen.getByRole('combobox', { name: 'Kampagne' }), 'Black Friday');
   fireEvent.change(screen.getByRole('textbox', { name: 'Job-Name' }), {
     target: { value: 'Kontaktformular-Test' },
   });
@@ -190,6 +193,25 @@ describe('NewJobWizard', () => {
     expect(await screen.findByText('Custom ist nicht erreichbar.')).toBeVisible();
   });
 
+  it('chooses the only campaign of the project right away', async () => {
+    const user = userEvent.setup();
+    render(
+      <NewJobWizard
+        campaigns={[{ id: 'k1', name: 'Allgemein' }]}
+        now={NOW}
+        createAction={vi.fn()}
+        suggestAction={noSuggestion}
+        startRecording={noRecording}
+      />,
+    );
+    expect(screen.getByRole('combobox', { name: 'Kampagne' })).toHaveValue('k1');
+    fireEvent.change(screen.getByRole('textbox', { name: 'Job-Name' }), {
+      target: { value: 'Kontakt' },
+    });
+    await user.click(weiter());
+    expect(subtitle()).toHaveTextContent('Schritt 2 von 4');
+  });
+
   it('stays on the first step and names every missing field', async () => {
     const user = userEvent.setup();
     renderWizard();
@@ -197,8 +219,8 @@ describe('NewJobWizard', () => {
     await user.click(weiter());
 
     expect(screen.getByRole('alert')).toHaveTextContent('Bitte die markierten Angaben prüfen.');
-    expect(subtitle()).toHaveTextContent('Schritt 1 von 4 · Zu welchem Projekt gehört der Job?');
-    expect(screen.getByRole('combobox', { name: 'Projekt' })).toBeInvalid();
+    expect(subtitle()).toHaveTextContent('Schritt 1 von 4 · Zu welcher Kampagne gehört der Job?');
+    expect(screen.getByRole('combobox', { name: 'Kampagne' })).toBeInvalid();
     expect(screen.getByRole('textbox', { name: 'Job-Name' })).toBeInvalid();
     expect(screen.queryByRole('textbox', { name: 'Website (Start-URL)' })).not.toBeInTheDocument();
     expect(screen.queryByRole('checkbox')).not.toBeInTheDocument();
@@ -255,7 +277,7 @@ describe('NewJobWizard', () => {
 
     expect(createAction).toHaveBeenCalledOnce();
     expect(createAction.mock.calls[0]?.[0]).toMatchObject({
-      customerId: 'c1',
+      campaignId: 'k2',
       name: 'Kontaktformular-Test',
       devices: ['desktop', 'iphone'],
       schedule: { type: 'interval', everyMinutes: '15', maxRuns: '4' },

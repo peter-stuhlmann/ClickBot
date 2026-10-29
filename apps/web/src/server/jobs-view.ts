@@ -32,6 +32,7 @@ export function toJobRow(row: JobOverviewRow, now: Date): JobRowView {
   return {
     id: row.id,
     name: row.name,
+    campaign: row.campaignName,
     url: displayUrl(row.startUrl),
     schedule: describeSchedule(row.schedule),
     progress: { label: `${row.runsDone} / ${row.runsPlanned} Läufe`, value: progress },

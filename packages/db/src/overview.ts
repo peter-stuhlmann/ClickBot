@@ -3,7 +3,7 @@ import { and, asc, desc, eq, gte, inArray, isNotNull, sql } from 'drizzle-orm';
 import type { Database } from './client';
 import { NotFoundError, ValidationError } from './errors';
 import { plannedRunCount, type Job } from './jobs';
-import { customers, jobs, runs } from './schema';
+import { campaigns, customers, jobs, runs } from './schema';
 
 type JobStatus = Job['status'];
 type RunStatus = (typeof runs.$inferSelect)['status'];
@@ -21,6 +21,7 @@ export type JobOverviewRow = {
   startUrl: string;
   status: JobStatus;
   customerName: string;
+  campaignName: string;
   schedule: Schedule;
   runsDone: number;
   runsPlanned: number;
@@ -29,11 +30,21 @@ export type JobOverviewRow = {
   successRate: number | null;
 };
 
-export async function listJobOverview(db: Database): Promise<JobOverviewRow[]> {
+/** Restricts figures to one project (customer); without it they cover everything. */
+export type ProjectScope = { customerId?: string };
+
+const inProject = (scope: ProjectScope) =>
+  scope.customerId ? eq(jobs.customerId, scope.customerId) : undefined;
+
+export async function listJobOverview(
+  db: Database,
+  scope: ProjectScope = {},
+): Promise<JobOverviewRow[]> {
   const rows = await db
     .select({
       job: jobs,
       customerName: customers.name,
+      campaignName: campaigns.name,
       // Progress of the schedule: test runs (no slot) do not count, they are extra.
       runsDone:
         sql<number>`count(${runs.id}) filter (where ${and(inArray(runs.status, FINISHED), isNotNull(runs.slotIndex))})`.mapWith(
@@ -50,8 +61,10 @@ export async function listJobOverview(db: Database): Promise<JobOverviewRow[]> {
     })
     .from(jobs)
     .innerJoin(customers, eq(customers.id, jobs.customerId))
+    .innerJoin(campaigns, eq(campaigns.id, jobs.campaignId))
     .leftJoin(runs, eq(runs.jobId, jobs.id))
-    .groupBy(jobs.id, customers.name)
+    .where(inProject(scope))
+    .groupBy(jobs.id, customers.name, campaigns.name)
     .orderBy(asc(jobs.createdAt), asc(jobs.id));
 
   const lastRuns = await db
@@ -66,7 +79,7 @@ export async function listJobOverview(db: Database): Promise<JobOverviewRow[]> {
     .orderBy(runs.jobId, desc(runs.finishedAt));
   const lastRunByJob = new Map(lastRuns.map((run) => [run.jobId, run]));
 
-  return rows.map(({ job, customerName, runsDone, finished, successful }) => {
+  return rows.map(({ job, customerName, campaignName, runsDone, finished, successful }) => {
     const lastRun = lastRunByJob.get(job.id);
     return {
       id: job.id,
@@ -74,6 +87,7 @@ export async function listJobOverview(db: Database): Promise<JobOverviewRow[]> {
       startUrl: job.startUrl,
       status: job.status,
       customerName,
+      campaignName,
       schedule: job.schedule,
       runsDone,
       runsPlanned: plannedRunCount(job),
@@ -113,6 +127,7 @@ function previousDate(date: string): string {
 export async function getDashboardStats(
   db: Database,
   now: Date,
+  scope: ProjectScope = {},
   timeZone = DEFAULT_TIMEZONE,
 ): Promise<DashboardStats> {
   const today = localDate(now, timeZone);
@@ -124,6 +139,7 @@ export async function getDashboardStats(
   const jobCounts = await db
     .select({ status: jobs.status, count: sql<number>`count(*)`.mapWith(Number) })
     .from(jobs)
+    .where(inProject(scope))
     .groupBy(jobs.status);
   const countOf = (status: JobStatus) => jobCounts.find((row) => row.status === status)?.count ?? 0;
 
@@ -142,13 +158,14 @@ export async function getDashboardStats(
         ),
     })
     .from(runs)
-    .where(and(inArray(runs.status, FINISHED), isNotNull(at)));
+    .innerJoin(jobs, eq(jobs.id, runs.jobId))
+    .where(and(inProject(scope), inArray(runs.status, FINISHED), isNotNull(at)));
 
   const failures = await db
     .select({ jobName: jobs.name })
     .from(runs)
     .innerJoin(jobs, eq(jobs.id, runs.jobId))
-    .where(and(eq(runs.status, 'failed'), gte(at, dayAgo)))
+    .where(and(inProject(scope), eq(runs.status, 'failed'), gte(at, dayAgo)))
     .orderBy(asc(jobs.name));
 
   return {

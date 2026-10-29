@@ -50,7 +50,7 @@ test.describe('Neuer Job – Mit KI beschreiben', () => {
     await expect(custom.getByText('Standard', { exact: true })).toBeVisible();
 
     await page.goto('/jobs/neu');
-    await page.getByRole('combobox', { name: 'Projekt' }).selectOption({ label: 'Beispiel GmbH' });
+    await page.getByRole('combobox', { name: 'Kampagne' }).selectOption({ label: 'Allgemein' });
     await page.getByRole('textbox', { name: 'Job-Name' }).fill('KI-Kontakt');
     await page.getByRole('button', { name: 'Weiter' }).click();
     // The start address is asked for with the flow.

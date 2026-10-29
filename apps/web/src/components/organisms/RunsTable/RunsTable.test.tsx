@@ -9,7 +9,7 @@ const row = (overrides: Partial<RunListRowView> = {}): RunListRowView => ({
   jobName: 'Kontaktformular-Test',
   detail: 'Lauf #7 · Desktop · Bot 1',
   testRun: false,
-  customer: 'Beispiel GmbH',
+  campaign: 'Black Friday',
   when: '05.11. 14:30',
   duration: '8,4 s',
   status: { tone: 'success', label: 'Erfolgreich' },
@@ -24,7 +24,7 @@ describe('RunsTable', () => {
     render(<RunsTable rows={[row()]} summary="1 Lauf" pager={pager} />);
     expect(screen.getAllByRole('columnheader').map((header) => header.textContent)).toEqual([
       'Job · Lauf',
-      'Projekt',
+      'Kampagne',
       'Zeitpunkt · Dauer',
       'Ergebnis',
     ]);
@@ -38,7 +38,7 @@ describe('RunsTable', () => {
     expect(
       cells.getByRole('link', { name: 'Kontaktformular-Test Lauf #7 · Desktop · Bot 1' }),
     ).toHaveAttribute('href', '/laeufe/run-7');
-    expect(cells.getByText('Beispiel GmbH')).toBeVisible();
+    expect(cells.getByText('Black Friday')).toBeVisible();
     expect(cells.getByText('05.11. 14:30')).toBeVisible();
     expect(cells.getByText('8,4 s')).toBeVisible();
     expect(cells.getByText('Erfolgreich')).toBeVisible();

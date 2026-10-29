@@ -1,7 +1,7 @@
 import Link from 'next/link';
 import { Badge } from '@/components/atoms/Badge';
 import { ProgressBar } from '@/components/atoms/ProgressBar';
-import type { CustomerRowView, Tone } from '@/lib/views';
+import type { CampaignRowView, Tone } from '@/lib/views';
 
 const RATE_COLOUR: Record<Tone, string> = {
   success: 'text-success',
@@ -10,10 +10,10 @@ const RATE_COLOUR: Record<Tone, string> = {
   neutral: 'text-text-muted',
 };
 
-// Column widths in the ratio of the Figma table (320/160/200/190/110 px); "Wochen-PDF" is left
-// out until the PDF exists.
+// Column widths in the ratio of the Figma customer table (320/160/200/190/110 px), now one row per
+// campaign of the current project; "Wochen-PDF" is left out until the PDF exists.
 const COLUMNS = [
-  { label: 'Projekt', width: 'w-16/49' },
+  { label: 'Kampagne', width: 'w-16/49' },
   { label: 'Jobs', width: 'w-8/49' },
   { label: 'Läufe (30 Tage)', width: 'w-10/49' },
   { label: 'Letzter Lauf', width: 'w-19/98' },
@@ -32,13 +32,14 @@ function CellLabel({ children }: { children: string }) {
   );
 }
 
-export type CustomersTableProps = { rows: CustomerRowView[] };
+export type CampaignsTableProps = { rows: CampaignRowView[] };
 
 /**
- * Screen 10 ("Projekte"): customers with their jobs, runs of 30 days and last run. Below `xl` every row is a
- * card; the roles are set explicitly, because Safari drops the semantics of a table shown as blocks.
+ * The campaigns of the current project with their jobs, runs of 30 days and last run. Below `xl`
+ * every row is a card; the roles are set explicitly, because Safari drops the semantics of a table
+ * shown as blocks.
  */
-export function CustomersTable({ rows }: CustomersTableProps) {
+export function CampaignsTable({ rows }: CampaignsTableProps) {
   return (
     <div className="overflow-hidden rounded-card border border-border bg-surface">
       <table
@@ -67,7 +68,7 @@ export function CustomersTable({ rows }: CustomersTableProps) {
                 colSpan={COLUMNS.length}
                 className="block px-5 py-10 text-center text-text-muted xl:table-cell"
               >
-                Noch keine Projekte. Lege das erste Projekt an, um Jobs dafür zu erstellen.
+                Noch keine Kampagnen. Lege die erste Kampagne an, um Jobs darin zu erstellen.
               </td>
             </tr>
           )}
@@ -80,7 +81,7 @@ export function CustomersTable({ rows }: CustomersTableProps) {
             >
               <td role="cell" className="col-span-2 min-w-0 xl:py-3.5 xl:pr-4 xl:pl-5">
                 <div className="truncate text-body font-medium text-text">{row.name}</div>
-                <div className="truncate font-mono text-small text-text-muted">{row.websites}</div>
+                <div className="truncate font-mono text-small text-text-muted">{row.detail}</div>
               </td>
               <td role="cell" className="xl:py-3.5">
                 <CellLabel>Jobs</CellLabel>

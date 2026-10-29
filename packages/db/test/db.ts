@@ -1,6 +1,6 @@
 import { sql } from 'drizzle-orm';
 import { createDb } from '../src/client';
-import { customers } from '../src/schema';
+import { campaigns, customers } from '../src/schema';
 
 export const TEST_DATABASE_URL =
   process.env.DATABASE_URL_TEST ?? 'postgres://clickbot:clickbot@localhost:5443/clickbot_test';
@@ -11,7 +11,7 @@ export const db = testConnection.db;
 
 export async function resetDb(): Promise<void> {
   await db.execute(sql`
-    TRUNCATE run_steps, runs, jobs, secrets, proxies, location_profiles, customers, users,
+    TRUNCATE run_steps, runs, jobs, campaigns, secrets, proxies, location_profiles, customers, users,
       worker_heartbeats, sessions, invitations, ai_providers, page_analyses, recording_sessions
     RESTART IDENTITY CASCADE
   `);
@@ -28,4 +28,13 @@ export function single<T>(rows: T[]): T {
 
 export async function insertCustomer(name = 'Beispiel GmbH', slug = 'beispiel') {
   return single(await db.insert(customers).values({ name, slug }).returning());
+}
+
+/** A campaign (and, unless given, a project for it), for jobs in tests. */
+export async function insertCampaign(name = 'Allgemein', customer?: { id: string }) {
+  const owner = customer ?? (await insertCustomer());
+  const campaign = single(
+    await db.insert(campaigns).values({ customerId: owner.id, name }).returning(),
+  );
+  return { customerId: owner.id, campaignId: campaign.id };
 }

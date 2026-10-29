@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { db, insertCustomer, single } from '../test/db';
+import { db, insertCampaign, single } from '../test/db';
 import { runMigrations } from './migrate';
 import { aiProviders, customers, jobs, locationProfiles, runs, users } from './schema';
 
@@ -46,10 +46,11 @@ describe('database constraints', () => {
   });
 
   it('rejects a job without devices', async () => {
-    const customer = await insertCustomer();
+    const { customerId, campaignId } = await insertCampaign();
     await expect(
       db.insert(jobs).values({
-        customerId: customer.id,
+        customerId,
+        campaignId,
         name: 'X',
         startUrl: 'https://beispiel.de',
         flow: { version: 1, steps: [] },
@@ -65,12 +66,13 @@ describe('database constraints', () => {
   });
 
   it('rejects a run that finishes before it started, and two runs with the same number', async () => {
-    const customer = await insertCustomer();
+    const { customerId, campaignId } = await insertCampaign();
     const job = single(
       await db
         .insert(jobs)
         .values({
-          customerId: customer.id,
+          customerId,
+          campaignId,
           name: 'X',
           startUrl: 'https://beispiel.de',
           flow: { version: 1, steps: [] },

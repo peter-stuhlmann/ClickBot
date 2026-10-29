@@ -24,8 +24,10 @@ const config: NextConfig = {
   // "Kunden" became "Projekte"; old bookmarks still arrive.
   async redirects() {
     return [
-      { source: '/kunden', destination: '/projekte', permanent: true },
+      { source: '/kunden', destination: '/kampagnen', permanent: true },
       { source: '/kunden/:path*', destination: '/projekte/:path*', permanent: true },
+      // The project list became the project switcher; its page now lists the campaigns.
+      { source: '/projekte', destination: '/kampagnen', permanent: true },
     ];
   },
 };

@@ -23,7 +23,7 @@ const now = new Date('2026-11-05T12:30:00Z');
 function draft(overrides: Partial<WizardDraft> = {}): WizardDraft {
   return {
     ...emptyDraft(now),
-    customerId: 'customer-1',
+    campaignId: 'campaign-1',
     startUrl: 'https://beispiel.de/kontakt',
     name: 'Kontaktformular-Test',
     confirmed: true,
@@ -120,7 +120,7 @@ describe('toNewJobInput', () => {
     );
 
     expect(input).toMatchObject({
-      customerId: 'customer-1',
+      campaignId: 'campaign-1',
       name: 'Kontaktformular-Test',
       startUrl: 'https://beispiel.de/kontakt',
       devices: ['desktop', 'iphone'],
@@ -271,12 +271,12 @@ describe('validateWizardStep', () => {
 
   it('asks only for project and name in the first step', () => {
     const issues = validateWizardStep(
-      draft({ customerId: '', name: ' ', startUrl: '', confirmed: false }),
+      draft({ campaignId: '', name: ' ', startUrl: '', confirmed: false }),
       'job',
       now,
     );
     expect(issues).toEqual([
-      { path: 'customerId', message: 'Bitte ein Projekt wählen.' },
+      { path: 'campaignId', message: 'Bitte eine Kampagne wählen.' },
       { path: 'name', message: 'Name fehlt.' },
     ]);
   });
@@ -398,7 +398,7 @@ describe('withStartUrl', () => {
 
 describe('wizardStepOf', () => {
   it.each([
-    ['customerId', 'job'],
+    ['campaignId', 'job'],
     ['startUrl', 'flow'],
     ['name', 'job'],
     ['confirmed', 'devices'],
@@ -467,11 +467,11 @@ describe('scheduleErrors', () => {
 });
 
 describe('summarise', () => {
-  const customers = [{ id: 'customer-1', name: 'Beispiel GmbH' }];
+  const campaigns = [{ id: 'campaign-1', name: 'Black Friday' }];
 
   it('shows dashes for what is not decided yet', () => {
-    expect(summarise(emptyDraft(now), customers, now)).toEqual([
-      { label: 'Projekt', value: '–' },
+    expect(summarise(emptyDraft(now), campaigns, now)).toEqual([
+      { label: 'Kampagne', value: '–' },
       { label: 'Website', value: '–' },
       { label: 'Job-Name', value: '–' },
       { label: 'Ablauf', value: '–' },
@@ -497,11 +497,11 @@ describe('summarise', () => {
           ],
         },
       }),
-      customers,
+      campaigns,
       now,
     );
     expect(rows).toEqual([
-      { label: 'Projekt', value: 'Beispiel GmbH' },
+      { label: 'Kampagne', value: 'Black Friday' },
       { label: 'Website', value: 'beispiel.de/kontakt' },
       { label: 'Job-Name', value: 'Kontaktformular-Test' },
       { label: 'Ablauf', value: '2 Schritte' },
@@ -515,7 +515,7 @@ describe('summarise', () => {
     const fresh = emptyDraft(now);
     const rows = summarise(
       draft({ schedule: { ...fresh.schedule, everyMinutes: '' } }),
-      customers,
+      campaigns,
       now,
     );
     expect(rows.find((row) => row.label === 'Zeitplan')?.value).toBe('–');

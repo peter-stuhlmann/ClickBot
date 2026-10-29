@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { db, insertCustomer } from '../test/db';
+import { db, insertCampaign, insertCustomer } from '../test/db';
 import { ValidationError } from './errors';
 import { createJob, type Job } from './jobs';
 import { getDashboardStats, listJobOverview, setJobActive } from './overview';
@@ -14,8 +14,9 @@ const flow = { version: 1, steps: [{ id: 'open', type: 'open', url: 'https://bei
 
 async function job(name: string, overrides: Record<string, unknown> = {}): Promise<Job> {
   const customer = await insertCustomer(`Kunde ${name}`, `kunde-${name.toLowerCase()}`);
+  const { campaignId } = await insertCampaign('Allgemein', customer);
   return createJob(db, {
-    customerId: customer.id,
+    campaignId,
     name,
     startUrl: 'https://beispiel.de/kontakt',
     flow,
@@ -45,6 +46,13 @@ async function finishedRun(
 }
 
 describe('listJobOverview', () => {
+  it('lists only the jobs of the chosen project', async () => {
+    const mine = await job('Meins');
+    await job('Fremd');
+    const rows = await listJobOverview(db, { customerId: mine.customerId });
+    expect(rows.map((row) => row.name)).toEqual(['Meins']);
+  });
+
   it('summarises progress, last run and success rate per job', async () => {
     const contact = await job('Kontakt');
     await finishedRun(contact.id, 'passed', minutesAgo(33));
@@ -56,6 +64,7 @@ describe('listJobOverview', () => {
     expect(row).toMatchObject({
       name: 'Kontakt',
       customerName: 'Kunde Kontakt',
+      campaignName: 'Allgemein',
       runsDone: 3,
       runsPlanned: 20,
       lastRun: { id: expect.any(String), status: 'warning', finishedAt: minutesAgo(3) },
@@ -115,6 +124,19 @@ describe('listJobOverview', () => {
 });
 
 describe('getDashboardStats', () => {
+  it('counts only the jobs and runs of the chosen project', async () => {
+    const mine = await job('Meins');
+    const other = await job('Fremd');
+    await finishedRun(mine.id, 'passed', minutesAgo(10));
+    await finishedRun(other.id, 'failed', minutesAgo(10));
+    expect(await getDashboardStats(db, now, { customerId: mine.customerId })).toMatchObject({
+      activeJobs: 0,
+      runsToday: 1,
+      successRate7d: { successful: 1, finished: 1 },
+      failures24h: { count: 0, jobNames: [] },
+    });
+  });
+
   it('counts active and finished jobs', async () => {
     const a = await job('A');
     const b = await job('B');

@@ -1,4 +1,4 @@
-import { getRunReport, getWorkerStatus, NotFoundError } from '@click-bot/db';
+import { getRunReport, NotFoundError } from '@click-bot/db';
 import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 import { Notice } from '@/components/molecules/Notice';
@@ -9,8 +9,9 @@ import { StatGrid } from '@/components/organisms/StatGrid';
 import { AppShell } from '@/components/templates/AppShell';
 import { ReportLayout } from '@/components/templates/ReportLayout';
 import { getDb } from '@/server/db';
+import { getShell } from '@/server/shell';
 import { toRunReportView } from '@/server/run-report-view';
-import { getCurrentUser } from '@/server/session';
+import { selectProjectAction } from '../../actions';
 import { AutoRefresh } from './auto-refresh';
 
 export const dynamic = 'force-dynamic';
@@ -22,19 +23,16 @@ type Props = { params: Promise<{ id: string }> };
 /** Screen 03 "Lauf-Report": one run of a job, step by step. */
 export default async function RunReportPage({ params }: Props) {
   // Auth first: nothing is read for someone who is not signed in.
-  const user = await getCurrentUser();
-  const { id } = await params;
   const db = getDb();
   const now = new Date();
-  const [report, worker] = await Promise.all([
-    getRunReport(db, id).catch((error: unknown) => {
-      if (error instanceof NotFoundError) return null;
-      throw error;
-    }),
-    getWorkerStatus(db, now),
-  ]);
+  const shell = await getShell(db, now);
+  const { id } = await params;
+  const report = await getRunReport(db, id).catch((error: unknown) => {
+    if (error instanceof NotFoundError) return null;
+    throw error;
+  });
   if (!report) notFound();
-  const view = toRunReportView(report, { workerOnline: worker.online });
+  const view = toRunReportView(report, { workerOnline: shell.worker.online });
 
   const aside =
     view.failure || view.screenshot || view.marking ? (
@@ -54,7 +52,7 @@ export default async function RunReportPage({ params }: Props) {
     ) : undefined;
 
   return (
-    <AppShell active="jobs" user={user} worker={worker}>
+    <AppShell active="jobs" {...shell} selectProject={selectProjectAction}>
       <ReportLayout
         header={
           <PageHeader

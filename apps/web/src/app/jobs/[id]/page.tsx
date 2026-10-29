@@ -1,4 +1,4 @@
-import { getJob, getWorkerStatus, listStartedSlots, NotFoundError } from '@click-bot/db';
+import { getJob, listStartedSlots, NotFoundError } from '@click-bot/db';
 import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 import { Notice } from '@/components/molecules/Notice';
@@ -6,9 +6,9 @@ import { PageHeader } from '@/components/organisms/PageHeader';
 import { AppShell } from '@/components/templates/AppShell';
 import { jobToDraft } from '@/lib/job-draft';
 import { getDb } from '@/server/db';
+import { getShell } from '@/server/shell';
 import { toJobHeader } from '@/server/job-editor-view';
-import { getCurrentUser } from '@/server/session';
-import { startTestRunAction, updateJobAction } from '../../actions';
+import { selectProjectAction, startTestRunAction, updateJobAction } from '../../actions';
 import { JobEditor } from './job-editor';
 
 export const dynamic = 'force-dynamic';
@@ -20,17 +20,14 @@ type Props = { params: Promise<{ id: string }> };
 /** Screen 02 "Editor": change an existing job. */
 export default async function JobEditorPage({ params }: Props) {
   // Auth first: nothing is read for someone who is not signed in.
-  const user = await getCurrentUser();
-  const { id } = await params;
   const db = getDb();
   const now = new Date();
-  const [job, worker] = await Promise.all([
-    getJob(db, id).catch((error: unknown) => {
-      if (error instanceof NotFoundError) return null;
-      throw error;
-    }),
-    getWorkerStatus(db, now),
-  ]);
+  const shell = await getShell(db, now);
+  const { id } = await params;
+  const job = await getJob(db, id).catch((error: unknown) => {
+    if (error instanceof NotFoundError) return null;
+    throw error;
+  });
   if (!job) notFound();
 
   const startedSlots = await listStartedSlots(db, job.id);
@@ -38,7 +35,7 @@ export default async function JobEditorPage({ params }: Props) {
   const header = toJobHeader(job);
 
   return (
-    <AppShell active="jobs" user={user} worker={worker}>
+    <AppShell active="jobs" {...shell} selectProject={selectProjectAction}>
       {'draft' in loaded ? (
         <JobEditor
           jobId={job.id}

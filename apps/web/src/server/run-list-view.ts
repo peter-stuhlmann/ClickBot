@@ -14,7 +14,7 @@ export function toRunListRow(row: RunListRow): RunListRowView {
     jobName: row.jobName,
     detail: `Lauf #${row.runNr} · ${deviceLabel(row.device)} · ${browserLabel(row.browser)} · Bot ${row.botNr}`,
     testRun: row.slotIndex === null,
-    customer: row.customerName,
+    campaign: row.campaignName,
     when: formatShortDateTime(startedOrPlanned),
     duration:
       row.startedAt && row.finishedAt

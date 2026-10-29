@@ -10,7 +10,7 @@ import type { RunListRowView } from '@/lib/views';
 // the job, so the job column keeps its width next to the filters.
 const COLUMNS = [
   { label: 'Job · Lauf', width: 'w-auto' },
-  { label: 'Projekt', width: 'w-32' },
+  { label: 'Kampagne', width: 'w-32' },
   // Time and duration on two lines, so a narrow column never breaks inside a value.
   { label: 'Zeitpunkt · Dauer', width: 'w-32' },
   { label: 'Ergebnis', width: 'w-36' },
@@ -69,7 +69,7 @@ export function RunsTable({ rows, summary, pager }: RunsTableProps) {
               key={row.id}
               role="row"
               className={cn(
-                // Dense, so the result fills the gap beside the customer on small screens.
+                // Dense, so the result fills the gap beside the campaign on small screens.
                 'grid grid-flow-row-dense grid-cols-2 gap-x-3 gap-y-1 border-b border-divider py-3 last:border-0 md:table-row md:py-0',
                 row.failed && 'bg-danger-soft',
               )}
@@ -101,7 +101,7 @@ export function RunsTable({ rows, summary, pager }: RunsTableProps) {
                 </Link>
               </td>
               <td role="cell" className="mt-1 truncate text-body text-text md:mt-0 md:py-3 md:pr-3">
-                {row.customer}
+                {row.campaign}
               </td>
               <td
                 role="cell"

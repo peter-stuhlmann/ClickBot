@@ -18,8 +18,8 @@ die Einstellungen der KI-Anbieter stehen.
   - `apps/web`:
     - App-Rahmen mit Sidebar
     - Screen 01 „Jobs“ mit echten Daten, inklusive Pausieren und Fortsetzen
-    - Screen 05 „Neuer Job“ (`/jobs/neu`): Assistent in vier Schritten: Job (nur Projekt und
-      Name), Ablauf (Start-URL oben, der erste Schritt „Seite öffnen“ folgt ihr, solange er nicht
+    - Screen 05 „Neuer Job“ (`/jobs/neu`): Assistent in vier Schritten: Job (Kampagne des
+      aktuellen Projekts und Name; mit nur einer Kampagne ist sie vorausgewählt), Ablauf (Start-URL oben, der erste Schritt „Seite öffnen“ folgt ihr, solange er nicht
       von Hand geändert wurde), Zeitplan, Geräte (mit der Freigabe am Ende). Am Ende wird der Job aktiv angelegt und läuft nach Zeitplan. Den
       Ablauf gibt es zusammengeklickt, „Mit KI beschreiben“ (Screen 06, siehe Abschnitt KI) oder
       „Im Browser aufnehmen“ (Screen 04, siehe Worker → Live-Browser).
@@ -29,11 +29,18 @@ die Einstellungen der KI-Anbieter stehen.
     - „Testlauf starten“ im Editor: speichert offene Änderungen, startet einen Bot auf dem
       ersten Gerät und öffnet dessen Report. Der Report lädt sich alle 2 s neu, solange der
       Lauf wartet oder läuft.
-    - Screen 10 „Kunden“, in der App „Projekte“ (`/projekte`), mit Kennzahlen und „Projekt
-      anlegen“ (`/projekte/neu`). Alte Links auf `/kunden` leiten weiter (`next.config.ts`).
-      Die Spalte „Wochen-PDF“ fehlt, bis es das PDF gibt.
+    - Projekt → Kampagne → Job: Oben in der Sidebar wählt der Projekt-Umschalter
+      (`ProjectSwitcher`, Suche filtert beim Tippen, „Neues Projekt“ fest unten) das aktuelle
+      Projekt. Es liegt im Cookie `clickbot_project` (`src/server/shell.ts`, `getShell`, ohne
+      gültigen Cookie das erste nach Name). Jobs, Läufe, Kampagnen und der Assistent zeigen nur
+      dieses Projekt.
+    - „Kampagnen“ (`/kampagnen`, aus Screen 10 „Kunden“): Kennzahlen und eine Zeile je Kampagne
+      des Projekts. „Kampagne anlegen“ (`/kampagnen/neu`): Name, optional Zeitraum und Notiz.
+      „Projekt anlegen“ (`/projekte/neu`) macht das neue Projekt zum aktuellen. `/projekte` und
+      `/kunden` leiten auf `/kampagnen` weiter (`next.config.ts`). Die Spalte „Wochen-PDF“
+      fehlt, bis es das PDF gibt.
     - Screen 14 „Läufe“ (`/laeufe`): alle Läufe, neueste zuerst, 50 je Seite, mit Filtern nach
-      Projekt, Ergebnis, Zeitraum und Gerät. Die Filter stehen in der Adresse (GET-Formular,
+      Kampagne, Ergebnis, Zeitraum und Gerät. Die Filter stehen in der Adresse (GET-Formular,
       `src/lib/run-filters.ts`). CSV, Sammel-PDF, gespeicherte Ansichten und Standort fehlen.
     - Screen 03 „Lauf-Report“ (`/laeufe/<id>`), erreichbar über „Letzter Lauf“ in der
       Job-Liste: Kennzahlen, Schritte mit Ergebnis, Fehler und Bildschirmfoto
@@ -115,6 +122,14 @@ Die Pakete unter `packages/` liefern TypeScript-Quelltext aus, ohne eigenen Buil
   gemeint ist, z. B. bei der Freigabe des Tests. Namen sind eindeutig, ohne Groß- und Kleinschreibung. Das
   Kürzel (`slug`) entsteht aus dem Namen („Müller Shop“ → `mueller-shop`), bei Bedarf mit
   `-2`, `-3`. Bearbeiten und Löschen gibt es noch nicht.
+- **Kampagnen** (`campaigns.ts`, Tabelle `campaigns`): Jedes Projekt hat Kampagnen, jeder Job
+  gehört zu genau einer (`jobs.campaign_id`, Pflicht). Ein zusammengesetzter Fremdschlüssel
+  (`campaign_id`, `customer_id`) sorgt dafür, dass Job und Kampagne im selben Projekt liegen.
+  - Namen sind je Projekt eindeutig, ohne Groß- und Kleinschreibung. Zeitraum als Kalenderdaten,
+    Ende nicht vor dem Start.
+  - Ein neues Projekt startet mit der Kampagne „Allgemein“ (`createCustomer`). Die Jobs von vor
+    den Kampagnen liegen in „Allgemein“ ihres Projekts (Migration 0008).
+  - `createJob` bekommt die Kampagne; das Projekt des Jobs ergibt sich daraus.
 - **Jobs** legt `createJob` als Entwurf an. Mit `status: 'active'` (Assistent) plant der
   Worker sie sofort ein.
 - **Jobs ändern** (`updateJob`, Editor):
@@ -172,7 +187,7 @@ Die Pakete unter `packages/` liefern TypeScript-Quelltext aus, ohne eigenen Buil
 - **Laufnummern** (`{{run_nr}}`) vergibt `allocateRunNumber` atomar per
   `UPDATE … RETURNING`, nie über `max()+1`.
 - **Löschregeln:**
-  - Ein Kunde mit Jobs lässt sich nicht löschen.
+  - Ein Kunde mit Kampagnen und eine Kampagne mit Jobs lassen sich nicht löschen.
   - Ein Job nimmt seine Läufe und Schritte mit.
 - **Tests:**
   - Laufen gegen `db-test`. Vor jedem Testlauf wird die Datenbank aus den Migrationen neu

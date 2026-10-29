@@ -11,6 +11,7 @@ const row = (overrides: Partial<JobOverviewRow> = {}): JobOverviewRow => ({
   startUrl: 'https://beispiel.de/kontakt',
   status: 'active',
   customerName: 'Beispiel GmbH',
+  campaignName: 'Black Friday',
   schedule: { type: 'interval', everyMinutes: 15, maxRuns: 20, startAt: '2026-11-05T10:00:00Z' },
   runsDone: 7,
   runsPlanned: 20,
@@ -24,6 +25,7 @@ describe('toJobRow', () => {
     expect(toJobRow(row(), now)).toEqual({
       id: 'job-1',
       name: 'Kontaktformular-Test',
+      campaign: 'Black Friday',
       url: 'beispiel.de/kontakt',
       schedule: { primary: 'alle 15 Min.', secondary: 'max. 20 Läufe' },
       progress: { label: '7 / 20 Läufe', value: 0.35 },

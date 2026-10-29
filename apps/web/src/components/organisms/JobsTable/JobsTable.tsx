@@ -128,8 +128,10 @@ export function JobsTable({ rows, toggleAction }: JobsTableProps) {
                 >
                   {row.name}
                 </Link>
-                <div className="mt-0.5 truncate font-mono text-small text-text-muted">
-                  {row.url}
+                <div className="mt-0.5 truncate text-small text-text-muted">
+                  <span className="font-medium text-text-secondary">{row.campaign}</span>
+                  {' · '}
+                  <span className="font-mono">{row.url}</span>
                 </div>
               </td>
               <td role="cell" className="xl:py-3.5">

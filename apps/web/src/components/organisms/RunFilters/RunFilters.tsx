@@ -5,8 +5,9 @@ import { Field } from '@/components/molecules/Field';
 
 export type RunFiltersProps = {
   /** Current filter values, as in the address. */
-  values: { projekt: string; ergebnis: string; zeitraum: string; geraet: string };
-  customers: SelectOption[];
+  values: { kampagne: string; ergebnis: string; zeitraum: string; geraet: string };
+  /** The campaigns of the current project. */
+  campaigns: SelectOption[];
   results: readonly SelectOption[];
   periods: readonly SelectOption[];
   devices: readonly SelectOption[];
@@ -16,7 +17,7 @@ export type RunFiltersProps = {
  * Filters of the run list as a plain GET form: the result is a link that can be bookmarked,
  * and it works without JavaScript.
  */
-export function RunFilters({ values, customers, results, periods, devices }: RunFiltersProps) {
+export function RunFilters({ values, campaigns, results, periods, devices }: RunFiltersProps) {
   return (
     // No title: the bar stays at the top while the runs scroll, so it is kept low.
     <Card>
@@ -33,14 +34,14 @@ export function RunFilters({ values, customers, results, periods, devices }: Run
         className="grid grid-cols-2 gap-3 sm:gap-4 md:grid-cols-4 xl:flex xl:items-end"
       >
         <div className="min-w-0 xl:flex-1">
-          <Field id="filter-project" label="Projekt">
+          <Field id="filter-campaign" label="Kampagne">
             {(control) => (
               <Select
                 {...control}
-                name="projekt"
-                options={customers}
-                placeholder="Alle Projekte"
-                defaultValue={values.projekt}
+                name="kampagne"
+                options={campaigns}
+                placeholder="Alle Kampagnen"
+                defaultValue={values.kampagne}
               />
             )}
           </Field>

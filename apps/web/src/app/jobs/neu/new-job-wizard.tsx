@@ -42,7 +42,8 @@ import type { FlowSuggestionResult, StartRecordingAction, SuggestFlowAction } fr
 import { useLiveRecording } from './use-live-recording';
 
 export type NewJobWizardProps = {
-  customers: { id: string; name: string }[];
+  /** The campaigns of the current project; with only one, it is chosen right away. */
+  campaigns: { id: string; name: string }[];
   /** Server time of the request, so the defaults are the same on server and client. */
   now: string;
   createAction: (draft: WizardDraft) => Promise<{ issues: Issue[] }>;
@@ -57,14 +58,17 @@ const NOT_SAVED =
 
 /** State and navigation of the "Neuer Job" wizard (screens 05 and 05b). */
 export function NewJobWizard({
-  customers,
+  campaigns,
   now,
   createAction,
   suggestAction,
   startRecording,
 }: NewJobWizardProps) {
   const renderedAt = useMemo(() => new Date(now), [now]);
-  const [draft, setDraft] = useState(() => emptyDraft(renderedAt));
+  const [draft, setDraft] = useState(() => ({
+    ...emptyDraft(renderedAt),
+    campaignId: campaigns.length === 1 ? (campaigns[0]?.id ?? '') : '',
+  }));
   const [current, setCurrent] = useState(0);
   const [issues, setIssues] = useState<Issue[]>([]);
   const [selected, setSelected] = useState<number | null>(null);
@@ -154,7 +158,7 @@ export function NewJobWizard({
   switch (step.key) {
     case 'job':
       content = (
-        <JobBasicsForm values={draft} customers={customers} errors={errors} onChange={update} />
+        <JobBasicsForm values={draft} campaigns={campaigns} errors={errors} onChange={update} />
       );
       break;
     case 'flow':
@@ -310,7 +314,7 @@ export function NewJobWizard({
       stepper={<WizardStepper steps={WIZARD_STEPS} current={current} onSelect={goTo} />}
       aside={
         <JobSummary
-          rows={summarise(draft, customers, renderedAt)}
+          rows={summarise(draft, campaigns, renderedAt)}
           note={
             current >= 2 && runTotal
               ? `${runTotal}. Der Job startet direkt nach dem Anlegen.`

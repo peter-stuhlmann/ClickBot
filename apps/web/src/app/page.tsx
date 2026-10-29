@@ -1,4 +1,4 @@
-import { getDashboardStats, getWorkerStatus, listJobOverview } from '@click-bot/db';
+import { getDashboardStats, listJobOverview } from '@click-bot/db';
 import { Button } from '@/components/atoms/Button';
 import { Icon } from '@/components/atoms/Icon';
 import { JobsTable } from '@/components/organisms/JobsTable';
@@ -7,28 +7,28 @@ import { StatGrid } from '@/components/organisms/StatGrid';
 import { AppShell } from '@/components/templates/AppShell';
 import { getDb } from '@/server/db';
 import { toJobRow, toStatCards } from '@/server/jobs-view';
-import { getCurrentUser } from '@/server/session';
-import { toggleJobAction } from './actions';
+import { getShell, projectScope } from '@/server/shell';
+import { selectProjectAction, toggleJobAction } from './actions';
 
 // Live data: never prerender at build time.
 export const dynamic = 'force-dynamic';
 
+/** Screen 01 "Jobs": the jobs of the current project. */
 export default async function JobsPage() {
-  // Auth first: nothing is read for someone who is not signed in.
-  const user = await getCurrentUser();
   const db = getDb();
   const now = new Date();
-  const [rows, stats, worker] = await Promise.all([
-    listJobOverview(db),
-    getDashboardStats(db, now),
-    getWorkerStatus(db, now),
+  const shell = await getShell(db, now);
+  const scope = projectScope(shell.project);
+  const [rows, stats] = await Promise.all([
+    listJobOverview(db, scope),
+    getDashboardStats(db, now, scope),
   ]);
 
   return (
-    <AppShell active="jobs" user={user} worker={worker}>
+    <AppShell active="jobs" {...shell} selectProject={selectProjectAction}>
       <PageHeader
         title="Jobs"
-        description="Automatisierte Browser-Abläufe, die nach Zeitplan laufen."
+        description={`${shell.project?.name ?? 'Kein Projekt'} · Automatisierte Browser-Abläufe, die nach Zeitplan laufen.`}
         actions={
           <Button href="/jobs/neu" icon={<Icon name="plus" size={16} />}>
             Neuer Job

@@ -1,20 +1,40 @@
 import 'server-only';
-import type { CustomerOverviewRow, CustomerStats } from '@click-bot/db';
+import type { CampaignOverviewRow, CampaignStats } from '@click-bot/db';
 import { formatPercent, formatRelative, plural } from '@/lib/format';
-import type { CustomerRowView, StatCardView } from '@/lib/views';
+import type { CampaignRowView, StatCardView } from '@/lib/views';
 import { RUN_BADGE, successTone } from './jobs-view';
 
-/** Screen 10: one row of the customer table. */
-export function toCustomerRow(row: CustomerOverviewRow, now: Date): CustomerRowView {
+/** "2026-11-20" → "20.11.2026"; parts split, so the year can be left out of a range. */
+function parts(date: string): { day: string; year: string } {
+  const [year = '', month = '', day = ''] = date.split('-');
+  return { day: `${day}.${month}.`, year };
+}
+
+/** "20.11.–30.11.2026", "ab 20.11.2026", "bis 30.11.2026", or null without a period. */
+export function describePeriod(startsOn: string | null, endsOn: string | null): string | null {
+  if (startsOn && endsOn) {
+    const from = parts(startsOn);
+    const to = parts(endsOn);
+    const start = from.year === to.year ? from.day : `${from.day}${from.year}`;
+    return `${start}–${to.day}${to.year}`;
+  }
+  if (startsOn) return `ab ${parts(startsOn).day}${parts(startsOn).year}`;
+  if (endsOn) return `bis ${parts(endsOn).day}${parts(endsOn).year}`;
+  return null;
+}
+
+/** One row of the campaign table. */
+export function toCampaignRow(row: CampaignOverviewRow, now: Date): CampaignRowView {
   const [firstHost] = row.hosts;
   const { finished, successful } = row.runs30d;
   const rate = finished > 0 ? successful / finished : null;
+  const websites = firstHost
+    ? `${firstHost} · ${plural(row.hosts.length, 'Website', 'Websites')}`
+    : 'noch keine Website';
   return {
     id: row.id,
     name: row.name,
-    websites: firstHost
-      ? `${firstHost} · ${plural(row.hosts.length, 'Website', 'Websites')}`
-      : 'noch keine Website',
+    detail: [describePeriod(row.startsOn, row.endsOn), websites].filter(Boolean).join(' · '),
     jobs: {
       primary: plural(row.jobs.total, 'Job', 'Jobs'),
       secondary:
@@ -48,15 +68,14 @@ function change(current: number, previous: number): string {
   return `${sign}${Math.abs(percent)} % zu den 30 Tagen davor`;
 }
 
-/** The four figures above the customer table. */
-export function toCustomerStatCards(stats: CustomerStats): StatCardView[] {
+/** The four figures above the campaign table, for the current project. */
+export function toCampaignStatCards(stats: CampaignStats): StatCardView[] {
   const { successful, finished } = stats.successRate30d;
   return [
     {
-      label: 'Projekte',
-      value: String(stats.customers),
-      hint:
-        stats.customers > 0 ? `${stats.newThisMonth} neu in diesem Monat` : 'noch keine Projekte',
+      label: 'Kampagnen',
+      value: String(stats.campaigns),
+      hint: stats.campaigns > 0 ? 'in diesem Projekt' : 'noch keine Kampagnen',
     },
     {
       label: 'Jobs gesamt',

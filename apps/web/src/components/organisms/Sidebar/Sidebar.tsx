@@ -4,12 +4,13 @@ import { useEffect, useId, useRef, useState, type MouseEvent } from 'react';
 import { Icon } from '@/components/atoms/Icon';
 import { LogoMark } from '@/components/atoms/LogoMark';
 import { NavItem, type NavItemProps } from '@/components/molecules/NavItem';
+import { ProjectSwitcher, type ProjectOption } from '@/components/molecules/ProjectSwitcher';
 import { UserCard, type UserCardProps } from '@/components/molecules/UserCard';
 import { WorkerStatus, type WorkerStatusProps } from '@/components/molecules/WorkerStatus';
 import { cn } from '@/lib/cn';
 
 export const NAVIGATION = [
-  { key: 'projekte', href: '/projekte', label: 'Projekte', icon: 'folder' },
+  { key: 'kampagnen', href: '/kampagnen', label: 'Kampagnen', icon: 'megaphone' },
   { key: 'jobs', href: '/', label: 'Jobs', icon: 'bot' },
   { key: 'kalender', href: '/kalender', label: 'Kalender', icon: 'calendar' },
   { key: 'laeufe', href: '/laeufe', label: 'Läufe', icon: 'history' },
@@ -24,6 +25,10 @@ export type SidebarProps = {
   worker: WorkerStatusProps;
   /** Null until someone is signed in. */
   user: UserCardProps | null;
+  /** The projects for the switcher above the navigation; the pages show `project`. */
+  projects: ProjectOption[];
+  project: ProjectOption | null;
+  selectProject: (projectId: string) => void;
 };
 
 const iconButton =
@@ -43,7 +48,7 @@ function Brand() {
  * bottom however long the page is. Below that a top bar whose menu button opens the same column
  * as a drawer.
  */
-export function Sidebar({ active, worker, user }: SidebarProps) {
+export function Sidebar({ active, worker, user, projects, project, selectProject }: SidebarProps) {
   const [open, setOpen] = useState(false);
   const drawerId = useId();
   const menuButton = useRef<HTMLButtonElement>(null);
@@ -113,6 +118,15 @@ export function Sidebar({ active, worker, user }: SidebarProps) {
           >
             <Icon name="close" size={18} />
           </button>
+        </div>
+
+        <div className="pb-4">
+          <ProjectSwitcher
+            projects={projects}
+            current={project}
+            onSelect={selectProject}
+            newProjectHref="/projekte/neu"
+          />
         </div>
 
         <nav aria-label="Hauptnavigation" className="flex flex-col gap-1">

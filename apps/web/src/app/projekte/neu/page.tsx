@@ -1,25 +1,23 @@
-import { getWorkerStatus } from '@click-bot/db';
 import type { Metadata } from 'next';
 import { CustomerForm } from '@/components/organisms/CustomerForm';
 import { PageHeader } from '@/components/organisms/PageHeader';
 import { AppShell } from '@/components/templates/AppShell';
 import { getDb } from '@/server/db';
-import { getCurrentUser } from '@/server/session';
-import { createCustomerAction } from '../../actions';
+import { getShell } from '@/server/shell';
+import { createCustomerAction, selectProjectAction } from '../../actions';
 
 export const dynamic = 'force-dynamic';
 
 export const metadata: Metadata = { title: 'Projekt anlegen · Click-Bot' };
 
 export default async function NewCustomerPage() {
-  const user = await getCurrentUser();
-  const worker = await getWorkerStatus(getDb(), new Date());
+  const shell = await getShell(getDb(), new Date());
 
   return (
-    <AppShell active="projekte" user={user} worker={worker}>
+    <AppShell active="kampagnen" {...shell} selectProject={selectProjectAction}>
       <PageHeader
         title="Projekt anlegen"
-        breadcrumb={[{ label: 'Projekte', href: '/projekte' }, { label: 'Projekt anlegen' }]}
+        description="Ein Projekt fasst Kampagnen und Jobs eines Kunden oder einer Website zusammen. Es startet mit der Kampagne „Allgemein“."
       />
       <CustomerForm action={createCustomerAction} />
     </AppShell>

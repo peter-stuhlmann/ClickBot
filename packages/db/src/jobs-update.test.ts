@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { db, insertCustomer } from '../test/db';
+import { db, insertCampaign } from '../test/db';
 import { NotFoundError, ValidationError } from './errors';
 import { createJob, getJob, listStartedSlots, updateJob, type JobUpdateInput } from './jobs';
 import { runs } from './schema';
@@ -19,9 +19,9 @@ const slotA = { date: '2026-11-05', time: '13:24', bots: 3 };
 const slotB = { date: '2026-11-05', time: '13:38', bots: 1 };
 
 async function newJob(schedule: unknown = times([slotA, slotB])) {
-  const customer = await insertCustomer();
+  const { campaignId } = await insertCampaign();
   const job = await createJob(db, {
-    customerId: customer.id,
+    campaignId,
     name: 'Kontaktformular-Test',
     startUrl: 'https://beispiel.de/kontakt',
     flow,

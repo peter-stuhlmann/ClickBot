@@ -15,14 +15,15 @@ import { z } from 'zod';
 import type { Database } from './client';
 import { NotFoundError, ValidationError, issuesFromZod, type ValidationIssue } from './errors';
 import { isUuid } from './ids';
-import { browser, customers, device, jobs, runs } from './schema';
+import { browser, campaigns, device, jobs, runs } from './schema';
 
 export type Job = typeof jobs.$inferSelect;
 export type Device = (typeof device.enumValues)[number];
 export type Browser = (typeof browser.enumValues)[number];
 
 export type NewJobInput = {
-  customerId: string;
+  /** The campaign the job belongs to; its project becomes the job's project. */
+  campaignId: string;
   name: string;
   startUrl: string;
   /** Untrusted input, validated with flowSchema. */
@@ -38,15 +39,23 @@ export type NewJobInput = {
   status?: 'draft' | 'active';
 };
 
-async function checkCustomer(db: Database, customerId: string): Promise<ValidationIssue | null> {
-  if (customerId === '') return { path: 'customerId', message: 'Bitte ein Projekt wählen.' };
-  const exists =
-    isUuid(customerId) &&
-    (await db.query.customers.findFirst({
-      where: eq(customers.id, customerId),
-      columns: { id: true },
+/** The project of the campaign, or the problem with the campaign. */
+async function campaignProject(
+  db: Database,
+  campaignId: string,
+): Promise<{ customerId: string } | { issue: ValidationIssue }> {
+  if (campaignId === '') {
+    return { issue: { path: 'campaignId', message: 'Bitte eine Kampagne wählen.' } };
+  }
+  const campaign =
+    isUuid(campaignId) &&
+    (await db.query.campaigns.findFirst({
+      where: eq(campaigns.id, campaignId),
+      columns: { customerId: true },
     }));
-  return exists ? null : { path: 'customerId', message: 'Projekt nicht gefunden.' };
+  return campaign
+    ? { customerId: campaign.customerId }
+    : { issue: { path: 'campaignId', message: 'Kampagne nicht gefunden.' } };
 }
 
 const startUrlSchema = z.string().refine((value) => {
@@ -138,14 +147,19 @@ function validateFields(
 /** Validates everything first and reports all problems at once; writes nothing if one fails. */
 export async function createJob(db: Database, input: NewJobInput): Promise<Job> {
   const issues: ValidationIssue[] = [];
-  const customerIssue = await checkCustomer(db, input.customerId);
-  if (customerIssue) issues.push(customerIssue);
+  const project = await campaignProject(db, input.campaignId);
+  if ('issue' in project) issues.push(project.issue);
   const fields = validateFields(input, issues);
-  if (customerIssue || !fields) throw new ValidationError(issues);
+  if ('issue' in project || !fields) throw new ValidationError(issues);
 
   const [job] = await db
     .insert(jobs)
-    .values({ customerId: input.customerId, ...fields, status: input.status ?? 'draft' })
+    .values({
+      campaignId: input.campaignId,
+      customerId: project.customerId,
+      ...fields,
+      status: input.status ?? 'draft',
+    })
     .returning();
   return job as Job;
 }

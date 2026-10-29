@@ -1,4 +1,4 @@
-import { getWorkerStatus, listOpenInvitations, listUsers } from '@click-bot/db';
+import { listOpenInvitations, listUsers } from '@click-bot/db';
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import { Notice } from '@/components/molecules/Notice';
@@ -11,8 +11,9 @@ import { SettingsLayout } from '@/components/templates/SettingsLayout';
 import { SETTINGS_TABS } from '@/lib/settings-tabs';
 import { currentSession, requireUser } from '@/server/auth';
 import { getDb } from '@/server/db';
-import { getCurrentUser } from '@/server/session';
+import { getShell } from '@/server/shell';
 import { toInvitation, toTeamMember } from '@/server/team-view';
+import { selectProjectAction } from '../../actions';
 import { createInvitationAction, revokeInvitationAction } from '../../auth-actions';
 
 export const dynamic = 'force-dynamic';
@@ -22,19 +23,18 @@ export const metadata: Metadata = { title: 'Team · Click-Bot' };
 /** "Einstellungen → Team": accounts and invitations. Only admins invite. */
 export default async function TeamPage() {
   const signedIn = await requireUser();
-  const user = await getCurrentUser();
   const isAdmin = signedIn.role === 'admin';
   const hasTotp = (await currentSession())?.hasTotp ?? false;
   const db = getDb();
   const now = new Date();
-  const [members, invitations, worker] = await Promise.all([
+  const [shell, members, invitations] = await Promise.all([
+    getShell(db, now),
     listUsers(db),
     isAdmin ? listOpenInvitations(db, now) : Promise.resolve([]),
-    getWorkerStatus(db, now),
   ]);
 
   return (
-    <AppShell active="einstellungen" user={user} worker={worker}>
+    <AppShell active="einstellungen" {...shell} selectProject={selectProjectAction}>
       <SettingsLayout
         header={
           <PageHeader

@@ -48,7 +48,7 @@ const times: Schedule = {
 };
 
 const job = (overrides: Partial<Parameters<typeof jobToDraft>[0]> = {}) => ({
-  customerId: 'customer-1',
+  campaignId: 'campaign-1',
   name: 'Kontaktformular-Test',
   startUrl: 'https://beispiel.de/kontakt',
   flow,
@@ -69,7 +69,7 @@ describe('jobToDraft', () => {
   it('fills the forms with the stored job', () => {
     const draft = draftOf();
     expect(draft).toMatchObject({
-      customerId: 'customer-1',
+      campaignId: 'campaign-1',
       name: 'Kontaktformular-Test',
       startUrl: 'https://beispiel.de/kontakt',
       confirmed: true,

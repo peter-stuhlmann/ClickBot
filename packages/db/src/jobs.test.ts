@@ -1,6 +1,6 @@
 import { eq } from 'drizzle-orm';
 import { describe, expect, it } from 'vitest';
-import { db, insertCustomer, single } from '../test/db';
+import { db, insertCampaign, single } from '../test/db';
 import { NotFoundError, ValidationError } from './errors';
 import { allocateRunNumber, createJob, getJob } from './jobs';
 import { customers, jobs, runSteps, runs } from './schema';
@@ -19,9 +19,9 @@ const validSchedule = {
 };
 
 async function newJob(overrides: Record<string, unknown> = {}) {
-  const customer = await insertCustomer();
+  const { campaignId } = await insertCampaign();
   return createJob(db, {
-    customerId: customer.id,
+    campaignId,
     name: 'Kontaktformular-Test',
     startUrl: 'https://beispiel.de/kontakt',
     flow: validFlow,
@@ -95,12 +95,12 @@ describe('createJob', () => {
   });
 
   it.each([
-    ['an unknown', '00000000-0000-0000-0000-000000000000', 'Projekt nicht gefunden.'],
-    ['a missing', '', 'Bitte ein Projekt wählen.'],
-    ['a malformed', 'beispiel', 'Projekt nicht gefunden.'],
-  ])('reports %s customer at customerId', async (_case, customerId, message) => {
+    ['an unknown', '00000000-0000-0000-0000-000000000000', 'Kampagne nicht gefunden.'],
+    ['a missing', '', 'Bitte eine Kampagne wählen.'],
+    ['a malformed', 'beispiel', 'Kampagne nicht gefunden.'],
+  ])('reports %s campaign at campaignId', async (_case, campaignId, message) => {
     const error = await createJob(db, {
-      customerId,
+      campaignId,
       name: 'Test',
       startUrl: 'https://beispiel.de',
       flow: validFlow,
@@ -108,7 +108,7 @@ describe('createJob', () => {
     }).catch((e: unknown) => e);
 
     expect(error).toBeInstanceOf(ValidationError);
-    expect((error as ValidationError).issues).toEqual([{ path: 'customerId', message }]);
+    expect((error as ValidationError).issues).toEqual([{ path: 'campaignId', message }]);
   });
 
   it('creates an active job when asked, so the planner picks it up right away', async () => {
@@ -148,7 +148,7 @@ describe('allocateRunNumber', () => {
   it('keeps separate counters per job', async () => {
     const first = await newJob();
     const second = await createJob(db, {
-      customerId: first.customerId,
+      campaignId: first.campaignId,
       name: 'Newsletter',
       startUrl: 'https://beispiel.de/newsletter',
       flow: validFlow,

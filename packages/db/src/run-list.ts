@@ -2,12 +2,13 @@ import { and, desc, eq, gte, inArray, sql, type SQL } from 'drizzle-orm';
 import type { Database } from './client';
 import { isUuid } from './ids';
 import type { Browser, Device } from './jobs';
-import { customers, jobs, runs } from './schema';
+import { campaigns, customers, jobs, runs } from './schema';
 
 type RunStatus = (typeof runs.$inferSelect)['status'];
 
 export type RunFilter = {
   customerId?: string;
+  campaignId?: string;
   statuses?: RunStatus[];
   /** Runs scheduled at or after this instant. */
   since?: Date;
@@ -31,6 +32,7 @@ export type RunListRow = {
   jobId: string;
   jobName: string;
   customerName: string;
+  campaignName: string;
 };
 
 /** Screen 14 "Läufe": runs of all jobs, newest first, with the total for paging. */
@@ -39,9 +41,11 @@ export async function listRuns(
   filter: RunFilter,
 ): Promise<{ rows: RunListRow[]; total: number }> {
   if (filter.customerId !== undefined && !isUuid(filter.customerId)) return { rows: [], total: 0 };
+  if (filter.campaignId !== undefined && !isUuid(filter.campaignId)) return { rows: [], total: 0 };
 
   const conditions: SQL[] = [];
   if (filter.customerId) conditions.push(eq(jobs.customerId, filter.customerId));
+  if (filter.campaignId) conditions.push(eq(jobs.campaignId, filter.campaignId));
   if (filter.statuses?.length) conditions.push(inArray(runs.status, filter.statuses));
   if (filter.since) conditions.push(gte(runs.scheduledAt, filter.since));
   if (filter.device) conditions.push(eq(runs.device, filter.device));
@@ -63,10 +67,12 @@ export async function listRuns(
         jobId: jobs.id,
         jobName: jobs.name,
         customerName: customers.name,
+        campaignName: campaigns.name,
       })
       .from(runs)
       .innerJoin(jobs, eq(jobs.id, runs.jobId))
       .innerJoin(customers, eq(customers.id, jobs.customerId))
+      .innerJoin(campaigns, eq(campaigns.id, jobs.campaignId))
       .where(where)
       .orderBy(desc(runs.scheduledAt), desc(runs.runNr))
       .limit(filter.limit ?? 50)

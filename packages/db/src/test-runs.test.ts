@@ -1,6 +1,6 @@
 import { eq } from 'drizzle-orm';
 import { describe, expect, it } from 'vitest';
-import { db, insertCustomer } from '../test/db';
+import { db, insertCampaign } from '../test/db';
 import { NotFoundError } from './errors';
 import { createJob, type Job } from './jobs';
 import { listJobOverview } from './overview';
@@ -15,9 +15,9 @@ async function newJob(
   status: Job['status'] = 'active',
   devices: Job['devices'] = ['iphone', 'desktop'],
 ) {
-  const customer = await insertCustomer();
+  const { campaignId } = await insertCampaign();
   const job = await createJob(db, {
-    customerId: customer.id,
+    campaignId,
     name: 'Kontaktformular-Test',
     startUrl: 'https://beispiel.de',
     flow: { version: 1, steps: [{ id: 'open', type: 'open', url: '/' }] },

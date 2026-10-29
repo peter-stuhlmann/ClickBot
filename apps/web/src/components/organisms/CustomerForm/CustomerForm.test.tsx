@@ -38,6 +38,6 @@ describe('CustomerForm', () => {
 
   it('leads back to the customer list', () => {
     render(<CustomerForm action={async () => ({})} />);
-    expect(screen.getByRole('link', { name: 'Abbrechen' })).toHaveAttribute('href', '/projekte');
+    expect(screen.getByRole('link', { name: 'Abbrechen' })).toHaveAttribute('href', '/kampagnen');
   });
 });

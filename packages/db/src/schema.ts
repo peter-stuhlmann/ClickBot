@@ -12,7 +12,9 @@ import {
   boolean,
   char,
   check,
+  date,
   doublePrecision,
+  foreignKey,
   index,
   integer,
   jsonb,
@@ -115,10 +117,40 @@ export const customers = pgTable(
   ],
 );
 
+/**
+ * A campaign groups the jobs of a project (customer), e.g. "Black Friday" or "Allgemein". Every
+ * job belongs to one; its customer is the campaign's (composite foreign key on jobs).
+ */
+export const campaigns = pgTable(
+  'campaigns',
+  {
+    id: id(),
+    customerId: uuid('customer_id')
+      .notNull()
+      .references(() => customers.id, { onDelete: 'restrict' }),
+    name: text('name').notNull(),
+    /** Optional period, as calendar dates. */
+    startsOn: date('starts_on'),
+    endsOn: date('ends_on'),
+    description: text('description'),
+    createdAt: createdAt(),
+  },
+  (t) => [
+    uniqueIndex('campaigns_customer_name_unique').on(t.customerId, sql`lower(${t.name})`),
+    // Target of the composite key of jobs: a job's campaign belongs to the job's customer.
+    unique('campaigns_id_customer_unique').on(t.id, t.customerId),
+    check(
+      'campaigns_period',
+      sql`${t.endsOn} IS NULL OR ${t.startsOn} IS NULL OR ${t.endsOn} >= ${t.startsOn}`,
+    ),
+  ],
+);
+
 export const jobs = pgTable(
   'jobs',
   {
     id: id(),
+    campaignId: uuid('campaign_id').notNull(),
     customerId: uuid('customer_id')
       .notNull()
       .references(() => customers.id, { onDelete: 'restrict' }),
@@ -149,6 +181,12 @@ export const jobs = pgTable(
   },
   (t) => [
     index('jobs_customer_idx').on(t.customerId),
+    index('jobs_campaign_idx').on(t.campaignId),
+    foreignKey({
+      name: 'jobs_campaign_fk',
+      columns: [t.campaignId, t.customerId],
+      foreignColumns: [campaigns.id, campaigns.customerId],
+    }).onDelete('restrict'),
     check('jobs_devices_not_empty', sql`cardinality(${t.devices}) > 0`),
     check('jobs_browsers_not_empty', sql`cardinality(${t.browsers}) > 0`),
   ],

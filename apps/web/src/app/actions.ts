@@ -1,9 +1,12 @@
 'use server';
 
 import {
+  createCampaign,
   createCustomer,
   createJob,
+  listCustomers,
   createRecordingSession,
+  getCampaign,
   getJob,
   getWorkerStatus,
   NotFoundError,
@@ -14,6 +17,7 @@ import {
   ValidationError,
 } from '@click-bot/db';
 import { revalidatePath } from 'next/cache';
+import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
 import {
   jobToDraft,
@@ -27,10 +31,12 @@ import {
   type WizardDraft,
 } from '@/lib/job-draft';
 import type { CustomerFormState } from '@/components/organisms/CustomerForm';
-import type { StartRecordingAction } from '@/lib/views';
+import { field, toFormState } from '@/lib/form-state';
+import type { FormState, StartRecordingAction } from '@/lib/views';
 import { requireUser } from '@/server/auth';
 import { getCipher } from '@/server/cipher';
 import { getDb } from '@/server/db';
+import { getShell, PROJECT_COOKIE } from '@/server/shell';
 
 /** Pauses or resumes a job from the status switch of the jobs table. */
 export async function toggleJobAction(formData: FormData): Promise<void> {
@@ -60,8 +66,14 @@ export async function createJobAction(draft: WizardDraft): Promise<CreateJobResu
   try {
     const db = getDb();
     const input = toNewJobInput(draft, now);
-    // .htaccess passwords are stored encrypted as the customer's secrets, never in the flow.
-    const flow = await secureStepPasswords(db, getCipher(), input);
+    const campaign = await getCampaign(db, input.campaignId);
+    if (!campaign) return { issues: [{ path: 'campaignId', message: 'Kampagne nicht gefunden.' }] };
+    // .htaccess passwords are stored encrypted as the project's secrets, never in the flow.
+    const flow = await secureStepPasswords(db, getCipher(), {
+      customerId: campaign.customerId,
+      startUrl: input.startUrl,
+      flow: input.flow,
+    });
     await createJob(db, { ...input, flow });
   } catch (error) {
     if (error instanceof ValidationError) return { issues: error.issues };
@@ -143,14 +155,60 @@ export async function createCustomerAction(
   await requireUser();
   const name = formData.get('name');
   if (typeof name !== 'string') return { error: 'Name fehlt.' };
+  let projectId: string;
   try {
-    await createCustomer(getDb(), { name });
+    projectId = (await createCustomer(getDb(), { name })).id;
   } catch (error) {
     if (error instanceof ValidationError) return { error: error.issues[0]?.message, name };
     throw error;
   }
-  revalidatePath('/projekte');
-  redirect('/projekte');
+  // The new project becomes the current one; it starts with the campaign "Allgemein".
+  await rememberProject(projectId);
+  revalidatePath('/', 'layout');
+  redirect('/kampagnen');
+}
+
+async function rememberProject(projectId: string) {
+  (await cookies()).set(PROJECT_COOKIE, projectId, {
+    httpOnly: true,
+    sameSite: 'lax',
+    secure: process.env.NODE_ENV === 'production',
+    path: '/',
+    maxAge: 365 * 24 * 60 * 60,
+  });
+}
+
+/** "Kampagne anlegen" in the current project; back to the campaign list. */
+export async function createCampaignAction(
+  _state: FormState,
+  formData: FormData,
+): Promise<FormState> {
+  const db = getDb();
+  const { project } = await getShell(db, new Date());
+  if (!project) return { error: 'Bitte zuerst ein Projekt anlegen.' };
+  const values = {
+    name: field(formData, 'name'),
+    startsOn: field(formData, 'startsOn'),
+    endsOn: field(formData, 'endsOn'),
+    description: field(formData, 'description'),
+  };
+  try {
+    await createCampaign(db, { customerId: project.id, ...values });
+  } catch (error) {
+    if (error instanceof ValidationError) return toFormState(error.issues, values);
+    throw error;
+  }
+  revalidatePath('/kampagnen');
+  redirect('/kampagnen');
+}
+
+/** The project switcher in the sidebar: every page then shows this project. */
+export async function selectProjectAction(projectId: string): Promise<void> {
+  await requireUser();
+  const projects = await listCustomers(getDb());
+  if (!projects.some((project) => project.id === projectId)) return;
+  await rememberProject(projectId);
+  revalidatePath('/', 'layout');
 }
 
 /**

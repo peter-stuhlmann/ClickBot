@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { db, insertCustomer } from '../test/db';
+import { db, insertCampaign, insertCustomer } from '../test/db';
 import { createJob } from './jobs';
 import { listRuns } from './run-list';
 import { runs } from './schema';
@@ -18,15 +18,17 @@ const schedule = {
 async function setup() {
   const shop = await insertCustomer('Müller Shop', 'mueller-shop');
   const hotel = await insertCustomer('Nordlicht Hotel', 'nordlicht-hotel');
+  const shopCampaign = await insertCampaign('Allgemein', shop);
+  const hotelCampaign = await insertCampaign('Allgemein', hotel);
   const newsletter = await createJob(db, {
-    customerId: shop.id,
+    campaignId: shopCampaign.campaignId,
     name: 'Newsletter',
     startUrl: 'https://mueller-shop.de',
     flow,
     schedule,
   });
   const booking = await createJob(db, {
-    customerId: hotel.id,
+    campaignId: hotelCampaign.campaignId,
     name: 'Zimmer buchen',
     startUrl: 'https://nordlicht-hotel.de',
     flow,
@@ -107,11 +109,26 @@ describe('listRuns', () => {
       jobId: booking.id,
       jobName: 'Zimmer buchen',
       customerName: 'Nordlicht Hotel',
+      campaignName: 'Allgemein',
       slotIndex: null,
       device: 'android',
       status: 'running',
       finishedAt: null,
     });
+  });
+
+  it('filters by campaign', async () => {
+    const { shop } = await setup();
+    const [newsletter] = await listRuns(db, { customerId: shop.id }).then(({ rows }) => rows);
+    const campaignId = (
+      await db.query.jobs.findFirst({ where: (job, { eq }) => eq(job.id, newsletter?.jobId ?? '') })
+    )?.campaignId;
+    expect(titles((await listRuns(db, { campaignId })).rows)).toEqual([
+      'Newsletter #3',
+      'Newsletter #2',
+      'Newsletter #1',
+    ]);
+    expect(await listRuns(db, { campaignId: 'kaputt' })).toEqual({ rows: [], total: 0 });
   });
 
   it('filters by customer, result, time and device, and counts all matches', async () => {

@@ -8,7 +8,7 @@ test.describe('Neuer Job', () => {
     await expect(page.getByRole('heading', { level: 1, name: 'Neuer Job' })).toBeVisible();
 
     // 1 · Job
-    await page.getByRole('combobox', { name: 'Projekt' }).selectOption({ label: 'Beispiel GmbH' });
+    await page.getByRole('combobox', { name: 'Kampagne' }).selectOption({ label: 'Allgemein' });
     await page.getByRole('textbox', { name: 'Job-Name' }).fill('E2E Kontaktseite');
     await page.getByRole('button', { name: 'Weiter' }).click();
     // The start address is asked for with the flow.
@@ -49,7 +49,7 @@ test.describe('Neuer Job', () => {
 
   test('creates no job without the confirmation that testing is allowed', async ({ page }) => {
     await page.goto('/jobs/neu');
-    await page.getByRole('combobox', { name: 'Projekt' }).selectOption({ label: 'Beispiel GmbH' });
+    await page.getByRole('combobox', { name: 'Kampagne' }).selectOption({ label: 'Allgemein' });
     await page.getByRole('textbox', { name: 'Job-Name' }).fill('Ohne Freigabe');
     await page.getByRole('button', { name: 'Weiter' }).click();
     await page.getByRole('textbox', { name: 'Website (Start-URL)' }).fill('beispiel.de');

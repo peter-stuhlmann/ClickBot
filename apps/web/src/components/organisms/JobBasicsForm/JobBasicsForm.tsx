@@ -4,42 +4,38 @@ import { Input } from '@/components/atoms/Input';
 import { Select } from '@/components/atoms/Select';
 import { Field } from '@/components/molecules/Field';
 
-export type JobBasicsValues = { customerId: string; name: string };
+export type JobBasicsValues = { campaignId: string; name: string };
 
 export type JobBasicsFormProps = {
   values: JobBasicsValues;
-  customers: { id: string; name: string }[];
-  /** Messages by field: customerId, name. */
+  /** The campaigns of the current project. */
+  campaigns: { id: string; name: string }[];
+  /** Messages by field: campaignId, name. */
   errors: Record<string, string>;
   onChange: (patch: Partial<JobBasicsValues>) => void;
 };
 
-/** Step 1 of the job wizard: the project the job belongs to and its name. */
-export function JobBasicsForm({ values, customers, errors, onChange }: JobBasicsFormProps) {
+/** Step 1 of the job wizard: the campaign of the current project and the job's name. */
+export function JobBasicsForm({ values, campaigns, errors, onChange }: JobBasicsFormProps) {
   return (
-    <Card title="Zu welchem Projekt gehört der Job?">
+    <Card title="Zu welcher Kampagne gehört der Job?">
       <Field
-        id="job-customer"
-        label="Projekt"
-        error={errors.customerId}
+        id="job-campaign"
+        label="Kampagne"
+        error={errors.campaignId}
         hint={
-          customers.length === 0 ? (
-            <>
-              Noch keine Projekte angelegt.{' '}
-              <Link href="/projekte/neu" className="font-medium text-primary hover:underline">
-                Projekt anlegen
-              </Link>
-            </>
-          ) : undefined
+          <Link href="/kampagnen/neu" className="font-medium text-primary hover:underline">
+            Neue Kampagne
+          </Link>
         }
       >
         {(control) => (
           <Select
             {...control}
-            placeholder="Projekt wählen"
-            options={customers.map((customer) => ({ value: customer.id, label: customer.name }))}
-            value={values.customerId}
-            onChange={(event) => onChange({ customerId: event.target.value })}
+            placeholder="Kampagne wählen"
+            options={campaigns.map((campaign) => ({ value: campaign.id, label: campaign.name }))}
+            value={values.campaignId}
+            onChange={(event) => onChange({ campaignId: event.target.value })}
           />
         )}
       </Field>
