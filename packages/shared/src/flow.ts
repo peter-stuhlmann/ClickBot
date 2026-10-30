@@ -16,6 +16,28 @@ export const targetSchema = z.discriminatedUnion('by', [
   z.object({ by: z.literal('testId'), testId: filled() }),
 ]);
 
+/**
+ * A key as Playwright names it, with modifiers before it: „Escape“, „Shift+Tab“, „Control+a“.
+ * One character or a key for moving and editing; no function keys like F5, which reload or open
+ * tools of the browser.
+ */
+export const KEY_PATTERN =
+  /^(?:(?:Control|Alt|Shift|Meta)\+)*(?:Enter|Tab|Backspace|Delete|Escape|Space|Home|End|PageUp|PageDown|Arrow(?:Up|Down|Left|Right)|\S)$/u;
+const KEY_MESSAGE = 'Eine Taste wie „Escape“ oder eine Kombination wie „Control+a“.';
+
+const scrollTargetSchema = z.discriminatedUnion('kind', [
+  // Where the page stands, from the top, as the live recording measures it.
+  z.object({
+    kind: z.literal('position'),
+    y: z
+      .number({ error: 'Ganze Pixel ab 0.' })
+      .int('Ganze Pixel ab 0.')
+      .min(0, 'Ganze Pixel ab 0.'),
+  }),
+  z.object({ kind: z.literal('element'), target: targetSchema }),
+  z.object({ kind: z.literal('bottom') }),
+]);
+
 // Absolute http(s) URL, a path relative to the job's start URL, or a URL built from a variable.
 const URL_PATTERN = /^(https?:\/\/\S+|\/\S*|\{\{.+\}\}\S*)$/;
 
@@ -69,6 +91,14 @@ export const stepSchema = z.discriminatedUnion('type', [
     saveAs: z.string().regex(/^[a-z][a-zA-Z0-9_]*$/),
   }),
   z.object({ ...stepBase, type: z.literal('wait'), until: waitConditionSchema }),
+  z.object({ ...stepBase, type: z.literal('scroll'), to: scrollTargetSchema }),
+  // Keys go to the element that has the focus, or first to `target`.
+  z.object({
+    ...stepBase,
+    type: z.literal('press'),
+    key: z.string().regex(KEY_PATTERN, KEY_MESSAGE),
+    target: targetSchema.optional(),
+  }),
   z.object({
     ...stepBase,
     type: z.literal('screenshot'),

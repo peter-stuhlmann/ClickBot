@@ -39,6 +39,9 @@ describe('parseClientMessage', () => {
     ],
     ['{"type":"mode","mode":"assert"}', { type: 'mode', mode: 'assert' }],
     ['{"type":"back"}', { type: 'back' }],
+    ['{"type":"key","key":"Control+a"}', { type: 'key', key: 'Control+a' }],
+    ['{"type":"key","key":"Shift+Tab"}', { type: 'key', key: 'Shift+Tab' }],
+    ['{"type":"screenshot"}', { type: 'screenshot' }],
   ])('accepts %s', (raw, message) => {
     expect(parseClientMessage(raw)).toEqual(message);
   });
@@ -47,7 +50,9 @@ describe('parseClientMessage', () => {
     ['not JSON', 'click'],
     ['an unknown type', '{"type":"evaluate","code":"process.exit()"}'],
     ['a click outside the viewport', '{"type":"click","x":5000,"y":10}'],
-    ['a key that is no plain key name', '{"type":"key","key":"Control+Shift+I"}'],
+    ['a function key, which opens tools of the browser', '{"type":"key","key":"F12"}'],
+    ['a key that is no key name', '{"type":"key","key":"Strg+A"}'],
+    ['the browsing mode, which records nothing and is gone', '{"type":"mode","mode":"browse"}'],
     ['text that is too long', JSON.stringify({ type: 'text', text: 'x'.repeat(2001) })],
     ['an address that is no web address', '{"type":"navigate","url":"file:///etc/passwd"}'],
     ['an unknown mode', '{"type":"mode","mode":"debug"}'],
@@ -125,6 +130,31 @@ describe('startLiveSession', () => {
     });
     // The run follows the new tab after this click, like the live view did.
     expect(messages.filter((m) => m.type === 'error')).toEqual([]);
+    await session.close();
+  });
+
+  it('records scrolling, a photo and keys in between, in the order they happened', async () => {
+    const { session, steps } = await open('/lang.html');
+    await session.handle({ type: 'move', x: 200, y: 300 });
+    await session.handle({ type: 'wheel', dx: 0, dy: 900 });
+    await expect.poll(() => steps().length).toBe(2);
+    await session.handle({ type: 'screenshot' });
+    await session.handle({ type: 'key', key: 'Escape' });
+
+    await expect.poll(() => steps().length).toBe(4);
+    expect(steps().slice(1)).toEqual([
+      { type: 'scroll', to: { kind: 'position', y: expect.any(Number) } },
+      { type: 'screenshot' },
+      { type: 'press', key: 'Escape' },
+    ]);
+    await session.close();
+  });
+
+  it('types text key by key, so the page sees the keys', async () => {
+    const { session, page, centre } = await open('/lang.html');
+    await session.handle({ type: 'click', ...(await centre('#suche')) });
+    await session.handle({ type: 'text', text: 'ab' });
+    await expect.poll(() => page.getByTestId('taste').textContent()).toBe('b');
     await session.close();
   });
 

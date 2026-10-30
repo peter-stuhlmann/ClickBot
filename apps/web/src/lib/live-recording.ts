@@ -1,4 +1,4 @@
-import { stepSchema } from '@click-bot/shared';
+import { KEY_PATTERN, stepSchema } from '@click-bot/shared';
 import { toStepDraft, type StepDraft } from './job-draft';
 import type { LiveInput, LiveMode } from './views';
 
@@ -14,22 +14,18 @@ export type LiveMessage =
   | { type: 'mode'; mode: LiveMode }
   | { type: 'error'; message: string };
 
-const RECORDABLE = new Set(['open', 'click', 'fill', 'select', 'assert']);
-const KEYS = new Set([
-  'Enter',
-  'Tab',
-  'Backspace',
-  'Delete',
-  'Escape',
-  'Home',
-  'End',
-  'PageUp',
-  'PageDown',
-  'ArrowUp',
-  'ArrowDown',
-  'ArrowLeft',
-  'ArrowRight',
+const RECORDABLE = new Set([
+  'open',
+  'click',
+  'fill',
+  'select',
+  'assert',
+  'press',
+  'scroll',
+  'screenshot',
 ]);
+// Copy, cut and paste stay in the own browser; pasting sends the text (onPaste).
+const OWN_SHORTCUTS = new Set(['c', 'v', 'x']);
 
 const clamp = (value: number, max: number) => Math.min(max, Math.max(0, Math.round(value)));
 
@@ -47,19 +43,33 @@ export function toViewport(
 }
 
 /**
- * A key pressed on the stream: characters as text, a few editing keys by name. Shortcuts stay
- * with the user's own browser (copy, paste, developer tools).
+ * A key pressed on the stream: characters as text, other keys and combinations by name, as the
+ * recording keeps them („Shift+Tab“, „Control+a“). Copying and pasting stay with the user's own
+ * browser, and so do keys a flow cannot press, like F12.
  */
 export function keyInput(event: {
   key: string;
   ctrlKey: boolean;
   metaKey: boolean;
   altKey: boolean;
+  shiftKey?: boolean;
 }): LiveInput | null {
-  if (event.ctrlKey || event.metaKey) return null;
-  if (KEYS.has(event.key)) return { type: 'key', key: event.key };
-  if ([...event.key].length === 1) return { type: 'text', text: event.key };
-  return null;
+  const command = event.ctrlKey || event.metaKey || event.altKey;
+  const single = [...event.key].length === 1;
+  if (single && !command) return { type: 'text', text: event.key };
+  if ((event.ctrlKey || event.metaKey) && OWN_SHORTCUTS.has(event.key.toLowerCase())) return null;
+  // A capital letter carries its Shift already, unless a shortcut needs it spelled out.
+  const shift = event.shiftKey && (!single || command);
+  const key = [
+    event.ctrlKey && 'Control',
+    event.altKey && 'Alt',
+    shift && 'Shift',
+    event.metaKey && 'Meta',
+    event.key === ' ' ? 'Space' : event.key,
+  ]
+    .filter(Boolean)
+    .join('+');
+  return KEY_PATTERN.test(key) ? { type: 'key', key } : null;
 }
 
 function isObject(value: unknown): value is Record<string, unknown> {
@@ -90,7 +100,7 @@ export function parseLiveMessage(raw: string): LiveMessage | null {
     case 'step':
       return isRecordableStep(message.step) ? { type: 'step', step: message.step } : null;
     case 'mode':
-      return message.mode === 'record' || message.mode === 'browse' || message.mode === 'assert'
+      return message.mode === 'record' || message.mode === 'assert'
         ? { type: 'mode', mode: message.mode }
         : null;
     case 'error':
@@ -109,6 +119,13 @@ const sameField = (a: StepDraft, b: StepDraft) =>
   a.targetRole === b.targetRole &&
   a.targetValue === b.targetValue;
 
+// Scrolling on, without anything in between: one step, where the page came to rest.
+const bothScrolled = (a: StepDraft, b: StepDraft) =>
+  a.type === 'scroll' &&
+  b.type === 'scroll' &&
+  a.scrollKind === 'position' &&
+  b.scrollKind === 'position';
+
 function nextId(steps: StepDraft[]): string {
   const numbers = steps.map((step) => Number(/^aufnahme-(\d+)$/.exec(step.id)?.[1] ?? 0));
   return `aufnahme-${Math.max(0, ...numbers) + 1}`;
@@ -116,7 +133,8 @@ function nextId(steps: StepDraft[]): string {
 
 /**
  * Adds a step from the live browser as an editable draft. Typing into the same field again right
- * away replaces the value instead of adding a step. Steps the form cannot show are left out.
+ * away replaces the value instead of adding a step, and so does scrolling on. Steps the form
+ * cannot show are left out.
  */
 export function addRecordedStep(steps: RecordedDraft[], step: unknown): RecordedDraft[] {
   if (!isRecordableStep(step)) return steps;
@@ -124,6 +142,8 @@ export function addRecordedStep(steps: RecordedDraft[], step: unknown): Recorded
   const draft = parsed.success ? toStepDraft(parsed.data) : null;
   if (!draft) return steps;
   const last = steps.at(-1);
-  if (last && sameField(last, draft)) return [...steps.slice(0, -1), { ...draft, id: last.id }];
+  if (last && (sameField(last, draft) || bothScrolled(last, draft))) {
+    return [...steps.slice(0, -1), { ...draft, id: last.id }];
+  }
   return [...steps, draft];
 }

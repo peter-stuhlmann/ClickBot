@@ -29,17 +29,41 @@ describe('keyInput', () => {
     [{ key: 'Enter' }, { type: 'key', key: 'Enter' }],
     [{ key: 'Backspace' }, { type: 'key', key: 'Backspace' }],
     [{ key: 'ArrowDown' }, { type: 'key', key: 'ArrowDown' }],
+    [{ key: 'Escape' }, { type: 'key', key: 'Escape' }],
+    [
+      { key: 'Tab', shiftKey: true },
+      { type: 'key', key: 'Shift+Tab' },
+    ],
+    [
+      { key: 'a', ctrlKey: true },
+      { type: 'key', key: 'Control+a' },
+    ],
+    [
+      { key: 'K', ctrlKey: true, shiftKey: true },
+      { type: 'key', key: 'Control+Shift+K' },
+    ],
+    [
+      { key: 'ArrowLeft', altKey: true },
+      { type: 'key', key: 'Alt+ArrowLeft' },
+    ],
   ])('sends %o', (event, input) => {
-    expect(keyInput({ ctrlKey: false, metaKey: false, altKey: false, ...event })).toEqual(input);
+    expect(
+      keyInput({ ctrlKey: false, metaKey: false, altKey: false, shiftKey: false, ...event }),
+    ).toEqual(input);
   });
 
   it.each([
-    { key: 'c', ctrlKey: true, metaKey: false, altKey: false },
-    { key: 'v', ctrlKey: false, metaKey: true, altKey: false },
-    { key: 'F12', ctrlKey: false, metaKey: false, altKey: false },
-    { key: 'Shift', ctrlKey: false, metaKey: false, altKey: false },
-  ])('leaves shortcuts and other keys to the own browser: %o', (event) => {
-    expect(keyInput(event)).toBeNull();
+    // Copy and paste stay in the own browser; pasting sends the text instead.
+    { key: 'c', ctrlKey: true },
+    { key: 'v', metaKey: true },
+    { key: 'x', ctrlKey: true },
+    { key: 'F12' },
+    { key: 'Shift' },
+    { key: 'Control', ctrlKey: true },
+  ])('leaves these keys to the own browser: %o', (event) => {
+    expect(
+      keyInput({ ctrlKey: false, metaKey: false, altKey: false, shiftKey: false, ...event }),
+    ).toBeNull();
   });
 });
 
@@ -59,6 +83,8 @@ describe('parseLiveMessage', () => {
     expect(parseLiveMessage('kaputt')).toBeNull();
     expect(parseLiveMessage('{"type":"unbekannt"}')).toBeNull();
     expect(parseLiveMessage('{"type":"step","step":{"type":"code","source":"x"}}')).toBeNull();
+    // Only browsing was dropped: everything is recorded now.
+    expect(parseLiveMessage('{"type":"mode","mode":"browse"}')).toBeNull();
   });
 });
 
@@ -93,6 +119,25 @@ describe('addRecordedStep', () => {
     steps = addRecordedStep(steps, fill('Lena'));
     steps = addRecordedStep(steps, fill('lena@example.org', 'E-Mail'));
     expect(steps.map((step) => step.value)).toEqual(['Lena', 'lena@example.org']);
+  });
+
+  it('takes keys, scrolling and photos from the live browser', () => {
+    let steps: RecordedDraft[] = [];
+    steps = addRecordedStep(steps, { type: 'press', key: 'Escape' });
+    steps = addRecordedStep(steps, { type: 'scroll', to: { kind: 'position', y: 900 } });
+    steps = addRecordedStep(steps, { type: 'screenshot' });
+    expect(steps.map((step) => [step.type, step.key || step.scrollY])).toEqual([
+      ['press', 'Escape'],
+      ['scroll', '900'],
+      ['screenshot', '0'],
+    ]);
+  });
+
+  it('keeps one scroll step while scrolling goes on, where the page came to rest', () => {
+    let steps: RecordedDraft[] = [];
+    steps = addRecordedStep(steps, { type: 'scroll', to: { kind: 'position', y: 900 } });
+    steps = addRecordedStep(steps, { type: 'scroll', to: { kind: 'position', y: 1800 } });
+    expect(steps.map((step) => [step.id, step.scrollY])).toEqual([['aufnahme-1', '1800']]);
   });
 
   it('ignores a step it cannot show', () => {

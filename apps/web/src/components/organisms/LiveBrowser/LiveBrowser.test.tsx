@@ -44,16 +44,18 @@ describe('LiveBrowser', () => {
     expect(onInput).toHaveBeenCalledWith({ type: 'click', x: 640, y: 200 });
   });
 
-  it('types into the live browser and leaves shortcuts alone', () => {
+  it('types into the live browser, with key combinations, and leaves copying alone', () => {
     const onInput = vi.fn();
     render(<LiveBrowser {...props({ onInput })} />);
     const stream = screen.getByRole('application', { name: 'Live-Browser' });
     fireEvent.keyDown(stream, { key: 'L' });
     fireEvent.keyDown(stream, { key: 'Enter' });
+    fireEvent.keyDown(stream, { key: 'a', ctrlKey: true });
     fireEvent.keyDown(stream, { key: 'c', ctrlKey: true });
     expect(onInput.mock.calls).toEqual([
       [{ type: 'text', text: 'L' }],
       [{ type: 'key', key: 'Enter' }],
+      [{ type: 'key', key: 'Control+a' }],
     ]);
   });
 
@@ -81,16 +83,25 @@ describe('LiveBrowser', () => {
     ]);
   });
 
-  it('switches between recording and only browsing, and turns the next click into a check', async () => {
+  it('always records; next to the address it takes a photo or turns the next click into a check', async () => {
     const user = userEvent.setup();
     const onInput = vi.fn();
-    render(<LiveBrowser {...props({ onInput })} />);
-    await user.click(screen.getByRole('radio', { name: 'Nur bedienen' }));
-    await user.click(screen.getByRole('button', { name: 'Prüfung hinzufügen' }));
+    const { rerender } = render(<LiveBrowser {...props({ onInput })} />);
+    expect(screen.queryByRole('radio')).not.toBeInTheDocument();
+    expect(screen.getByText(/Alles wird aufgezeichnet/)).toBeVisible();
+
+    await user.click(screen.getByRole('button', { name: 'Bildschirmfoto aufnehmen' }));
+    const check = screen.getByRole('button', { name: 'Prüfung hinzufügen' });
+    expect(check).toHaveAttribute('aria-pressed', 'false');
+    await user.click(check);
     expect(onInput.mock.calls).toEqual([
-      [{ type: 'mode', mode: 'browse' }],
+      [{ type: 'screenshot' }],
       [{ type: 'mode', mode: 'assert' }],
     ]);
+
+    rerender(<LiveBrowser {...props({ onInput, mode: 'assert' })} />);
+    expect(check).toHaveAttribute('aria-pressed', 'true');
+    expect(screen.getByText('Der nächste Klick wird eine Prüfung.')).toBeVisible();
   });
 
   it('lists the recorded steps, removes one and takes them over', async () => {

@@ -39,10 +39,12 @@ describe('startRecorder', () => {
     await page.keyboard.insertText('Geheim-123');
     await page.keyboard.press('Tab');
 
-    expect(await settled(1)).toEqual([
+    expect(await settled(2)).toEqual([
       { type: 'fill', target: { by: 'label', label: 'Passwort' }, value: '{{secret.passwort}}' },
+      // Tab moves on to the next field: a key step of its own.
+      { type: 'press', key: 'Tab', target: { by: 'label', label: 'Passwort' } },
     ]);
-    expect(JSON.stringify(await settled(1))).not.toContain('Geheim');
+    expect(JSON.stringify(await settled(2))).not.toContain('Geheim');
     await context.close();
   });
 
@@ -130,13 +132,84 @@ describe('startRecorder', () => {
     expect(page.url()).toMatch(/\/aufnahme\.html$/);
     await context.close();
   });
+});
 
-  it('records nothing while only browsing', async () => {
-    const { context, page, steps, recorder } = await record('/aufnahme.html');
-    await recorder.setMode('browse');
+describe('startRecorder – keys', () => {
+  it('records typing in a field as one fill step, and the key that leaves it', async () => {
+    const { context, page, settled } = await record('/lang.html');
+    await page.getByLabel('Suche').click();
+    await page.keyboard.type('Schuhe');
+    await page.keyboard.press('Tab');
+
+    expect(await settled(2)).toEqual([
+      { type: 'fill', target: { by: 'label', label: 'Suche' }, value: 'Schuhe' },
+      { type: 'press', key: 'Tab', target: { by: 'label', label: 'Suche' } },
+    ]);
+    await context.close();
+  });
+
+  it('records Escape on the page, and shortcuts with their modifiers', async () => {
+    const { context, page, settled } = await record('/lang.html');
+    await page.keyboard.press('Escape');
+    await page.getByLabel('Suche').focus();
+    await page.keyboard.press('Control+Shift+K');
+
+    expect(await settled(2)).toEqual([
+      { type: 'press', key: 'Escape' },
+      { type: 'press', key: 'Control+Shift+K', target: { by: 'label', label: 'Suche' } },
+    ]);
+    await context.close();
+  });
+
+  it('records Enter in a field without a form as a key, and in a form as the submit click', async () => {
+    const { context, page, settled } = await record('/lang.html');
+    await page.getByLabel('Suche').fill('Schuhe');
+    await page.getByLabel('Suche').press('Enter');
+
+    expect(await settled(2)).toEqual([
+      { type: 'fill', target: { by: 'label', label: 'Suche' }, value: 'Schuhe' },
+      { type: 'press', key: 'Enter', target: { by: 'label', label: 'Suche' } },
+    ]);
+    await context.close();
+  });
+
+  it('records no key for keys that only scroll the page', async () => {
+    const { context, page, steps, settled } = await record('/lang.html');
+    await page.keyboard.press('PageDown');
+    // The page scrolled: that is the step, not the key.
+    expect((await settled(1)).map((step) => step.type)).toEqual(['scroll']);
+    expect(steps.some((step) => step.type === 'press')).toBe(false);
+    await context.close();
+  });
+});
+
+describe('startRecorder – scrolling', () => {
+  it('records one scroll step where the page comes to rest', async () => {
+    const { context, page, settled } = await record('/lang.html');
+    await page.mouse.move(200, 200);
+    await page.mouse.wheel(0, 700);
+    await page.mouse.wheel(0, 500);
+
+    const [step] = await settled(1);
+    await expect.poll(() => page.evaluate(() => Math.round(window.scrollY))).toBeGreaterThan(0);
+    expect(step).toEqual({
+      type: 'scroll',
+      to: { kind: 'position', y: await page.evaluate(() => Math.round(window.scrollY)) },
+    });
+    await context.close();
+  });
+});
+
+describe('startRecorder – steps added in between', () => {
+  it('keeps them in the order of the actions, e.g. a photo right after a click', async () => {
+    const { context, page, settled, recorder } = await record('/aufnahme.html');
     await page.getByRole('button', { name: 'Anmelden' }).click();
-    await expect.poll(() => page.locator('#state').textContent()).toBe('Angemeldet.');
-    expect(steps).toEqual([]);
+    await recorder.insert({ type: 'screenshot' });
+
+    expect(await settled(2)).toEqual([
+      { type: 'click', target: { by: 'role', role: 'button', name: 'Anmelden' } },
+      { type: 'screenshot' },
+    ]);
     await context.close();
   });
 });

@@ -3,7 +3,6 @@ import { Button } from '@/components/atoms/Button';
 import { Card } from '@/components/atoms/Card';
 import { Icon } from '@/components/atoms/Icon';
 import { Input } from '@/components/atoms/Input';
-import { SegmentedControl } from '@/components/atoms/SegmentedControl';
 import { StepItem } from '@/components/molecules/StepItem';
 import { cn } from '@/lib/cn';
 import { keyInput, toViewport, type LiveViewport } from '@/lib/live-recording';
@@ -27,10 +26,6 @@ export type LiveBrowserProps = {
   onCancel: () => void;
 };
 
-const MODES = [
-  { value: 'record', label: 'Aufnehmen' },
-  { value: 'browse', label: 'Nur bedienen' },
-] as const;
 /** Hover menus need mouse moves; more than ten per second only cost bandwidth. */
 const MOVE_INTERVAL_MS = 100;
 
@@ -128,21 +123,29 @@ export function LiveBrowser({
               onChange={(event) => setAddress(event.target.value)}
             />
           </form>
-          <SegmentedControl
-            label="Modus"
-            options={MODES}
-            value={mode === 'browse' ? 'browse' : 'record'}
-            onChange={(next) => onInput({ type: 'mode', mode: next })}
-          />
-          <Button
-            variant="secondary"
-            size="sm"
-            aria-pressed={mode === 'assert'}
-            icon={<Icon name="check" size={16} />}
-            onClick={() => onInput({ type: 'mode', mode: mode === 'assert' ? 'record' : 'assert' })}
-          >
-            Prüfung hinzufügen
-          </Button>
+          {/* Steps added in between: a photo here, or a check on the next click. */}
+          <div className="flex items-center">
+            <Button
+              variant="ghost"
+              size="sm"
+              aria-label="Bildschirmfoto aufnehmen"
+              title="Bildschirmfoto aufnehmen"
+              icon={<Icon name="camera" size={16} />}
+              onClick={() => onInput({ type: 'screenshot' })}
+            />
+            <Button
+              variant={mode === 'assert' ? 'secondary' : 'ghost'}
+              size="sm"
+              aria-label="Prüfung hinzufügen"
+              title="Prüfung hinzufügen: Der nächste Klick prüft, ob das Element sichtbar ist."
+              aria-pressed={mode === 'assert'}
+              className={cn(mode === 'assert' && 'border-primary text-primary')}
+              icon={<Icon name="check" size={16} />}
+              onClick={() =>
+                onInput({ type: 'mode', mode: mode === 'assert' ? 'record' : 'assert' })
+              }
+            />
+          </div>
         </div>
 
         <div
@@ -207,9 +210,7 @@ export function LiveBrowser({
             <span>
               {mode === 'assert'
                 ? 'Der nächste Klick wird eine Prüfung.'
-                : mode === 'browse'
-                  ? 'Nur bedienen – nichts wird aufgezeichnet.'
-                  : 'Klicks und Eingaben werden aufgezeichnet.'}
+                : 'Alles wird aufgezeichnet: Klicks, Eingaben, Tasten und Scrollen.'}
             </span>
           )}
         </div>
@@ -241,8 +242,8 @@ export function LiveBrowser({
           ))}
         </ol>
         <p className="text-small text-text-muted">
-          Mit „Prüfung hinzufügen“ wird der nächste Klick eine Prüfung, ob das Element sichtbar ist.
-          Die Seite reagiert dann nicht auf diesen Klick.
+          Die Kamera neben der Adresse fügt ein Bildschirmfoto ein. Mit dem Haken wird der nächste
+          Klick eine Prüfung, ob das Element sichtbar ist; die Seite reagiert dann nicht darauf.
         </p>
         <div className="flex flex-wrap gap-2">
           <Button icon={<Icon name="check" size={16} />} disabled={count === 0} onClick={onFinish}>

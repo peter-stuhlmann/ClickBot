@@ -4,23 +4,32 @@ import { locate } from './targets';
 
 /** A recorded step, before it gets its id in the flow (input of stepSchema). */
 export type RecordedStep =
+  | { type: 'open'; url: string }
   | { type: 'click'; target: Target }
   | { type: 'fill'; target: Target; value: string }
   | { type: 'select'; target: Target; option: string }
-  | { type: 'assert'; assertion: { kind: 'elementVisible'; target: Target } };
+  | { type: 'assert'; assertion: { kind: 'elementVisible'; target: Target } }
+  | { type: 'press'; key: string; target?: Target }
+  | { type: 'scroll'; to: { kind: 'position'; y: number } }
+  | { type: 'screenshot' };
 
-/** record: actions become steps; browse: nothing is recorded; assert: the next click checks. */
-export type RecorderMode = 'record' | 'browse' | 'assert';
+/** Everything is recorded from start to end; assert: the next click becomes a check instead. */
+export type RecorderMode = 'record' | 'assert';
 
 type Action =
   | { kind: 'click'; candidates: Target[] }
   | { kind: 'assert'; candidates: Target[] }
   | { kind: 'fill'; candidates: Target[]; value: string; secret: boolean }
-  | { kind: 'select'; candidates: Target[]; option: string };
+  | { kind: 'select'; candidates: Target[]; option: string }
+  // Without candidates the key goes to the page, not to an element.
+  | { kind: 'press'; candidates: Target[]; key: string }
+  | { kind: 'scroll'; y: number };
 
 export type Recorder = {
   setMode(mode: RecorderMode): Promise<void>;
   mode(): RecorderMode;
+  /** Adds a step the user asks for (a photo, an address), after the actions before it. */
+  insert(step: RecordedStep): Promise<void>;
 };
 
 const BINDING = '__clickbotRecord';
@@ -141,7 +150,8 @@ const PAGE_SCRIPT = `(() => {
       send({ kind: 'select', candidates: candidates(el, true), option });
       return;
     }
-    if (!isTextField(el) || sent.get(el) === el.value) return;
+    // Unchanged since the page set it (or since it was sent): nothing was typed.
+    if (!isTextField(el) || (sent.has(el) ? sent.get(el) : el.defaultValue) === el.value) return;
     sent.set(el, el.value);
     const secret = el.type === 'password';
     send({ kind: 'fill', candidates: candidates(el, true), value: secret ? '' : el.value, secret });
@@ -195,7 +205,9 @@ const PAGE_SCRIPT = `(() => {
   }, true);
 
   // Enter in a field submits without a click: record the submit button the browser used.
+  let pendingEnter = null;
   document.addEventListener('submit', (event) => {
+    clearTimeout(pendingEnter);
     if (window.__clickbotMode !== 'record') return;
     if (document.activeElement) sendField(document.activeElement);
     const button = event.submitter;
@@ -203,6 +215,59 @@ const PAGE_SCRIPT = `(() => {
     last = { el: button, at: Date.now() };
     send({ kind: 'click', candidates: candidates(button, false) });
   }, true);
+
+  // Keys no other step covers: Tab, Escape, shortcuts, keys on an element that has the focus.
+  // Typing in a field is its fill step, Enter in a form the click on its submit button, a key
+  // on a button or link its click, and a key that only scrolls the page the scroll step.
+  const SCROLL_KEYS = ['PageUp', 'PageDown', 'Home', 'End', 'ArrowUp', 'ArrowDown', 'ArrowLeft',
+    'ArrowRight', ' '];
+  let userScroll = 0;
+  function combo(event) {
+    const key = event.key === ' ' ? 'Space' : event.key;
+    const command = event.ctrlKey || event.altKey || event.metaKey;
+    // A capital letter carries its Shift already, unless a shortcut needs it spelled out.
+    const shift = event.shiftKey && (key.length > 1 || command);
+    return [event.ctrlKey && 'Control', event.altKey && 'Alt', shift && 'Shift',
+      event.metaKey && 'Meta', key].filter(Boolean).join('+');
+  }
+  document.addEventListener('keydown', (event) => {
+    if (!event.isTrusted || ['Control', 'Alt', 'Shift', 'Meta'].includes(event.key)) return;
+    const el = event.target instanceof Element ? event.target : document.documentElement;
+    const onPage = el === document.body || el === document.documentElement;
+    const typing = isTextField(el) || el.isContentEditable || el.tagName === 'SELECT';
+    if (onPage && SCROLL_KEYS.includes(event.key)) userScroll = Date.now();
+    if (window.__clickbotMode !== 'record') return;
+    const press = () => send({ kind: 'press', key: combo(event),
+      candidates: onPage ? [] : candidates(el, typing) });
+    if (event.ctrlKey || event.altKey || event.metaKey || ['Tab', 'Escape'].includes(event.key)) {
+      if (typing) sendField(el);
+      press();
+      return;
+    }
+    if (event.key === 'Enter' && typing && el.tagName !== 'TEXTAREA') {
+      sendField(el);
+      // Unless the browser submits a form right away, which records the submit click.
+      pendingEnter = setTimeout(press, 0);
+      return;
+    }
+    if (typing || (onPage && SCROLL_KEYS.includes(event.key))) return;
+    if ((event.key === 'Enter' || event.key === ' ') && el.closest(CLICKABLE)) return;
+    press();
+  }, true);
+
+  // Scrolling the page, by wheel or keys: one step where the page comes to rest. A page that
+  // scrolls itself (after a click on an anchor) is no step: the click does that again.
+  let scrollTimer = null;
+  addEventListener('wheel', (event) => {
+    if (event.isTrusted) userScroll = Date.now();
+  }, { capture: true, passive: true });
+  if (window === window.top) {
+    addEventListener('scroll', () => {
+      if (window.__clickbotMode !== 'record' || Date.now() - userScroll > 1500) return;
+      clearTimeout(scrollTimer);
+      scrollTimer = setTimeout(() => send({ kind: 'scroll', y: Math.round(window.scrollY) }), 400);
+    }, { passive: true });
+  }
 })();`;
 
 /** Matches of a target across the page and all its iframes, as findTarget counts them. */
@@ -217,7 +282,7 @@ async function countEverywhere(frames: Frame[], target: Target): Promise<number>
   return counts.reduce((sum, count) => sum + count, 0);
 }
 
-function toStep(action: Action, target: Target): RecordedStep {
+function toStep(action: Exclude<Action, { kind: 'scroll' }>, target: Target): RecordedStep {
   switch (action.kind) {
     case 'click':
       return { type: 'click', target };
@@ -227,6 +292,8 @@ function toStep(action: Action, target: Target): RecordedStep {
       return { type: 'fill', target, value: action.secret ? PASSWORD_PLACEHOLDER : action.value };
     case 'select':
       return { type: 'select', target, option: action.option };
+    case 'press':
+      return { type: 'press', key: action.key, target };
   }
 }
 
@@ -245,8 +312,12 @@ export async function startRecorder(
 
   await context.exposeBinding(BINDING, ({ frame }, action: Action) => {
     queue = queue.then(async () => {
-      if (mode === 'browse') return;
       if (action.kind === 'assert') mode = 'record';
+      if (action.kind === 'scroll')
+        return onStep({ type: 'scroll', to: { kind: 'position', y: action.y } });
+      if (action.kind === 'press' && action.candidates.length === 0) {
+        return onStep({ type: 'press', key: action.key });
+      }
       const frames = frame.page().frames();
       // An element that removed itself on the click (a cookie banner, often with its iframe)
       // matches nothing any more: then the best suggestion that was not ambiguous wins.
@@ -282,5 +353,13 @@ export async function startRecorder(
       await applyMode();
     },
     mode: () => mode,
+    async insert(step) {
+      // One round trip through every frame first: actions the pages reported before arrive
+      // before it, so the step lands after them.
+      const frames = context.pages().flatMap((page) => page.frames());
+      await Promise.all(frames.map((f) => f.evaluate(() => 0).catch(() => undefined)));
+      queue = queue.then(() => onStep(step));
+      await queue;
+    },
   };
 }

@@ -130,6 +130,23 @@ describe('parseFlowSuggestion', () => {
     expect(steps[2]).toMatchObject({ value: 'test@example.org' });
   });
 
+  it('takes keys and scrolling, which the step form can edit', () => {
+    const steps = parseFlowSuggestion(
+      answer({
+        steps: [
+          contactSteps[0],
+          { type: 'press', key: 'Escape' },
+          {
+            type: 'scroll',
+            to: { kind: 'element', target: { by: 'role', role: 'heading', name: 'Kontakt' } },
+          },
+        ],
+      }),
+      input.startUrl,
+    ).steps;
+    expect(steps.map((step) => step.type)).toEqual(['open', 'press', 'scroll']);
+  });
+
   it.each([
     ['no JSON at all', 'Ich kann das leider nicht.', 'keinen lesbaren Vorschlag'],
     ['no steps', answer({ questions: [] }), 'keine Schritte'],

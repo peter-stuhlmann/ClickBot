@@ -222,6 +222,36 @@ export async function executeStep(
       return {};
     }
 
+    case 'scroll': {
+      const { to } = step;
+      if (to.kind === 'element') {
+        await onTarget(current, to.target, timeout, (l, left) =>
+          l.scrollIntoViewIfNeeded({ timeout: left }),
+        );
+        return {};
+      }
+      // Instantly, also on pages with smooth scrolling: the next step must find the page there.
+      await page.evaluate(
+        (y) => {
+          const top = y ?? (document.scrollingElement ?? document.documentElement).scrollHeight;
+          window.scrollTo({ top, behavior: 'instant' });
+        },
+        to.kind === 'position' ? to.y : null,
+      );
+      return {};
+    }
+
+    case 'press': {
+      // Playwright calls the space bar " "; the flow writes it as „Space“, which can be read.
+      const key = step.key.replace(/(^|\+)Space$/, '$1 ');
+      if (step.target) {
+        await onTarget(current, step.target, timeout, (l, left) => l.press(key, { timeout: left }));
+      } else {
+        await page.keyboard.press(key);
+      }
+      return {};
+    }
+
     case 'screenshot':
       await waitForPdf(page, timeout);
       return { screenshot: await page.screenshot({ fullPage: step.fullPage }) };

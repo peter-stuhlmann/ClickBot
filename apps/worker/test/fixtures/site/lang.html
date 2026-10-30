@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="de">
+  <head>
+    <meta charset="utf-8" />
+    <title>Lange Seite – Beispiel GmbH</title>
+    <style>
+      html {
+        scroll-behavior: smooth;
+      }
+      section {
+        height: 900px;
+      }
+      .anzeige {
+        position: fixed;
+        right: 0;
+      }
+    </style>
+  </head>
+  <body>
+    <p class="anzeige" style="top: 0">Position <span data-testid="position">0</span></p>
+    <p class="anzeige" style="top: 24px">Taste <span data-testid="taste"></span></p>
+    <dialog open id="hinweis"><p>Neu: Newsletter</p></dialog>
+    <p data-testid="dialog">Dialog offen</p>
+    <label>Suche <input id="suche" /></label>
+    <section><h2>Start</h2></section>
+    <section><h2>Mitte</h2></section>
+    <section><h2>Kontakt</h2></section>
+    <script>
+      const shown = (id) => document.querySelector(`[data-testid="${id}"]`);
+      addEventListener('scroll', () => {
+        shown('position').textContent = String(Math.round(scrollY));
+      });
+      addEventListener('keydown', (event) => {
+        shown('taste').textContent = [
+          event.ctrlKey && 'Control',
+          event.altKey && 'Alt',
+          event.shiftKey && 'Shift',
+          event.metaKey && 'Meta',
+          event.key === ' ' ? 'Space' : event.key,
+        ]
+          .filter(Boolean)
+          .join('+');
+        if (event.key === 'Escape') {
+          document.getElementById('hinweis').close();
+          shown('dialog').textContent = 'Dialog geschlossen';
+        }
+      });
+    </script>
+  </body>
+</html>

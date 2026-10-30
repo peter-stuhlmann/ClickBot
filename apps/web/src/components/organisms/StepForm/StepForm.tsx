@@ -14,6 +14,7 @@ import {
 import {
   ASSERT_OPTIONS,
   ROLE_OPTIONS,
+  SCROLL_OPTIONS,
   STEP_TYPE_OPTIONS,
   TARGET_OPTIONS,
   WAIT_OPTIONS,
@@ -68,7 +69,9 @@ function needsTarget(step: StepDraft): boolean {
     step.type === 'fill' ||
     step.type === 'select' ||
     (step.type === 'assert' && step.assertKind === 'elementVisible') ||
-    (step.type === 'wait' && step.waitKind === 'element')
+    (step.type === 'wait' && step.waitKind === 'element') ||
+    (step.type === 'press' && step.pressOnElement) ||
+    (step.type === 'scroll' && step.scrollKind === 'element')
   );
 }
 
@@ -95,6 +98,66 @@ export function StepForm({ index, step, errors, onChange }: StepFormProps) {
           />
         )}
       </Field>
+
+      {step.type === 'press' && (
+        <>
+          <Field
+            id="step-key"
+            label="Taste"
+            hint="Z. B. Escape, Enter, Tab oder eine Kombination wie Control+a oder Shift+Tab."
+            error={errors.key}
+          >
+            {(control) => (
+              <Input
+                {...control}
+                mono
+                placeholder="Escape"
+                value={step.key}
+                onChange={(event) => set({ key: event.target.value })}
+              />
+            )}
+          </Field>
+          <Checkbox
+            label="Auf einem Element drücken (bekommt vorher den Fokus)"
+            checked={step.pressOnElement}
+            onChange={(event) => set({ pressOnElement: event.target.checked })}
+          />
+        </>
+      )}
+
+      {step.type === 'scroll' && (
+        <>
+          <Field id="step-scroll" label="Scrollen">
+            {(control) => (
+              <Select
+                {...control}
+                options={SCROLL_OPTIONS}
+                value={step.scrollKind}
+                onChange={(scrollKind) =>
+                  set({ scrollKind: scrollKind as StepDraft['scrollKind'] })
+                }
+              />
+            )}
+          </Field>
+          {step.scrollKind === 'position' && (
+            <Field
+              id="step-scroll-y"
+              label="Pixel von oben"
+              hint="Wie weit die Seite gescrollt ist; 0 ist ganz oben."
+              error={errors.scrollY}
+            >
+              {(control) => (
+                <Input
+                  {...control}
+                  inputMode="numeric"
+                  value={step.scrollY}
+                  onChange={(event) => set({ scrollY: event.target.value })}
+                />
+              )}
+            </Field>
+          )}
+        </>
+      )}
 
       {step.type === 'open' && (
         <Field

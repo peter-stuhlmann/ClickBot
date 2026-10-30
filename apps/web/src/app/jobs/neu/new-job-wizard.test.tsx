@@ -121,8 +121,8 @@ describe('NewJobWizard', () => {
     });
     expect(screen.getByRole('textbox', { name: 'Adresse' })).toHaveValue(url);
 
-    await user.click(screen.getByRole('radio', { name: 'Nur bedienen' }));
-    expect(socket.sent).toEqual([{ type: 'mode', mode: 'browse' }]);
+    await user.click(screen.getByRole('button', { name: 'Bildschirmfoto aufnehmen' }));
+    expect(socket.sent).toEqual([{ type: 'screenshot' }]);
 
     await user.click(
       screen.getByRole('button', { name: 'Aufnahme beenden · 2 Schritte übernehmen' }),

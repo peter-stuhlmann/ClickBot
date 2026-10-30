@@ -1,5 +1,12 @@
 import { displayUrl } from './format';
-import type { AssertKind, EditableStepType, StepDraft, TargetBy, WaitKind } from './job-draft';
+import type {
+  AssertKind,
+  EditableStepType,
+  ScrollKind,
+  StepDraft,
+  TargetBy,
+  WaitKind,
+} from './job-draft';
 import type { StepItemView, StepTone } from './views';
 
 type Option<T extends string> = { value: T; label: string };
@@ -9,6 +16,8 @@ export const STEP_TYPE_OPTIONS: readonly Option<EditableStepType>[] = [
   { value: 'click', label: 'Klicken' },
   { value: 'fill', label: 'Ausfüllen' },
   { value: 'select', label: 'Auswählen' },
+  { value: 'press', label: 'Taste drücken' },
+  { value: 'scroll', label: 'Scrollen' },
   { value: 'assert', label: 'Prüfen' },
   { value: 'wait', label: 'Warten' },
   { value: 'screenshot', label: 'Bildschirmfoto' },
@@ -43,6 +52,12 @@ export const ASSERT_OPTIONS: readonly Option<AssertKind>[] = [
   { value: 'titleContains', label: 'Seitentitel enthält' },
 ];
 
+export const SCROLL_OPTIONS: readonly Option<ScrollKind>[] = [
+  { value: 'position', label: 'Zu einer Position' },
+  { value: 'element', label: 'Bis ein Element zu sehen ist' },
+  { value: 'bottom', label: 'Ans Seitenende' },
+];
+
 export const WAIT_OPTIONS: readonly Option<WaitKind>[] = [
   { value: 'duration', label: 'Feste Zeit' },
   { value: 'element', label: 'Bis ein Element erscheint' },
@@ -54,6 +69,8 @@ const TYPE_BADGE: Record<EditableStepType, { typeLabel: string; tone: StepTone }
   click: { typeLabel: 'Klicken', tone: 'primary' },
   fill: { typeLabel: 'Ausfüllen', tone: 'info' },
   select: { typeLabel: 'Auswählen', tone: 'info' },
+  press: { typeLabel: 'Taste', tone: 'primary' },
+  scroll: { typeLabel: 'Scrollen', tone: 'neutral' },
   assert: { typeLabel: 'Prüfen', tone: 'success' },
   wait: { typeLabel: 'Warten', tone: 'neutral' },
   screenshot: { typeLabel: 'Screenshot', tone: 'neutral' },
@@ -114,6 +131,20 @@ function describeWait(step: StepDraft): Content {
   }
 }
 
+function describeScroll(step: StepDraft): Content {
+  switch (step.scrollKind) {
+    case 'position':
+      return {
+        title: `Scrolle zu ${or(step.scrollY)} px von oben`,
+        detail: `scroll y = ${step.scrollY.trim()}`,
+      };
+    case 'element':
+      return { title: `Scrolle zu „${targetName(step)}“`, detail: targetDetail(step) };
+    case 'bottom':
+      return { title: 'Scrolle ans Seitenende', detail: 'scroll bottom' };
+  }
+}
+
 function describeContent(step: StepDraft): Content {
   const value = step.value.trim();
   switch (step.type) {
@@ -134,6 +165,17 @@ function describeContent(step: StepDraft): Content {
         title: `Wähle „${or(value)}“ in „${targetName(step)}“`,
         detail: `${targetDetail(step)} → "${value}"`,
       };
+    case 'press': {
+      const key = step.key.trim();
+      return step.pressOnElement
+        ? {
+            title: `Drücke ${or(key)} in „${targetName(step)}“`,
+            detail: `key = "${key}", ${targetDetail(step)}`,
+          }
+        : { title: `Drücke ${or(key)}`, detail: `key = "${key}"` };
+    }
+    case 'scroll':
+      return describeScroll(step);
     case 'assert':
       return describeAssertion(step, value);
     case 'wait':

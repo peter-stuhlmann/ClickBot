@@ -19,6 +19,8 @@ const ALLOWED_TYPES = new Set<Step['type']>([
   'click',
   'fill',
   'select',
+  'press',
+  'scroll',
   'assert',
   'wait',
   'screenshot',
@@ -51,6 +53,10 @@ Step types (one JSON object per step, without "id"):
 - click: {"type":"click","target":TARGET}
 - fill: {"type":"fill","target":TARGET,"value":"text or variable"}
 - select: {"type":"select","target":TARGET,"option":"visible option text"}
+- press: {"type":"press","key":"Escape"} – a key or combination like "Tab", "Shift+Tab",
+  "Control+a"; with "target":TARGET it goes to that element.
+- scroll: {"type":"scroll","to":{"kind":"element","target":TARGET}} or {"kind":"bottom"} or
+  {"kind":"position","y":1200}
 - assert: {"type":"assert","assertion":{"kind":"textVisible","text":"..."}} or
   {"kind":"elementVisible","target":TARGET} or {"kind":"urlContains","value":"..."} or
   {"kind":"titleContains","value":"..."}

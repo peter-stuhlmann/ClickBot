@@ -1,4 +1,4 @@
-import { ALL_MARKINGS_ON } from '@click-bot/shared';
+import { ALL_MARKINGS_ON, KEY_PATTERN } from '@click-bot/shared';
 import type { BrowserContext, Page } from 'playwright';
 import { markBotTraffic } from './bot-marking';
 import { refusedCredentials, toStepMessage } from './errors';
@@ -11,14 +11,11 @@ const MAX_TEXT = 2_000;
 const MAX_WHEEL = 5_000;
 const OPEN_TIMEOUT_MS = 20_000;
 const SCREENCAST_QUALITY = 60;
-// Plain key names only: no shortcuts like Control+Shift+I that open developer tools.
-const KEY =
-  /^(Enter|Tab|Backspace|Delete|Escape|Space|Home|End|PageUp|PageDown|Arrow(Up|Down|Left|Right))$/;
 // Analyses and recordings are no runs: their GA4 requests carry run number 0.
 const NO_RUN = 0;
 
-/** A step the recording produced: an opened address or a recorded action. */
-export type LiveStep = { type: 'open'; url: string } | RecordedStep;
+/** A step the recording produced: an opened address, a photo or a recorded action. */
+export type LiveStep = RecordedStep;
 
 export type ClientMessage =
   | { type: 'click'; x: number; y: number }
@@ -30,6 +27,7 @@ export type ClientMessage =
   | { type: 'back' }
   | { type: 'forward' }
   | { type: 'reload' }
+  | { type: 'screenshot' }
   | { type: 'mode'; mode: RecorderMode };
 
 export type ServerMessage =
@@ -82,8 +80,9 @@ export function parseClientMessage(raw: string): ClientMessage | null {
         isNumber(message.dy, -MAX_WHEEL, MAX_WHEEL)
         ? { type, dx: message.dx, dy: message.dy }
         : null;
+    // Keys and combinations as a flow step allows them: no function keys like F12.
     case 'key':
-      return typeof message.key === 'string' && KEY.test(message.key)
+      return typeof message.key === 'string' && KEY_PATTERN.test(message.key)
         ? { type, key: message.key }
         : null;
     case 'text':
@@ -95,9 +94,10 @@ export function parseClientMessage(raw: string): ClientMessage | null {
     case 'back':
     case 'forward':
     case 'reload':
+    case 'screenshot':
       return { type };
     case 'mode':
-      return message.mode === 'record' || message.mode === 'browse' || message.mode === 'assert'
+      return message.mode === 'record' || message.mode === 'assert'
         ? { type, mode: message.mode }
         : null;
     default:
@@ -160,10 +160,8 @@ export async function startLiveSession(
   await cdp.send('Page.startScreencast', { format: 'jpeg', quality: SCREENCAST_QUALITY });
 
   /** Back and forward are no steps; the flow opens the address it lands on instead. */
-  const recordWhereWeAre = () => {
-    if (recorder.mode() === 'record' && isWebAddress(page.url())) {
-      send({ type: 'step', step: { type: 'open', url: page.url() } });
-    }
+  const recordWhereWeAre = async () => {
+    if (isWebAddress(page.url())) await recorder.insert({ type: 'open', url: page.url() });
   };
 
   return {
@@ -176,13 +174,13 @@ export async function startLiveSession(
         case 'wheel':
           return page.mouse.wheel(message.dx, message.dy);
         case 'key':
-          return page.keyboard.press(message.key === 'Space' ? ' ' : message.key);
+          // Playwright calls the space bar " ".
+          return page.keyboard.press(message.key.replace(/(^|\+)Space$/, '$1 '));
         case 'text':
-          return page.keyboard.insertText(message.text);
+          // Typed key by key, so the page sees its keys, as with a real keyboard.
+          return page.keyboard.type(message.text);
         case 'navigate': {
-          if (recorder.mode() === 'record') {
-            send({ type: 'step', step: { type: 'open', url: message.url } });
-          }
+          await recorder.insert({ type: 'open', url: message.url });
           const failed = await open(page, message.url);
           if (failed) send({ type: 'error', message: failed });
           return;
@@ -196,6 +194,8 @@ export async function startLiveSession(
         case 'reload':
           await page.reload().catch(() => undefined);
           return;
+        case 'screenshot':
+          return recorder.insert({ type: 'screenshot' });
         case 'mode':
           await recorder.setMode(message.mode);
           send({ type: 'mode', mode: message.mode });

@@ -50,6 +50,22 @@ const STORED: Step[] = [
     target: { by: 'text', text: 'Mehr', exact: false },
     timeoutMs: 2_500,
   },
+  { ...base, id: 'sc', type: 'scroll', to: { kind: 'position', y: 1200 } },
+  {
+    ...base,
+    id: 'sc2',
+    type: 'scroll',
+    to: { kind: 'element', target: { by: 'role', role: 'heading', name: 'Kontakt' } },
+  },
+  { ...base, id: 'sc3', type: 'scroll', to: { kind: 'bottom' } },
+  { ...base, id: 'k', type: 'press', key: 'Escape' },
+  {
+    ...base,
+    id: 'k2',
+    type: 'press',
+    key: 'Control+a',
+    target: { by: 'label', label: 'Suche' },
+  },
   {
     ...base,
     id: 'auth',
@@ -87,7 +103,7 @@ describe('toStepDraft', () => {
 
   it.each([
     { ...base, id: 'x', type: 'extract', target: { by: 'css', selector: '#nr' }, saveAs: 'nr' },
-    { ...base, id: 'k', type: 'ai', instruction: 'Akzeptiere das Cookie-Banner.' },
+    { ...base, id: 'ki', type: 'ai', instruction: 'Akzeptiere das Cookie-Banner.' },
   ] as Step[])('has no form for $type steps yet', (step) => {
     expect(toStepDraft(step)).toBeNull();
   });

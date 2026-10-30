@@ -225,8 +225,10 @@ Hochziehen erst, wenn beide Pakete die neue Version offiziell unterstützen.
 - **Datenbank und Queue:** Postgres. Die Tabelle `runs` ist selbst die Warteschlange, ohne
   pg-boss und ohne Redis. So gibt es nur eine Quelle der Wahrheit (siehe Abschnitt Worker).
 - **Ablauf:** wird als JSON-Schrittliste gespeichert, validiert mit Zod aus `packages/shared`.
-  - Schritt-Typen: öffnen, klicken, ausfüllen, auswählen, prüfen, auslesen, warten,
-    screenshot, analytics, Passwortschutz (.htaccess, `basicAuth`), KI-Schritt.
+  - Schritt-Typen: öffnen, klicken, ausfüllen, auswählen, Taste drücken (`press`, Taste oder
+    Kombination wie `Control+a`, optional auf einem Element, keine F-Tasten: `KEY_PATTERN`),
+    scrollen (`scroll`: zu einer Position, bis ein Element zu sehen ist, ans Seitenende), prüfen,
+    auslesen, warten, screenshot, analytics, Passwortschutz (.htaccess, `basicAuth`), KI-Schritt.
   - Variablen: `{{faker.*}}`, `{{run_nr}}`, `{{bot_nr}}`, `{{secret.name}}`.
 - **Drei Wege zum Ablauf:**
   - KI: Beschreibung → Schrittvorschlag + Rückfragen.
@@ -358,16 +360,27 @@ Hochziehen erst, wenn beide Pakete die neue Version offiziell unterstützen.
     localhost-Port) und Token, höchstens `LIVE_MAX_SESSIONS` (2) gleichzeitig, je 15 Min.
   - Ein Kontext im gemeinsamen Chromium, 1280 × 800, GA4 markiert wie bei Läufen (Laufnummer 0).
     Bild als JPEG über CDP-Screencast. Eingehende Nachrichten prüft `parseClientMessage` streng:
-    nur Klick, Mausbewegung, Scrollen, einfache Tasten, Text, Webadresse, Zurück/Vor/Neu laden,
-    Modus. Eingaben laufen der Reihe nach, auch wenn sie vor dem Seitenaufbau kommen.
+    nur Klick, Mausbewegung, Scrollen, Tasten und Kombinationen (`KEY_PATTERN`), Text,
+    Webadresse, Zurück/Vor/Neu laden, Bildschirmfoto, Prüfung. Eingaben laufen der Reihe nach, auch wenn sie vor dem Seitenaufbau kommen.
   - Der Rekorder (Skript in jeder Seite und jedem iframe) schlägt je Aktion Ziele vor (Rolle mit
     Name, Label, Test-ID, Text, ID, CSS-Pfad). Der Worker nimmt das erste, das über alle Frames
     genau ein Element trifft. Ist das Element schon weg (Banner, die sich beim Klick entfernen),
     das beste nicht mehrdeutige. Enter im Formular wird ein Klick auf den Absende-Button.
   - Passwortfelder werden nie mitgeschnitten, der Schritt bekommt `{{secret.passwort}}`.
-  - Modi: Aufnehmen, Nur bedienen, „Prüfung hinzufügen“ (der nächste Klick wird eine Prüfung
-    „Element sichtbar“, die Seite reagiert nicht darauf). Eine neue Adresse in der Adressleiste
-    wird ein Schritt „Seite öffnen“, Zurück und Vor auch (mit der Adresse, auf der man landet).
+  - Aufgezeichnet wird immer, von Anfang bis Ende (kein „Nur bedienen“). Neben der Adresse fügt
+    die Kamera ein Bildschirmfoto ein, der Haken macht den nächsten Klick zu einer Prüfung
+    „Element sichtbar“ (die Seite reagiert nicht darauf). Solche Schritte reihen sich nach allen
+    Aktionen davor ein (`recorder.insert`, ein Durchlauf durch alle Frames vorher). Eine neue
+    Adresse in der Adressleiste wird ein Schritt „Seite öffnen“, Zurück und Vor auch (mit der
+    Adresse, auf der man landet).
+  - Tasten: Text wird Taste für Taste getippt, damit die Seite ihre Tasten sieht. Ein Schritt
+    „Taste drücken“ entsteht für Tab, Escape, Kombinationen, Tasten auf einem Element mit Fokus
+    und Enter in einem Feld ohne Formular. Kein eigener Schritt: Tippen im Feld (Ausfüllen),
+    Enter im Formular und Enter/Leertaste auf Button oder Link (Klick), Tasten, die nur die Seite
+    scrollen. Kopieren und Einfügen bleiben im eigenen Browser.
+  - Scrollen: Scrollt der Nutzer selbst (Mausrad, Scroll-Tasten), wird die Position, an der die
+    Seite zur Ruhe kommt, ein Schritt „Scrollen“; weiteres Scrollen ändert diesen Schritt. Scrollt
+    die Seite von selbst (Anker nach einem Klick), entsteht kein Schritt.
   - Neue Tabs öffnen sich im selben Tab, PDFs mit dem Viewer von Chromium. Der aufgenommene
     Klick öffnet im Lauf den neuen Tab, in dem der Bot weitermacht.
 - **Lebenszeichen:** Alle 10 s schreibt der Worker in `worker_heartbeats`. Die Web-App zeigt

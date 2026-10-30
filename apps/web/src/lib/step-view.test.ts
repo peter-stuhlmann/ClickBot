@@ -118,6 +118,8 @@ describe('STEP_TYPE_OPTIONS', () => {
       'click',
       'fill',
       'select',
+      'press',
+      'scroll',
       'assert',
       'wait',
       'screenshot',
@@ -148,5 +150,44 @@ describe('describeStep for .htaccess steps', () => {
     expect(
       describeStep(step('basicAuth', { storedPassword: '{{secret.htaccess-beispiel-de}}' })).detail,
     ).toBe('basic auth, user = "", password = ••••••');
+  });
+});
+
+describe('describeStep for scrolling and keys', () => {
+  it.each([
+    [{ scrollKind: 'position', scrollY: '1200' }, 'Scrolle zu 1200 px von oben', 'scroll y = 1200'],
+    [
+      { scrollKind: 'element', targetBy: 'role', targetRole: 'heading', targetValue: 'Kontakt' },
+      'Scrolle zu „Kontakt“',
+      'role = heading, name = "Kontakt"',
+    ],
+    [{ scrollKind: 'bottom' }, 'Scrolle ans Seitenende', 'scroll bottom'],
+  ] as const)('names a scroll step: %o', (fields, title, detail) => {
+    expect(describeStep(step('scroll', fields))).toMatchObject({
+      typeLabel: 'Scrollen',
+      title,
+      detail,
+    });
+  });
+
+  it('names a key, alone or on an element', () => {
+    expect(describeStep(step('press', { key: 'Escape' }))).toMatchObject({
+      typeLabel: 'Taste',
+      title: 'Drücke Escape',
+      detail: 'key = "Escape"',
+    });
+    expect(
+      describeStep(
+        step('press', {
+          key: 'Control+a',
+          pressOnElement: true,
+          targetBy: 'label',
+          targetValue: 'Suche',
+        }),
+      ),
+    ).toMatchObject({
+      title: 'Drücke Control+a in „Suche“',
+      detail: 'key = "Control+a", label = "Suche"',
+    });
   });
 });

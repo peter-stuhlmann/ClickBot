@@ -251,3 +251,57 @@ describe('basicAuth steps (.htaccess password protection)', () => {
     ]);
   });
 });
+
+describe('scroll steps', () => {
+  it('scroll to a position, until an element is visible, or to the end of the page', () => {
+    for (const to of [
+      { kind: 'position', y: 1200 },
+      { kind: 'element', target: { by: 'role', role: 'heading', name: 'Kontakt' } },
+      { kind: 'bottom' },
+    ]) {
+      expect(stepSchema.safeParse({ id: 's', type: 'scroll', to }).success).toBe(true);
+    }
+  });
+
+  it('take whole, non-negative pixels', () => {
+    for (const y of [-1, 12.5]) {
+      const result = stepSchema.safeParse({ id: 's', type: 'scroll', to: { kind: 'position', y } });
+      expect(result.success).toBe(false);
+    }
+  });
+});
+
+describe('press steps (keys and key combinations)', () => {
+  it.each([
+    'Escape',
+    'Tab',
+    'Shift+Tab',
+    'Control+a',
+    'Control+Shift+K',
+    'Enter',
+    'ArrowDown',
+    '/',
+  ])('accept %s', (key) => {
+    expect(stepSchema.safeParse({ id: 'k', type: 'press', key }).success).toBe(true);
+  });
+
+  it('may press on an element, which gets the focus first', () => {
+    const step = stepSchema.parse({
+      id: 'k',
+      type: 'press',
+      key: 'ArrowRight',
+      target: { by: 'role', role: 'slider', name: 'Preis' },
+    });
+    expect(step).toMatchObject({ target: { by: 'role', role: 'slider' } });
+  });
+
+  it.each(['', 'Strg+A', 'Control+', 'Control+Shift', 'F5', 'Enter Enter'])('refuse %j', (key) => {
+    const result = stepSchema.safeParse({ id: 'k', type: 'press', key });
+    expect(result.success).toBe(false);
+    if (!result.success && key === 'Strg+A') {
+      expect(result.error.issues[0]?.message).toBe(
+        'Eine Taste wie „Escape“ oder eine Kombination wie „Control+a“.',
+      );
+    }
+  });
+});

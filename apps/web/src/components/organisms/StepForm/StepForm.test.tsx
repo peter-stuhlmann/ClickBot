@@ -287,3 +287,50 @@ describe('StepForm for .htaccess password protection', () => {
     expect(screen.getByLabelText('Passwort')).toHaveAccessibleDescription(/Bitte ausfüllen/);
   });
 });
+
+describe('StepForm – keys and scrolling', () => {
+  it('asks for a key, and for an element only when the key goes to one', async () => {
+    const user = userEvent.setup();
+    const onChange = vi.fn();
+    render(<Harness initial={step('press')} onChange={onChange} />);
+    expect(labels()).toEqual([
+      'Aktion',
+      'Taste',
+      'Auf einem Element drücken (bekommt vorher den Fokus)',
+      'Timeout (Sekunden)',
+    ]);
+    await user.type(screen.getByRole('textbox', { name: 'Taste' }), 'Escape');
+    expect(onChange).toHaveBeenLastCalledWith(expect.objectContaining({ key: 'Escape' }));
+
+    await user.click(screen.getByRole('checkbox', { name: /Auf einem Element drücken/ }));
+    expect(labels()).toEqual([
+      'Aktion',
+      'Taste',
+      'Auf einem Element drücken (bekommt vorher den Fokus)',
+      'Element finden über',
+      'Label',
+      'Timeout (Sekunden)',
+    ]);
+  });
+
+  it('shows what is wrong with a key at its field', () => {
+    render(<Harness initial={step('press')} errors={{ key: 'Eine Taste wie „Escape“.' }} />);
+    expect(screen.getByRole('textbox', { name: 'Taste' })).toHaveAccessibleDescription(
+      /Eine Taste wie „Escape“/,
+    );
+  });
+
+  it.each([
+    ['Zu einer Position', ['Aktion', 'Scrollen', 'Pixel von oben', 'Timeout (Sekunden)']],
+    [
+      'Bis ein Element zu sehen ist',
+      ['Aktion', 'Scrollen', 'Element finden über', 'Rolle', 'Name', 'Timeout (Sekunden)'],
+    ],
+    ['Ans Seitenende', ['Aktion', 'Scrollen', 'Timeout (Sekunden)']],
+  ])('scrolls "%s" with the matching fields', async (kind, expected) => {
+    const user = userEvent.setup();
+    render(<Harness initial={step('scroll')} errors={{ scrollY: 'Ganze Pixel ab 0.' }} />);
+    await chooseOption(user, screen.getByRole('combobox', { name: 'Scrollen' }), kind);
+    expect(labels()).toEqual(expected);
+  });
+});

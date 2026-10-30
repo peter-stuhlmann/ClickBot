@@ -356,6 +356,81 @@ describe('runFlow – links that open a new tab', () => {
   });
 });
 
+describe('runFlow – scrolling and keys', () => {
+  const start = step('open', { type: 'open', url: '/lang.html' });
+  const position = step('pos', {
+    type: 'extract',
+    target: { by: 'testId', testId: 'position' },
+    saveAs: 'y',
+  });
+  const pressed = step('key', {
+    type: 'extract',
+    target: { by: 'testId', testId: 'taste' },
+    saveAs: 'key',
+  });
+  const maxScroll = 3 * 900 + 200;
+
+  it('scrolls to a position, even on a page that scrolls smoothly', async () => {
+    const result = await run([
+      start,
+      step('scroll', { type: 'scroll', to: { kind: 'position', y: 1200 } }),
+      position,
+    ]);
+    expect(result.extracted).toEqual({ y: '1200' });
+  });
+
+  it('scrolls until an element is in view', async () => {
+    const result = await run([
+      start,
+      step('scroll', {
+        type: 'scroll',
+        to: { kind: 'element', target: { by: 'role', role: 'heading', name: 'Kontakt' } },
+      }),
+      position,
+    ]);
+    expect(Number(result.extracted.y)).toBeGreaterThan(900);
+  });
+
+  it('scrolls to the end of the page', async () => {
+    const result = await run([
+      start,
+      step('scroll', { type: 'scroll', to: { kind: 'bottom' } }),
+      position,
+    ]);
+    expect(Number(result.extracted.y)).toBeGreaterThan(maxScroll - 900);
+  });
+
+  it('presses a key, e.g. Escape to close a dialog', async () => {
+    const result = await run([
+      start,
+      step('esc', { type: 'press', key: 'Escape' }),
+      step('closed', {
+        type: 'assert',
+        assertion: { kind: 'textVisible', text: 'Dialog geschlossen' },
+      }),
+    ]);
+    expect(result.status).toBe('passed');
+  });
+
+  it('presses a key combination on an element, which gets the focus first', async () => {
+    const result = await run([
+      start,
+      step('combo', { type: 'press', key: 'Control+k', target: { by: 'label', label: 'Suche' } }),
+      pressed,
+    ]);
+    expect(result.extracted).toEqual({ key: 'Control+k' });
+  });
+
+  it('knows the space bar by its name', async () => {
+    const result = await run([
+      start,
+      step('space', { type: 'press', key: 'Shift+Space' }),
+      pressed,
+    ]);
+    expect(result.extracted).toEqual({ key: 'Shift+Space' });
+  });
+});
+
 describe('runFlow – failures', () => {
   it('stops at a missing element, explains it and skips the remaining steps', async () => {
     const result = await run([

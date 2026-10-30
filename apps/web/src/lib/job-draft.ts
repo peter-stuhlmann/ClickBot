@@ -43,11 +43,14 @@ export type EditableStepType =
   | 'click'
   | 'fill'
   | 'select'
+  | 'press'
+  | 'scroll'
   | 'assert'
   | 'wait'
   | 'screenshot'
   | 'analytics'
   | 'basicAuth';
+export type ScrollKind = 'position' | 'element' | 'bottom';
 export type TargetBy = 'role' | 'label' | 'text' | 'css' | 'testId';
 export type AssertKind = 'textVisible' | 'urlContains' | 'titleContains' | 'elementVisible';
 export type WaitKind = 'duration' | 'element' | 'networkIdle';
@@ -67,6 +70,13 @@ export type StepDraft = {
   assertKind: AssertKind;
   waitKind: WaitKind;
   waitSeconds: string;
+  /** scroll: to a position (pixels from the top), until an element is in view, or to the end. */
+  scrollKind: ScrollKind;
+  scrollY: string;
+  /** press: a key or combination, e.g. „Escape“ or „Control+a“. */
+  key: string;
+  /** press: on the element of the target fields, which gets the focus first. */
+  pressOnElement: boolean;
   fullPage: boolean;
   timeoutSeconds: string;
   /** basicAuth (.htaccess) */
@@ -210,9 +220,9 @@ function isHttpUrl(value: string): boolean {
   }
 }
 
-/** Buttons and links are found by role and name, form fields by their label. */
+/** Buttons, links and headings are found by role and name, form fields by their label. */
 export function defaultTargetBy(type: EditableStepType): TargetBy {
-  return type === 'click' ? 'role' : 'label';
+  return type === 'click' || type === 'scroll' ? 'role' : 'label';
 }
 
 /** A new step with an unused id. The first "open" step opens the start URL. */
@@ -230,12 +240,16 @@ export function newStep(
     type,
     url: type === 'open' && existing.length === 0 ? normaliseUrl(startUrl) : '',
     targetBy: defaultTargetBy(type),
-    targetRole: 'button',
+    targetRole: type === 'scroll' ? 'heading' : 'button',
     targetValue: '',
     value: '',
     assertKind: 'textVisible',
     waitKind: 'duration',
     waitSeconds: '1',
+    scrollKind: 'position',
+    scrollY: '0',
+    key: '',
+    pressOnElement: false,
     fullPage: false,
     timeoutSeconds: '10',
     username: '',
@@ -295,6 +309,17 @@ function toWait(step: StepDraft): Record<string, unknown> {
   }
 }
 
+function toScroll(step: StepDraft): Record<string, unknown> {
+  switch (step.scrollKind) {
+    case 'position':
+      return { kind: 'position', y: toNumber(step.scrollY) };
+    case 'element':
+      return { kind: 'element', target: toTarget(step) };
+    case 'bottom':
+      return { kind: 'bottom' };
+  }
+}
+
 function toStep(step: StepDraft): Record<string, unknown> {
   const base = { id: step.id, type: step.type, timeoutMs: toMs(step.timeoutSeconds) };
   switch (step.type) {
@@ -306,6 +331,14 @@ function toStep(step: StepDraft): Record<string, unknown> {
       return { ...base, target: toTarget(step), value: step.value };
     case 'select':
       return { ...base, target: toTarget(step), option: step.value.trim() };
+    case 'press':
+      return {
+        ...base,
+        key: step.key.trim(),
+        ...(step.pressOnElement ? { target: toTarget(step) } : {}),
+      };
+    case 'scroll':
+      return { ...base, to: toScroll(step) };
     case 'assert':
       return { ...base, assertion: toAssertion(step) };
     case 'wait':
@@ -366,6 +399,19 @@ export function toStepDraft(step: Step): StepDraft | null {
       return { ...draft, ...targetFields(step.target), value: step.value };
     case 'select':
       return { ...draft, ...targetFields(step.target), value: step.option };
+    case 'press':
+      return step.target
+        ? { ...draft, key: step.key, pressOnElement: true, ...targetFields(step.target) }
+        : { ...draft, key: step.key };
+    case 'scroll': {
+      const { to } = step;
+      if (to.kind === 'position')
+        return { ...draft, scrollKind: 'position', scrollY: String(to.y) };
+      if (to.kind === 'element') {
+        return { ...draft, scrollKind: 'element', ...targetFields(to.target) };
+      }
+      return { ...draft, scrollKind: 'bottom' };
+    }
     case 'assert': {
       const { assertion } = step;
       if (assertion.kind === 'elementVisible') {
@@ -703,6 +749,8 @@ export type StepField =
   | 'targetValue'
   | 'value'
   | 'waitSeconds'
+  | 'scrollY'
+  | 'key'
   | 'timeoutSeconds'
   | 'username'
   | 'password'
@@ -721,6 +769,8 @@ function stepField(rest: string): StepField {
   if (rest === 'url' || rest === 'username' || rest === 'password') return rest;
   if (rest === 'timeoutMs') return 'timeoutSeconds';
   if (rest === 'until.ms') return 'waitSeconds';
+  if (rest === 'to.y') return 'scrollY';
+  if (rest === 'key') return 'key';
   if (/(^|\.)target\.role$/.test(rest)) return 'targetRole';
   if (/(^|\.)target(\.|$)/.test(rest)) return 'targetValue';
   if (VALUE_PATHS.has(rest)) return 'value';

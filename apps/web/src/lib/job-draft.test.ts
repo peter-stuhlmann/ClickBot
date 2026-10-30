@@ -472,6 +472,19 @@ describe('stepErrors', () => {
     ];
     expect(stepErrors(issues, 0)).toEqual({ targetValue: 'first' });
   });
+
+  it('maps the fields of scroll and key steps', () => {
+    const issues = [
+      { path: 'flow.steps.0.to.y', message: 'Ganze Pixel ab 0.' },
+      { path: 'flow.steps.0.to.target.name', message: 'Bitte ausfüllen.' },
+      { path: 'flow.steps.1.key', message: 'Eine Taste wie „Escape“.' },
+    ];
+    expect(stepErrors(issues, 0)).toEqual({
+      scrollY: 'Ganze Pixel ab 0.',
+      targetValue: 'Bitte ausfüllen.',
+    });
+    expect(stepErrors(issues, 1)).toEqual({ key: 'Eine Taste wie „Escape“.' });
+  });
 });
 
 describe('scheduleErrors', () => {
