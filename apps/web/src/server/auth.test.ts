@@ -4,7 +4,13 @@ import { describe, expect, it } from 'vitest';
 import { nextAuthStep, sessionCookieOptions } from './auth';
 
 const session = (overrides: Partial<SessionInfo> = {}): SessionInfo => ({
-  user: { id: 'u1', name: 'Peter', email: 'peter@agentur.de', role: 'admin' },
+  user: {
+    id: 'u1',
+    name: 'Peter',
+    email: 'peter@agentur.de',
+    role: 'admin',
+    avatarUpdatedAt: null,
+  },
   complete: true,
   hasTotp: true,
   ...overrides,

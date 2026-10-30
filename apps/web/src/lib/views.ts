@@ -136,6 +136,7 @@ export type TeamMemberView = {
   email: string;
   role: string;
   twoFactor: boolean;
+  avatarSrc: string | null;
 };
 
 /** An invitation link that can still be used. */

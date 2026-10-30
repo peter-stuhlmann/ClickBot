@@ -9,6 +9,7 @@ import {
   deleteJob,
   updateCampaign,
   updateCustomer,
+  updateProfile,
   listCustomers,
   createRecordingSession,
   getCampaign,
@@ -327,4 +328,29 @@ export async function deleteJobAction(_state: FormState, formData: FormData): Pr
   await removeRunArtifacts(artifactsDir(), runIds).catch(() => undefined);
   revalidatePath('/', 'layout');
   redirect('/');
+}
+
+/** "Profil": the own name and picture. E-mail and role are not read, whatever the form sends. */
+export async function updateProfileAction(
+  _state: FormState,
+  formData: FormData,
+): Promise<FormState> {
+  const user = await requireUser();
+  const values = { name: field(formData, 'name') };
+  const file = formData.get('avatar');
+  const avatar =
+    field(formData, 'removeAvatar') === '1'
+      ? null
+      : file instanceof File && file.size > 0
+        ? new Uint8Array(await file.arrayBuffer())
+        : undefined;
+  try {
+    await updateProfile(getDb(), user.id, { ...values, avatar }, new Date());
+  } catch (error) {
+    if (error instanceof ValidationError) return toFormState(error.issues, values);
+    throw error;
+  }
+  // Name and picture show in the sidebar of every page.
+  revalidatePath('/', 'layout');
+  return { notice: 'Gespeichert.' };
 }

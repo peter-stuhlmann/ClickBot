@@ -1,5 +1,6 @@
 import 'server-only';
 import type { OpenInvitation, TeamMember } from '@click-bot/db';
+import { avatarUrl } from '@/lib/avatar';
 import { formatShortDateTime } from '@/lib/format';
 import type { InvitationView, TeamMemberView } from '@/lib/views';
 
@@ -12,6 +13,7 @@ export function toTeamMember(member: TeamMember): TeamMemberView {
     email: member.email,
     role: ROLE_LABEL[member.role],
     twoFactor: member.hasTotp,
+    avatarSrc: avatarUrl(member.id, member.avatarUpdatedAt),
   };
 }
 

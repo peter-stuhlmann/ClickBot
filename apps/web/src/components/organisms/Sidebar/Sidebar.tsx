@@ -21,7 +21,8 @@ export const NAVIGATION = [
 export type NavKey = (typeof NAVIGATION)[number]['key'];
 
 export type SidebarProps = {
-  active: NavKey;
+  /** The section of the page; 'profil' marks the user card at the bottom instead. */
+  active: NavKey | 'profil';
   worker: WorkerStatusProps;
   /** Null until someone is signed in. */
   user: UserCardProps | null;
@@ -137,7 +138,7 @@ export function Sidebar({ active, worker, user, projects, project, selectProject
 
         <div className="flex-1" />
         <WorkerStatus {...worker} />
-        {user && <UserCard {...user} />}
+        {user && <UserCard {...user} current={active === 'profil'} />}
       </aside>
     </>
   );

@@ -3,8 +3,22 @@ import { describe, expect, it, vi } from 'vitest';
 import { TeamList } from './TeamList';
 
 const members = [
-  { id: 'u1', name: 'Peter Stuhlmann', email: 'peter@agentur.de', role: 'Admin', twoFactor: true },
-  { id: 'u2', name: 'Anna Schmidt', email: 'anna@agentur.de', role: 'Mitglied', twoFactor: false },
+  {
+    id: 'u1',
+    name: 'Peter Stuhlmann',
+    email: 'peter@agentur.de',
+    role: 'Admin',
+    twoFactor: true,
+    avatarSrc: '/avatar/u1?v=1',
+  },
+  {
+    id: 'u2',
+    name: 'Anna Schmidt',
+    email: 'anna@agentur.de',
+    role: 'Mitglied',
+    twoFactor: false,
+    avatarSrc: null,
+  },
 ];
 const invitations = [
   { id: 'i1', email: 'ben@agentur.de', role: 'Mitglied', expires: '12.11. 14:30' },
@@ -18,6 +32,12 @@ describe('TeamList', () => {
     expect(team.getByText('2FA aktiv')).toBeVisible();
     expect(team.getByText('2FA fehlt')).toBeVisible();
     expect(screen.getByText('Keine offenen Einladungen.')).toBeVisible();
+  });
+
+  it('shows each account with its picture, or its initials without one', () => {
+    const { container } = render(<TeamList members={members} invitations={[]} />);
+    expect(container.querySelector('img')).toHaveAttribute('src', '/avatar/u1?v=1');
+    expect(screen.getByText('AS')).toBeInTheDocument();
   });
 
   it('lets admins revoke an open invitation', () => {

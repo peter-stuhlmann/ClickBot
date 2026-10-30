@@ -12,6 +12,7 @@ import {
   boolean,
   char,
   check,
+  customType,
   date,
   doublePrecision,
   foreignKey,
@@ -28,6 +29,9 @@ import {
 } from 'drizzle-orm/pg-core';
 
 const id = () => uuid('id').primaryKey().defaultRandom();
+/** Binary data; pg reads it as a Buffer. */
+const bytea = customType<{ data: Buffer; driverData: Buffer }>({ dataType: () => 'bytea' });
+
 const createdAt = () => timestamp('created_at', { withTimezone: true }).notNull().defaultNow();
 
 export const userRole = pgEnum('user_role', ['admin', 'member']);
@@ -64,6 +68,25 @@ export const users = pgTable(
     createdAt: createdAt(),
   },
   (t) => [uniqueIndex('users_email_unique').on(sql`lower(${t.email})`)],
+);
+
+/** Profile pictures, apart from `users`, so the session lookup on every request stays small. */
+export const userAvatars = pgTable(
+  'user_avatars',
+  {
+    userId: uuid('user_id')
+      .primaryKey()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    contentType: text('content_type').notNull(),
+    data: bytea('data').notNull(),
+    /** In the picture's URL: a new picture gets a new URL, so caches never show the old one. */
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull(),
+  },
+  (t) => [
+    // No SVG: it can carry script.
+    check('user_avatars_type', sql`${t.contentType} in ('image/png', 'image/jpeg', 'image/webp')`),
+    check('user_avatars_size', sql`octet_length(${t.data}) <= 524288`),
+  ],
 );
 
 export const sessions = pgTable(

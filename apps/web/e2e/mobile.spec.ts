@@ -65,6 +65,7 @@ test.describe('Auf dem Handy', () => {
       '/projekte/neu',
       '/einstellungen/team',
       '/einstellungen/ki',
+      '/profil',
     ]) {
       await test.step(path, async () => {
         await page.goto(path);

@@ -1,3 +1,4 @@
+import { Avatar } from '@/components/atoms/Avatar';
 import { Badge } from '@/components/atoms/Badge';
 import { Button } from '@/components/atoms/Button';
 import { Card } from '@/components/atoms/Card';
@@ -18,9 +19,12 @@ export function TeamList({ members, invitations, revokeAction }: TeamListProps) 
         <ul className="flex flex-col divide-y divide-divider">
           {members.map((member) => (
             <li key={member.id} className="flex items-center justify-between gap-4 py-3">
-              <div className="flex min-w-0 flex-col">
-                <span className="truncate text-body font-medium text-text">{member.name}</span>
-                <span className="truncate text-small text-text-muted">{member.email}</span>
+              <div className="flex min-w-0 items-center gap-3">
+                <Avatar name={member.name} src={member.avatarSrc} />
+                <div className="flex min-w-0 flex-col">
+                  <span className="truncate text-body font-medium text-text">{member.name}</span>
+                  <span className="truncate text-small text-text-muted">{member.email}</span>
+                </div>
               </div>
               <div className="flex shrink-0 items-center gap-2">
                 <span className="text-meta text-text-muted">{member.role}</span>

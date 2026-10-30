@@ -99,6 +99,13 @@ export {
   type OpenInvitation,
   type TeamMember,
 } from './invitations';
+export {
+  AVATAR_MAX_BYTES,
+  getAvatar,
+  updateProfile,
+  type Avatar,
+  type ProfileInput,
+} from './profile';
 export { otpauthUri, totpCode, totpStep } from './totp';
 export {
   deleteAiProvider,

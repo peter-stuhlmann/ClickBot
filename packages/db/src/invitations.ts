@@ -12,7 +12,7 @@ import type { Database } from './client';
 import { ValidationError } from './errors';
 import { isUuid } from './ids';
 import { hashPassword } from './passwords';
-import { invitations, users } from './schema';
+import { invitations, userAvatars, users } from './schema';
 
 /**
  * New accounts come by invitation link from an admin ("Einstellungen → Team"). A link for an
@@ -177,6 +177,8 @@ export type TeamMember = {
   role: Role;
   hasTotp: boolean;
   createdAt: Date;
+  /** When the profile picture last changed; null without one. */
+  avatarUpdatedAt: Date | null;
 };
 
 /** The accounts of the team, by name. */
@@ -189,8 +191,10 @@ export async function listUsers(db: Database): Promise<TeamMember[]> {
       role: users.role,
       totpSecretEnc: users.totpSecretEnc,
       createdAt: users.createdAt,
+      avatarUpdatedAt: userAvatars.updatedAt,
     })
     .from(users)
+    .leftJoin(userAvatars, eq(userAvatars.userId, users.id))
     .orderBy(asc(users.name));
   return rows.map(({ totpSecretEnc, ...user }) => ({ ...user, hasTotp: totpSecretEnc !== null }));
 }

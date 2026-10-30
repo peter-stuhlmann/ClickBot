@@ -12,7 +12,8 @@ export const db = testConnection.db;
 export async function resetDb(): Promise<void> {
   await db.execute(sql`
     TRUNCATE run_steps, runs, jobs, campaigns, secrets, proxies, location_profiles, customers, users,
-      worker_heartbeats, sessions, invitations, ai_providers, page_analyses, recording_sessions
+      worker_heartbeats, sessions, invitations, ai_providers, page_analyses, recording_sessions,
+      user_avatars
     RESTART IDENTITY CASCADE
   `);
 }

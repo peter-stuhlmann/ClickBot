@@ -29,6 +29,23 @@ describe('Sidebar', () => {
     expect(current.map((link) => link.textContent)).toEqual(['Kalender']);
   });
 
+  it('marks the user card instead of a section on the profile page', () => {
+    render(
+      <Sidebar
+        active="profil"
+        worker={worker}
+        user={{ name: 'Peter Stuhlmann', role: 'Admin' }}
+        {...shell}
+      />,
+    );
+    const current = screen
+      .getAllByRole('link')
+      .filter((link) => link.getAttribute('aria-current') === 'page');
+    expect(current.map((link) => link.getAttribute('aria-label'))).toEqual([
+      'Profil: Peter Stuhlmann',
+    ]);
+  });
+
   it('shows the product name, the worker status and the signed-in user', () => {
     render(
       <Sidebar

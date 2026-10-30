@@ -209,6 +209,7 @@ describe('listUsers', () => {
         role: 'admin',
         hasTotp: false,
         createdAt: expect.any(Date),
+        avatarUpdatedAt: null,
       },
     ]);
   });

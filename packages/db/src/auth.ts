@@ -5,7 +5,7 @@ import type { Database } from './client';
 import type { Cipher } from './crypto';
 import { ValidationError, type ValidationIssue } from './errors';
 import { hashPassword, verifyPassword } from './passwords';
-import { sessions, users } from './schema';
+import { sessions, userAvatars, users } from './schema';
 import { generateTotpSecret, verifyTotp } from './totp';
 
 /**
@@ -38,7 +38,14 @@ const TOO_MANY_CODES = 'Zu viele falsche Codes. Bitte neu anmelden.';
 const DUMMY_HASH = `scrypt$${'A'.repeat(22)}$${'A'.repeat(86)}`;
 
 export type Role = 'admin' | 'member';
-export type SessionUser = { id: string; name: string; email: string; role: Role };
+export type SessionUser = {
+  id: string;
+  name: string;
+  email: string;
+  role: Role;
+  /** When the profile picture last changed; null without one. */
+  avatarUpdatedAt: Date | null;
+};
 export type SessionInfo = { user: SessionUser; complete: boolean; hasTotp: boolean };
 export type LoginResult = { token: string } | { error: string };
 export type CodeResult = { token: string } | { error: string; restart?: true };
@@ -57,18 +64,23 @@ export function normaliseEmail(email: string): string {
 
 const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
 
+/** Checks a person's name: present after trimming, at most MAX_NAME characters. */
+export function nameIssues(name: string): ValidationIssue[] {
+  const trimmed = name.trim();
+  if (!trimmed) return [{ path: 'name', message: 'Name fehlt.' }];
+  if (trimmed.length > MAX_NAME) {
+    return [{ path: 'name', message: `Name ist zu lang (höchstens ${MAX_NAME} Zeichen).` }];
+  }
+  return [];
+}
+
 /** Checks name, address and password of a new or reset account. */
 export function accountIssues(input: {
   name: string;
   email: string;
   password: string;
 }): ValidationIssue[] {
-  const issues: ValidationIssue[] = [];
-  const name = input.name.trim();
-  if (!name) issues.push({ path: 'name', message: 'Name fehlt.' });
-  else if (name.length > MAX_NAME) {
-    issues.push({ path: 'name', message: `Name ist zu lang (höchstens ${MAX_NAME} Zeichen).` });
-  }
+  const issues = nameIssues(input.name);
   const email = normaliseEmail(input.email);
   if (!EMAIL.test(email)) {
     issues.push({ path: 'email', message: 'Bitte eine gültige E-Mail-Adresse eingeben.' });
@@ -170,9 +182,10 @@ export async function login(
 
 async function findSession(db: Database, token: string, now: Date) {
   const [row] = await db
-    .select({ session: sessions, user: users })
+    .select({ session: sessions, user: users, avatarUpdatedAt: userAvatars.updatedAt })
     .from(sessions)
     .innerJoin(users, eq(users.id, sessions.userId))
+    .leftJoin(userAvatars, eq(userAvatars.userId, users.id))
     .where(eq(sessions.id, hashToken(token)));
   if (!row) return null;
   if (row.session.expiresAt <= now) {
@@ -190,9 +203,9 @@ export async function getSession(
 ): Promise<SessionInfo | null> {
   const row = await findSession(db, token, now);
   if (!row) return null;
-  const { user, session } = row;
+  const { user, session, avatarUpdatedAt } = row;
   return {
-    user: { id: user.id, name: user.name, email: user.email, role: user.role },
+    user: { id: user.id, name: user.name, email: user.email, role: user.role, avatarUpdatedAt },
     complete: session.complete,
     hasTotp: user.totpSecretEnc !== null,
   };

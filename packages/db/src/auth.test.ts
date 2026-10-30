@@ -54,7 +54,13 @@ describe('registerFirstAdmin', () => {
     });
     expect(user?.passwordHash).toMatch(/^scrypt\$/);
     expect(await getSession(db, token, now)).toEqual({
-      user: { id: user?.id, name: 'Peter Stuhlmann', email: 'peter@agentur.de', role: 'admin' },
+      user: {
+        id: user?.id,
+        name: 'Peter Stuhlmann',
+        email: 'peter@agentur.de',
+        role: 'admin',
+        avatarUpdatedAt: null,
+      },
       complete: false,
       hasTotp: false,
     });

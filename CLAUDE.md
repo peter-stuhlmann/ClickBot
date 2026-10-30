@@ -5,8 +5,8 @@ Ein Bot öffnet eine Seite in einem echten Browser, führt einen Ablauf aus (kli
 ausfüllen, prüfen) und erstellt pro Lauf einen Report auf dem Bildschirm und als PDF.
 
 Status: Grundgerüst, Datenbank-Schicht, Worker mit Zeitplan, die Job-Liste, der Assistent
-„Neuer Job“, der Editor, der Lauf-Report, die Läufe-Übersicht, die Projekte, die Anmeldung und
-die Einstellungen der KI-Anbieter stehen.
+„Neuer Job“, der Editor, der Lauf-Report, die Läufe-Übersicht, die Projekte, die Anmeldung, das
+Profil und die Einstellungen der KI-Anbieter stehen.
 
 - **Fertig:**
   - das Design (Figma)
@@ -47,6 +47,8 @@ die Einstellungen der KI-Anbieter stehen.
     - „Einstellungen“ mit den Tabs aus Screen 08a, bisher nur „Team“ und „KI & API“
       (`/einstellungen/ki`): API-Schlüssel, Modell und Standard-Anbieter. Nur Admins ändern,
       die anderen sehen den Stand.
+    - „Profil“ (`/profil`, über Name und Bild unten in der Sidebar): eigenen Namen und
+      Profilbild ändern. E-Mail und Rolle stehen nur da.
   - `apps/worker`:
     - plant fällige Termine ein und führt sie mit Playwright aus
     - speichert Ergebnis, Schritte und Bildschirmfotos
@@ -178,6 +180,16 @@ Die Pakete unter `packages/` liefern TypeScript-Quelltext aus, ohne eigenen Buil
   - Sitzungen: zufälliger Token im Cookie `clickbot_session` (httpOnly, SameSite=Lax),
     in der Datenbank nur sein SHA-256. Nach dem Passwort 15 Minuten unvollständig, mit 2FA
     14 Tage gültig. Der Token wechselt beim Abschluss der 2FA.
+- **Profil** (`profile.ts`, Tabelle `user_avatars`):
+  - `updateProfile` ändert Name und Bild zusammen oder gar nicht. E-Mail (die Anmeldung) und
+    Rolle (aus der Einladung) gehören nicht dazu.
+  - Das Bild liegt in der Datenbank, getrennt von `users`, damit die Sitzungsabfrage jeder
+    Anfrage klein bleibt. Nur PNG, JPEG und WebP, erkannt an den ersten Bytes (kein SVG, es kann
+    Skript enthalten), höchstens 512 KB, auch per CHECK.
+  - Der Browser schneidet das Bild quadratisch zu und verkleinert es auf 256 × 256 als WebP
+    (`squareImage` in `apps/web/src/lib/avatar.ts`).
+  - Ausgeliefert über `/avatar/<id>?v=<Zeit>`, nur für Angemeldete, mit `nosniff`. Die Zeit in
+    der Adresse lässt Browser das Bild dauerhaft cachen; ein neues Bild hat eine neue Adresse.
 - **KI-Anbieter** (`ai-providers.ts`, Tabelle `ai_providers`):
   - Eine Zeile je Anbieter (Gemini, OpenAI, Perplexity, Claude, Custom), Liste und Regeln in
     `packages/shared/src/ai-providers.ts`.
