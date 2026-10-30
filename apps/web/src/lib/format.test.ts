@@ -70,6 +70,21 @@ describe('describeSchedule', () => {
     expect(describeSchedule(interval(every, max))).toEqual({ primary, secondary });
   });
 
+  it('describes a random plan with its runs and period', () => {
+    expect(
+      describeSchedule({
+        type: 'random',
+        from: '2026-11-01',
+        to: '2026-11-30',
+        runs: 100,
+        seed: 1,
+        curves: {},
+        kept: [],
+        timezone: 'Europe/Berlin',
+      }),
+    ).toEqual({ primary: 'zufällig 01.11.2026–30.11.2026', secondary: '100 Läufe' });
+  });
+
   it('describes a schedule by dates with its number of bots', () => {
     expect(
       describeSchedule({

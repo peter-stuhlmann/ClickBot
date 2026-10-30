@@ -261,3 +261,33 @@ describe('step list helpers', () => {
     expect(removeStep([newStep('open', [], '')], 0, 0)).toEqual({ steps: [], selected: null });
   });
 });
+
+describe('jobToDraft – random plans', () => {
+  it('fills the random form with the stored plan, the seed included', () => {
+    const curves = { mon: Array.from({ length: 25 }, (_, hour) => (hour < 8 ? 0 : 1.5)) };
+    const draft = draftOf(
+      job({
+        schedule: {
+          type: 'random',
+          from: '2026-11-01',
+          to: '2026-11-30',
+          runs: 80,
+          seed: 1234,
+          curves,
+          kept: [],
+          drawFrom: '2026-11-01T00:00:00+01:00',
+          timezone: 'Europe/Berlin',
+        },
+      }),
+    );
+    expect(draft.schedule).toMatchObject({
+      type: 'random',
+      randomFrom: '2026-11-01',
+      randomTo: '2026-11-30',
+      randomRuns: '80',
+      seed: 1234,
+    });
+    expect(draft.schedule.curves.mon).toEqual(curves.mon);
+    expect(draft.schedule.curves.tue).toEqual(Array.from({ length: 25 }, () => 1));
+  });
+});

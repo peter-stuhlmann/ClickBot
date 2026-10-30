@@ -1,3 +1,4 @@
+import { expandSchedule } from '@click-bot/shared';
 import { eq } from 'drizzle-orm';
 import { describe, expect, it } from 'vitest';
 import { db, insertCampaign } from '../test/db';
@@ -337,5 +338,24 @@ describe('worker status', () => {
     await recordHeartbeat(db, { workerId: 'worker-1', startedAt: now, now });
     await recordHeartbeat(db, { workerId: 'worker-1', startedAt: now, now: at(25_000) });
     expect((await getWorkerStatus(db, at(50_000))).online).toBe(true);
+  });
+});
+
+describe('planDueRuns – random plans', () => {
+  it('plans a drawn start like any other, once it is due', async () => {
+    const job = await activeJob({
+      type: 'random',
+      from: '2026-11-05',
+      to: '2026-11-06',
+      runs: 5,
+      seed: 3,
+      drawFrom: now.toISOString(),
+    });
+    const [first] = expandSchedule(job.schedule);
+    if (!first) throw new Error('no start');
+    await planDueRuns(db, { now: first.at, lookaheadMs: 0 });
+    expect((await allRuns()).map((run) => [run.slotIndex, run.scheduledAt.getTime()])).toEqual([
+      [0, first.at.getTime()],
+    ]);
   });
 });

@@ -1,3 +1,7 @@
+'use client';
+
+import { weekdaysIn, WEEKDAYS, FLAT_CURVE, type Weekday } from '@click-bot/shared';
+import { useEffect, useRef, useState } from 'react';
 import { Button } from '@/components/atoms/Button';
 import { Card } from '@/components/atoms/Card';
 import { Icon } from '@/components/atoms/Icon';
@@ -5,9 +9,11 @@ import { Input } from '@/components/atoms/Input';
 import { SegmentedControl } from '@/components/atoms/SegmentedControl';
 import { Select } from '@/components/molecules/Select';
 import { Toggle } from '@/components/atoms/Toggle';
-import { DatePicker } from '@/components/molecules/DatePicker';
+import { CurveEditor } from '@/components/molecules/CurveEditor';
+import { DatePicker, type DatePickerHandle } from '@/components/molecules/DatePicker';
 import { Field } from '@/components/molecules/Field';
 import { SlotRow } from '@/components/molecules/SlotRow';
+import { earliestEnd, endAfterNewStart } from '@/lib/calendar';
 import { addSlot, type ScheduleDraft, type ScheduleErrors } from '@/lib/job-draft';
 
 export type ScheduleFormProps = {
@@ -25,14 +31,140 @@ export type ScheduleFormProps = {
 const TYPE_OPTIONS = [
   { value: 'interval', label: 'Intervall' },
   { value: 'times', label: 'Termine' },
+  { value: 'random', label: 'Zufall' },
 ] as const;
+
+const DAYS: Record<Weekday, { short: string; long: string }> = {
+  mon: { short: 'Mo', long: 'Montag' },
+  tue: { short: 'Di', long: 'Dienstag' },
+  wed: { short: 'Mi', long: 'Mittwoch' },
+  thu: { short: 'Do', long: 'Donnerstag' },
+  fri: { short: 'Fr', long: 'Freitag' },
+  sat: { short: 'Sa', long: 'Samstag' },
+  sun: { short: 'So', long: 'Sonntag' },
+};
 
 const START_OPTIONS = [
   { value: 'now', label: 'Sofort nach dem Anlegen' },
   { value: 'at', label: 'Zu einem Zeitpunkt' },
 ];
 
-/** Step 3 of the job wizard: a fixed interval or explicit dates with a wave of bots each. */
+/**
+ * "Zufall": a period, how many runs it gets, and per weekday a curve of how likely a start is
+ * over the day. Only the weekdays the period touches can be set.
+ */
+function RandomFields({
+  schedule,
+  errors,
+  set,
+}: {
+  schedule: ScheduleDraft;
+  errors: ScheduleErrors;
+  set: (patch: Partial<ScheduleDraft>) => void;
+}) {
+  const days = weekdaysIn(schedule.randomFrom, schedule.randomTo);
+  const offered = days.length > 0 ? days : [...WEEKDAYS];
+  const [chosen, setChosen] = useState<Weekday>(offered[0] as Weekday);
+  const day = offered.includes(chosen) ? chosen : (offered[0] as Weekday);
+  const points = schedule.curves[day];
+  const setCurves = (curves: Partial<Record<Weekday, number[]>>) =>
+    set({ curves: { ...schedule.curves, ...curves } });
+
+  // The period: a start chosen in the calendar opens the end, which never lies before it.
+  const endPicker = useRef<DatePickerHandle>(null);
+  const [startsPicked, setStartsPicked] = useState(0);
+  useEffect(() => {
+    if (startsPicked > 0) endPicker.current?.open();
+  }, [startsPicked]);
+
+  return (
+    <>
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+        <Field id="schedule-random-from" label="Von" error={errors.fields.from}>
+          {(control) => (
+            <DatePicker
+              {...control}
+              label="Von"
+              required
+              value={schedule.randomFrom}
+              onChange={(randomFrom) => set({ randomFrom })}
+              onPick={(randomFrom) => {
+                set({ randomFrom, randomTo: endAfterNewStart(randomFrom, schedule.randomTo) });
+                setStartsPicked((count) => count + 1);
+              }}
+            />
+          )}
+        </Field>
+        <Field id="schedule-random-to" label="Bis" error={errors.fields.to}>
+          {(control) => (
+            <DatePicker
+              {...control}
+              ref={endPicker}
+              label="Bis"
+              required
+              min={earliestEnd(schedule.randomFrom)}
+              value={schedule.randomTo}
+              onChange={(randomTo) => set({ randomTo })}
+            />
+          )}
+        </Field>
+      </div>
+      <Field
+        id="schedule-random-runs"
+        label="Läufe im Zeitraum"
+        hint="Jeder Lauf startet zu einer zufälligen Zeit. Die Kurven legen fest, wann das wahrscheinlicher ist."
+        error={errors.fields.runs}
+      >
+        {(control) => (
+          <Input
+            {...control}
+            inputMode="numeric"
+            value={schedule.randomRuns}
+            onChange={(event) => set({ randomRuns: event.target.value })}
+          />
+        )}
+      </Field>
+
+      <div className="flex flex-col gap-3">
+        <div className="flex flex-col gap-1">
+          <span className="text-body font-medium text-text">Verteilung über den Tag</span>
+          <span className="text-meta text-text-muted">
+            Mitte ist normal, oben doppelt so häufig, ganz unten nie. Ein Tag mit höherer Kurve
+            bekommt mehr Läufe.
+          </span>
+        </div>
+        <SegmentedControl
+          label="Wochentag"
+          options={offered.map((value) => ({ value, label: DAYS[value].short }))}
+          value={day}
+          onChange={setChosen}
+        />
+        <CurveEditor
+          label={`Verteilung am ${DAYS[day].long}`}
+          points={points}
+          onChange={(next) => setCurves({ [day]: next })}
+        />
+        <div className="flex flex-wrap gap-2">
+          <Button variant="ghost" size="sm" onClick={() => setCurves({ [day]: [...FLAT_CURVE] })}>
+            {`${DAYS[day].long} gleichmäßig`}
+          </Button>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() =>
+              setCurves(Object.fromEntries(WEEKDAYS.map((other) => [other, [...points]])))
+            }
+          >
+            Für alle Wochentage übernehmen
+          </Button>
+        </div>
+        {errors.fields.curves && <p className="text-small text-danger">{errors.fields.curves}</p>}
+      </div>
+    </>
+  );
+}
+
+/** Step 3 of the job wizard: a fixed interval, explicit dates, or random starts in a period. */
 export function ScheduleForm({
   schedule,
   errors,
@@ -65,7 +197,7 @@ export function ScheduleForm({
       )}
       {errors.fields.type && <p className="text-small text-danger">{errors.fields.type}</p>}
 
-      {schedule.type === 'interval' ? (
+      {schedule.type === 'interval' && (
         <>
           <div className="grid grid-cols-2 gap-3">
             <Field id="schedule-every" label="Alle (Minuten)" error={errors.fields.everyMinutes}>
@@ -131,7 +263,9 @@ export function ScheduleForm({
             </div>
           )}
         </>
-      ) : (
+      )}
+
+      {schedule.type === 'times' && (
         <>
           <div className="flex flex-col gap-2">
             <div
@@ -192,6 +326,8 @@ export function ScheduleForm({
           </div>
         </>
       )}
+
+      {schedule.type === 'random' && <RandomFields schedule={schedule} errors={errors} set={set} />}
 
       {note && (
         <p className="rounded-input bg-subtle px-3 py-2.5 text-small text-text-muted">{note}</p>

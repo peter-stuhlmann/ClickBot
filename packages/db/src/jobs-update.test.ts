@@ -1,3 +1,4 @@
+import { expandSchedule, type BotStart } from '@click-bot/shared';
 import { describe, expect, it } from 'vitest';
 import { db, insertCampaign } from '../test/db';
 import { NotFoundError, ValidationError } from './errors';
@@ -249,5 +250,67 @@ describe('updateJob and the GA4 marking', () => {
     await update(job, { analyticsMarking: { botFlag: false } });
     const later = await update(job, { name: 'Kontakt neu' });
     expect(later.analyticsMarking.botFlag).toBe(false);
+  });
+});
+
+describe('updateJob – random plans', () => {
+  const plan = (overrides: Record<string, unknown> = {}) => ({
+    type: 'random',
+    from: '2026-11-01',
+    to: '2026-11-30',
+    runs: 100,
+    seed: 42,
+    drawFrom: '2026-11-01T00:00:00+01:00',
+    ...overrides,
+  });
+  const startsOf = async (jobId: string) => expandSchedule((await getJob(db, jobId)).schedule);
+
+  it('keeps the drawn starts when the plan itself did not change', async () => {
+    const job = await newJob(plan());
+    const before = await startsOf(job.id);
+    await runOfSlot(job.id, 0, 1);
+    // The form sends the plan again, with the moment of saving as the time to draw from.
+    await update(job, {
+      schedule: plan({ drawFrom: '2026-11-10T00:00:00+01:00' }),
+      now: new Date('2026-11-10T00:00:00+01:00'),
+    });
+    expect(await startsOf(job.id)).toEqual(before);
+  });
+
+  it('keeps what ran and lies in the past, and draws only the rest anew', async () => {
+    const job = await newJob(plan());
+    const before = await startsOf(job.id);
+    const now = new Date((before[10] as BotStart).at.getTime() + 1);
+    await runOfSlot(job.id, 0, 1);
+    await runOfSlot(job.id, 3, 2);
+
+    await update(job, { schedule: plan({ runs: 120, drawFrom: now.toISOString() }), now });
+    const after = await startsOf(job.id);
+    expect(after).toHaveLength(120);
+    // Slots 0 to 10 lie in the past (two of them ran): they stay exactly where they were.
+    expect(after.slice(0, 11)).toEqual(before.slice(0, 11));
+    for (const start of after.slice(11))
+      expect(start.at.getTime()).toBeGreaterThanOrEqual(now.getTime());
+  });
+
+  it('refuses fewer runs than have already started', async () => {
+    const job = await newJob(plan());
+    const before = await startsOf(job.id);
+    const now = new Date((before[4] as BotStart).at.getTime() + 1);
+    await runOfSlot(job.id, 4, 1);
+    const issues = await issuesOf(update(job, { schedule: plan({ runs: 3 }), now }));
+    expect(issues).toEqual([
+      {
+        path: 'schedule.runs',
+        message: 'Es sind schon 5 Starts gelaufen; mindestens so viele Läufe.',
+      },
+    ]);
+  });
+
+  it('stays a random plan once it has runs', async () => {
+    const job = await newJob(plan());
+    await runOfSlot(job.id, 0, 1);
+    const issues = await issuesOf(update(job));
+    expect(issues.map((issue) => issue.path)).toEqual(['schedule.type']);
   });
 });

@@ -1,63 +1,14 @@
-import { TZDate } from '@date-fns/tz';
 import { z } from 'zod';
+import {
+  DEFAULT_TIMEZONE,
+  TIME_PATTERN,
+  isCalendarDate,
+  isTimeZone,
+  localToUtc,
+} from './local-time';
+import { randomScheduleSchema, randomStarts } from './random-schedule';
 
-export const DEFAULT_TIMEZONE = 'Europe/Berlin';
-
-const DAY_MS = 86_400_000;
-
-const DATE_PATTERN = /^(\d{4})-(\d{2})-(\d{2})$/;
-const TIME_PATTERN = /^([01]\d|2[0-3]):([0-5]\d)$/;
-
-function isCalendarDate(value: string): boolean {
-  const match = DATE_PATTERN.exec(value);
-  if (!match) return false;
-  const [year, month, day] = match.slice(1).map(Number) as [number, number, number];
-  const date = new Date(Date.UTC(year, month - 1, day));
-  return (
-    date.getUTCFullYear() === year && date.getUTCMonth() === month - 1 && date.getUTCDate() === day
-  );
-}
-
-function isTimeZone(value: string): boolean {
-  try {
-    new Intl.DateTimeFormat('en', { timeZone: value });
-    return true;
-  } catch {
-    return false;
-  }
-}
-
-/**
- * Converts a wall-clock time in `timeZone` to an instant.
- * Returns null if that time does not exist (spring clock change). For a time that exists twice
- * (autumn clock change) the first occurrence wins.
- */
-export function localToUtc(date: string, time: string, timeZone: string): Date | null {
-  const [year, month, day] = date.split('-').map(Number) as [number, number, number];
-  const [hours, minutes] = time.split(':').map(Number) as [number, number];
-  const wallClockAsUtc = Date.UTC(year, month - 1, day, hours, minutes);
-
-  // Offset (local minus UTC) in effect at an instant. getTimezoneOffset() has the opposite sign.
-  const offsetAt = (instant: number) => -new TZDate(instant, timeZone).getTimezoneOffset() * 60_000;
-
-  // A clock change switches between at most two offsets, so the ones a day before and after
-  // cover every way this wall-clock time can map to an instant, whatever the size of the shift.
-  const offsets = new Set([-DAY_MS, 0, DAY_MS].map((delta) => offsetAt(wallClockAsUtc + delta)));
-  const matches = [...offsets]
-    .map((offset) => wallClockAsUtc - offset)
-    .filter((instant) => {
-      const local = new TZDate(instant, timeZone);
-      return (
-        local.getFullYear() === year &&
-        local.getMonth() === month - 1 &&
-        local.getDate() === day &&
-        local.getHours() === hours &&
-        local.getMinutes() === minutes
-      );
-    });
-
-  return matches.length === 0 ? null : new Date(Math.min(...matches));
-}
+export { DEFAULT_TIMEZONE, localToUtc } from './local-time';
 
 const BOTS_RANGE = 'Pro Termin 1 bis 50 Bots.';
 const EVERY_RANGE = 'Abstand muss zwischen 1 und 10.080 Minuten liegen.';
@@ -124,13 +75,14 @@ const intervalScheduleSchema = z.object({
 export const scheduleSchema = z.discriminatedUnion('type', [
   intervalScheduleSchema,
   timesScheduleSchema,
+  randomScheduleSchema,
 ]);
 
 export type Schedule = z.infer<typeof scheduleSchema>;
 export type ScheduleSlot = z.infer<typeof slotSchema>;
 
 export type BotStart = {
-  /** Index of the slot (times) or of the run (interval). */
+  /** Index of the slot (times) or of the run (interval, random). */
   slotIndex: number;
   /** 1-based number of the bot within its wave; exposed to flows as `{{bot_nr}}`. */
   botNr: number;
@@ -140,6 +92,10 @@ export type BotStart = {
 /** All bot starts of a schedule, earliest first. Expects a schedule that passed validation. */
 export function expandSchedule(schedule: Schedule): BotStart[] {
   const starts: BotStart[] = [];
+
+  if (schedule.type === 'random') {
+    return randomStarts(schedule).map((at, slotIndex) => ({ slotIndex, botNr: 1, at }));
+  }
 
   if (schedule.type === 'interval') {
     const first = new Date(schedule.startAt).getTime();

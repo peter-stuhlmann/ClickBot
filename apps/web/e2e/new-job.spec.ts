@@ -60,6 +60,40 @@ test.describe('Neuer Job', () => {
     await expect(row.getByText('Aktiv', { exact: true })).toBeVisible();
   });
 
+  test('creates a job with random starts, shaped by a curve per weekday', async ({ page }) => {
+    await page.goto('/jobs/neu');
+    await chooseOption(page.getByRole('combobox', { name: 'Kampagne' }), 'Allgemein');
+    await page.getByRole('textbox', { name: 'Job-Name' }).fill('E2E Zufall');
+    await page.getByRole('button', { name: 'Weiter' }).click();
+    await page
+      .getByRole('textbox', { name: 'Website (Start-URL)' })
+      .fill('http://127.0.0.1:4100/kontakt.html');
+    await page.getByRole('button', { name: 'Weiter' }).click();
+
+    // 3 · Zeitplan: random, 40 runs in the week from today, no starts in the early morning.
+    await page.getByRole('radio', { name: 'Zufall' }).click();
+    await page.getByRole('textbox', { name: 'Läufe im Zeitraum' }).fill('40');
+    const curve = page.getByRole('slider', { name: /^Verteilung am / });
+    const box = await curve.boundingBox();
+    if (!box) throw new Error('no curve');
+    // Drag along the bottom from 2 to 5 o'clock: „nie“ there.
+    await page.mouse.move(box.x + (box.width * 2) / 24, box.y + box.height - 1);
+    await page.mouse.down();
+    await page.mouse.move(box.x + (box.width * 5) / 24, box.y + box.height - 1, { steps: 6 });
+    await page.mouse.up();
+    await expect(curve).toHaveAttribute('aria-valuetext', '5 Uhr: nie');
+    await page.getByRole('button', { name: 'Für alle Wochentage übernehmen' }).click();
+    await expect(page.getByText(/40 Starts × 1 Gerät = 40 Läufe/).first()).toBeVisible();
+    await page.getByRole('button', { name: 'Weiter' }).click();
+
+    await page.getByRole('checkbox', { name: /Test freigegeben/ }).check();
+    await page.getByRole('button', { name: 'Job anlegen' }).click();
+    await expect(page).toHaveURL('/');
+    const row = page.getByRole('row', { name: /E2E Zufall/ });
+    await expect(row).toContainText(/zufällig \d{2}\.\d{2}\.\d{4}–\d{2}\.\d{2}\.\d{4}/);
+    await expect(row).toContainText('40 Läufe');
+  });
+
   test('creates no job without the confirmation that testing is allowed', async ({ page }) => {
     await page.goto('/jobs/neu');
     await chooseOption(page.getByRole('combobox', { name: 'Kampagne' }), 'Allgemein');

@@ -1,6 +1,8 @@
 import {
   ALL_MARKINGS_ON,
   DEFAULT_TIMEZONE,
+  FLAT_CURVE,
+  WEEKDAYS,
   deviceBrowserProblems,
   describeMarking,
   flowSchema,
@@ -14,7 +16,9 @@ import {
   type Schedule,
   type Step,
   type Target,
+  type Weekday,
 } from '@click-bot/shared';
+import { addDays } from './calendar';
 import { describeTargets, type DeviceKey } from './devices';
 import { describeSchedule, displayUrl, plural } from './format';
 import type { SummaryRowView } from './views';
@@ -93,7 +97,7 @@ export type StepDraft = {
 export type SlotDraft = { key: string; date: string; time: string; bots: number };
 
 export type ScheduleDraft = {
-  type: 'interval' | 'times';
+  type: 'interval' | 'times' | 'random';
   everyMinutes: string;
   maxRuns: string;
   startMode: 'now' | 'at';
@@ -108,6 +112,14 @@ export type ScheduleDraft = {
   /** Start the bots of a slot `staggerSeconds` apart instead of in the same second. */
   stagger: boolean;
   staggerSeconds: number;
+  /** random: the period (calendar days, both included) and how many runs it gets. */
+  randomFrom: string;
+  randomTo: string;
+  randomRuns: string;
+  /** random: per weekday 25 points from 0 to 24 o'clock; 0 never, 1 normal, 2 twice as often. */
+  curves: Record<Weekday, number[]>;
+  /** random: drawn once per job, so the same settings always give the same starts. */
+  seed: number;
 };
 
 export type WizardDraft = {
@@ -145,6 +157,15 @@ export type NewJobDraftInput = {
 
 const HOUR_MS = 3_600_000;
 const STAGGER_SECONDS = 10;
+const SEED_LIMIT = 2 ** 31 - 1;
+
+/** Every weekday evenly: the default of a random plan. */
+export function evenCurves(): Record<Weekday, number[]> {
+  return Object.fromEntries(WEEKDAYS.map((day) => [day, [...FLAT_CURVE]])) as Record<
+    Weekday,
+    number[]
+  >;
+}
 const DATE = /^\d{4}-\d{2}-\d{2}$/;
 const TIME = /^\d{2}:\d{2}$/;
 
@@ -166,6 +187,7 @@ export function emptyDraft(now: Date): WizardDraft {
   const nextHour = new Date((Math.floor(now.getTime() / HOUR_MS) + 1) * HOUR_MS);
   const date = berlinDate.format(nextHour);
   const time = berlinTime.format(nextHour);
+  const today = berlinDate.format(now);
   return {
     campaignId: '',
     startUrl: '',
@@ -183,6 +205,11 @@ export function emptyDraft(now: Date): WizardDraft {
       slots: [{ key: 'slot-1', date, time, bots: 1 }],
       stagger: true,
       staggerSeconds: STAGGER_SECONDS,
+      randomFrom: today,
+      randomTo: addDays(today, 6),
+      randomRuns: '50',
+      curves: evenCurves(),
+      seed: now.getTime() % SEED_LIMIT,
     },
     devices: ['desktop'],
     deviceBrowsers: { desktop: ['chromium'] },
@@ -454,6 +481,19 @@ function startInstant(schedule: ScheduleDraft, now: Date): Date | null {
 }
 
 function toSchedule(schedule: ScheduleDraft, now: Date): Record<string, unknown> {
+  if (schedule.type === 'random') {
+    return {
+      type: 'random',
+      from: schedule.randomFrom,
+      to: schedule.randomTo,
+      runs: toNumber(schedule.randomRuns),
+      curves: schedule.curves,
+      seed: schedule.seed,
+      // Only starts from now on; the server keeps what ran when a plan with runs changes.
+      drawFrom: now.toISOString(),
+      timezone: DEFAULT_TIMEZONE,
+    };
+  }
   if (schedule.type === 'interval') {
     return {
       type: 'interval',
@@ -627,7 +667,7 @@ export function jobToDraft(
     };
   }
   const { schedule } = job;
-  if (schedule.type === 'times' && schedule.timezone !== DEFAULT_TIMEZONE) {
+  if (schedule.type !== 'interval' && schedule.timezone !== DEFAULT_TIMEZONE) {
     return {
       notEditable: `Der Zeitplan nutzt die Zeitzone ${schedule.timezone}, der Editor kennt nur ${DEFAULT_TIMEZONE}.`,
     };
@@ -635,24 +675,34 @@ export function jobToDraft(
 
   const defaults = emptyDraft(now).schedule;
   const scheduleDraft: ScheduleDraft =
-    schedule.type === 'interval'
+    schedule.type === 'random'
       ? {
           ...defaults,
-          type: 'interval',
-          everyMinutes: String(schedule.everyMinutes),
-          maxRuns: String(schedule.maxRuns),
-          startMode: 'at',
-          startDate: berlinDate.format(new Date(schedule.startAt)),
-          startTime: berlinTime.format(new Date(schedule.startAt)),
-          storedStartAt: schedule.startAt,
+          type: 'random',
+          randomFrom: schedule.from,
+          randomTo: schedule.to,
+          randomRuns: String(schedule.runs),
+          curves: { ...evenCurves(), ...schedule.curves },
+          seed: schedule.seed,
         }
-      : {
-          ...defaults,
-          type: 'times',
-          slots: schedule.slots.map((slot, index) => ({ key: `slot-${index + 1}`, ...slot })),
-          stagger: schedule.staggerSeconds > 0,
-          staggerSeconds: schedule.staggerSeconds || STAGGER_SECONDS,
-        };
+      : schedule.type === 'interval'
+        ? {
+            ...defaults,
+            type: 'interval',
+            everyMinutes: String(schedule.everyMinutes),
+            maxRuns: String(schedule.maxRuns),
+            startMode: 'at',
+            startDate: berlinDate.format(new Date(schedule.startAt)),
+            startTime: berlinTime.format(new Date(schedule.startAt)),
+            storedStartAt: schedule.startAt,
+          }
+        : {
+            ...defaults,
+            type: 'times',
+            slots: schedule.slots.map((slot, index) => ({ key: `slot-${index + 1}`, ...slot })),
+            stagger: schedule.staggerSeconds > 0,
+            staggerSeconds: schedule.staggerSeconds || STAGGER_SECONDS,
+          };
 
   return {
     draft: {
@@ -851,7 +901,9 @@ export function describeRunTotal(draft: WizardDraft, now: Date): string | null {
   const starts =
     schedule.type === 'interval'
       ? schedule.maxRuns
-      : schedule.slots.reduce((sum, slot) => sum + slot.bots, 0);
+      : schedule.type === 'random'
+        ? schedule.runs
+        : schedule.slots.reduce((sum, slot) => sum + slot.bots, 0);
   const perStart =
     targets === new Set(draft.devices).size
       ? plural(targets, 'Gerät', 'Geräte')

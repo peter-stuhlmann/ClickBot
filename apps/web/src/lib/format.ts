@@ -1,3 +1,4 @@
+import { formatGermanDate } from './calendar';
 import { DEFAULT_TIMEZONE, type Schedule } from '@click-bot/shared';
 
 const MINUTE = 60_000;
@@ -38,6 +39,12 @@ export function displayUrl(url: string): string {
 
 /** Two lines for the schedule column, e.g. "alle 15 Min." / "max. 20 Läufe". */
 export function describeSchedule(schedule: Schedule): { primary: string; secondary: string } {
+  if (schedule.type === 'random') {
+    return {
+      primary: `zufällig ${formatGermanDate(schedule.from)}–${formatGermanDate(schedule.to)}`,
+      secondary: plural(schedule.runs, 'Lauf', 'Läufe'),
+    };
+  }
   if (schedule.type === 'interval') {
     const { everyMinutes } = schedule;
     const primary =

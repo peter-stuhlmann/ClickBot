@@ -146,8 +146,11 @@ Die Pakete unter `packages/` liefern TypeScript-Quelltext aus, ohne eigenen Buil
   - Der Planer erkennt erledigte Starts an ihrer Position (`runs.slot_index`). Deshalb:
     Termine mit Läufen (`listStartedSlots`) lassen sich nicht verschieben oder löschen, nur
     ihre Bot-Zahl ändern. Neue Termine kommen hinten dazu. Hat ein Job Läufe, bleibt die Art
-    des Zeitplans (Intervall oder Termine). Ein Intervall darf sich frei ändern, es zählt
-    einfach weiter.
+    des Zeitplans (Intervall, Termine oder Zufall). Ein Intervall darf sich frei ändern, es
+    zählt einfach weiter.
+  - Zufall (`rescheduleRandom`): Bleiben die Einstellungen gleich, bleiben die gelosten Starts.
+    Ändern sie sich, behält der Plan jeden Start, der gelaufen ist oder in der Vergangenheit
+    liegt, an seiner Position (`kept`) und lost nur den Rest ab jetzt neu (`drawFrom`).
   - Starts in der Vergangenheit sind erlaubt, wenn sie schon gespeichert waren
     (`validateJobEdit`). Eine gespeicherte Intervall-Startzeit bleibt sekundengenau, solange
     Datum und Uhrzeit im Formular unverändert sind.
@@ -240,8 +243,19 @@ Hochziehen erst, wenn beide Pakete die neue Version offiziell unterstützen.
     Zugangsdaten. Screen 07 aus dem Design wird nicht gebaut.
 - **KI-Fallback pro Schritt:** Findet der Bot ein Element nicht, sucht die KI ein passendes
   und protokolliert das im Report.
-- **Zeitplan:** `{ type: "interval" | "times", slots: [{ date, time, bots }], stagger }`.
-  Die Bots eines Termins bilden eine Welle.
+- **Zeitplan:** `{ type: "interval" | "times" | "random", … }`. Bei Terminen (`slots: [{ date,
+time, bots }]`, `stagger`) bilden die Bots eines Termins eine Welle.
+  - Zufall (`packages/shared/src/random-schedule.ts`): Zeitraum `from`–`to` (Kalendertage, höchstens
+    ein Jahr), `runs` Starts, je Wochentag eine Kurve aus 25 Punkten (0 bis 24 Uhr; 0 nie,
+    1 normal, 2 doppelt so häufig; ohne Kurve gleichmäßig). Die Kurve ist ein Catmull-Rom-Spline
+    (`curveValue`), so bleibt sie beim Ziehen glatt (`bendCurve` in `apps/web/src/lib/curve.ts`).
+  - Gelost wird in 10-Minuten-Zellen, gewichtet mit der Kurve ihres Tages; ein Tag bekommt Starts
+    nach der Fläche unter seiner Kurve. Fester Zufall (`seed`, Mulberry32): dieselben
+    Einstellungen ergeben immer dieselben Starts, auf ganze Minuten. Die Stunde, die die
+    Zeitumstellung auslässt, bekommt keinen Start. Ein Bot je Start.
+  - Der Assistent lost ab dem Moment des Speicherns (`drawFrom`). Im Formular wählt man die
+    Kurve je Wochentag, den der Zeitraum berührt (`weekdaysIn`), ziehbar mit Maus und Finger,
+    per Tastatur links/rechts (Uhrzeit) und hoch/runter (`CurveEditor`).
 - **Bots:** jeder Bot ist ein eigener Browser-Context im gemeinsamen Browser seiner Engine.
   - Pro Context: eigener Proxy, Standort-Profil (GPS, Locale, Zeitzone) und Gerät
     (Viewport, User-Agent, Touch).

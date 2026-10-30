@@ -4,13 +4,16 @@ import {
   deviceBrowserProblems,
   deviceBrowsersSchema,
   expandSchedule,
+  FLAT_CURVE,
   normalizeDeviceBrowsers,
   runTargets,
   flowSchema,
   scheduleSchema,
+  WEEKDAYS,
   type AnalyticsMarking,
   type DeviceBrowsers,
   type Flow,
+  type RandomSchedule,
   type Schedule,
 } from '@click-bot/shared';
 import { and, asc, eq, isNotNull, sql } from 'drizzle-orm';
@@ -184,6 +187,8 @@ export type JobUpdateInput = {
   analyticsMarking?: unknown;
   /** Another campaign of the same project; omitted: the job stays where it is. */
   campaignId?: string;
+  /** When the change happens; a random plan draws its open starts anew from then on. */
+  now?: Date;
 };
 
 /** Slots (times) and interval starts that already have runs, by position, in order. */
@@ -223,6 +228,41 @@ function startedScheduleIssues(
     .map((index) => ({ path: `schedule.slots.${index}`, message: SLOT_FIXED }));
 }
 
+/** The settings of a random plan a user chooses; what was drawn from them is not compared. */
+function samePlan(a: RandomSchedule, b: RandomSchedule): boolean {
+  const curves = (plan: RandomSchedule) =>
+    WEEKDAYS.map((day) => (plan.curves[day] ?? FLAT_CURVE).join(','));
+  const settings = (plan: RandomSchedule) =>
+    JSON.stringify([plan.from, plan.to, plan.runs, plan.seed, plan.timezone, curves(plan)]);
+  return settings(a) === settings(b);
+}
+
+/**
+ * A random plan keeps its drawn starts while its settings stay the same. Changed, it keeps every
+ * start that ran or lies in the past at its position and draws only the rest anew, from `now` on.
+ */
+function rescheduleRandom(
+  before: Schedule,
+  after: Schedule,
+  started: number[],
+  now: Date,
+): { schedule: Schedule } | { issues: ValidationIssue[] } {
+  if (before.type !== 'random' || after.type !== 'random') return { schedule: after };
+  if (samePlan(before, after)) return { schedule: before };
+  if (started.length === 0) return { schedule: after };
+  const starts = expandSchedule(before);
+  const past = starts.findLastIndex((start) => start.at.getTime() <= now.getTime());
+  const keep = Math.max(past, ...started) + 1;
+  const parsed = scheduleSchema.safeParse({
+    ...after,
+    kept: starts.slice(0, keep).map((start) => start.at.toISOString()),
+    drawFrom: now.toISOString(),
+  });
+  return parsed.success
+    ? { schedule: parsed.data }
+    : { issues: issuesFromZod('schedule', parsed.error) };
+}
+
 /** Saves the editor (screen 02). The status stays as it is. */
 export async function updateJob(db: Database, jobId: string, input: JobUpdateInput): Promise<Job> {
   if (!isUuid(jobId)) throw new NotFoundError('Job', jobId);
@@ -243,6 +283,14 @@ export async function updateJob(db: Database, jobId: string, input: JobUpdateInp
     if (fields) {
       const started = await listStartedSlots(tx, jobId);
       issues.push(...startedScheduleIssues(started, current.schedule, fields.schedule));
+      const random = rescheduleRandom(
+        current.schedule,
+        fields.schedule,
+        started,
+        input.now ?? new Date(),
+      );
+      if ('issues' in random) issues.push(...random.issues);
+      else fields.schedule = random.schedule;
     }
     const campaignId = input.campaignId ?? current.campaignId;
     if (campaignId !== current.campaignId) {

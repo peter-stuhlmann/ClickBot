@@ -188,3 +188,75 @@ describe('ScheduleForm', () => {
     expect(screen.getByLabelText('Uhrzeit Termin 1')).toBeEnabled();
   });
 });
+
+describe('ScheduleForm – Zufall', () => {
+  const random = { ...initial, type: 'random' as const };
+
+  it('asks for the period, the number of runs and a curve per weekday', async () => {
+    const user = userEvent.setup();
+    const onChange = vi.fn();
+    render(<Harness onChange={onChange} />);
+    await user.click(screen.getByRole('radio', { name: 'Zufall' }));
+
+    expect(screen.getByRole('textbox', { name: 'Von' })).toHaveValue('05.11.2026');
+    expect(screen.getByRole('textbox', { name: 'Bis' })).toHaveValue('11.11.2026');
+    expect(screen.getByRole('textbox', { name: 'Läufe im Zeitraum' })).toHaveValue('50');
+    expect(screen.getByRole('slider', { name: 'Verteilung am Montag' })).toBeInTheDocument();
+    expect(onChange).toHaveBeenLastCalledWith(expect.objectContaining({ type: 'random' }));
+  });
+
+  it('offers only the weekdays the period touches', () => {
+    render(<Harness start={{ ...random, randomFrom: '2026-11-06', randomTo: '2026-11-08' }} />);
+    const group = screen.getByRole('radiogroup', { name: 'Wochentag' });
+    expect([...group.querySelectorAll('[role="radio"]')].map((day) => day.textContent)).toEqual([
+      'Fr',
+      'Sa',
+      'So',
+    ]);
+    expect(screen.getByRole('slider', { name: 'Verteilung am Freitag' })).toBeInTheDocument();
+  });
+
+  it('changes the curve of the chosen weekday only, and can copy it to all', async () => {
+    const user = userEvent.setup();
+    const onChange = vi.fn();
+    render(<Harness start={random} onChange={onChange} />);
+    await user.click(screen.getByRole('radio', { name: 'Sa' }));
+    screen.getByRole('slider', { name: 'Verteilung am Samstag' }).focus();
+    await user.keyboard('{ArrowDown}');
+    let curves = (onChange.mock.lastCall?.[0] as ScheduleDraft).curves;
+    expect(curves.sat[12]).toBeLessThan(1);
+    expect(curves.mon[12]).toBe(1);
+
+    await user.click(screen.getByRole('button', { name: 'Für alle Wochentage übernehmen' }));
+    curves = (onChange.mock.lastCall?.[0] as ScheduleDraft).curves;
+    expect(curves.mon).toEqual(curves.sat);
+
+    await user.click(screen.getByRole('button', { name: 'Samstag gleichmäßig' }));
+    curves = (onChange.mock.lastCall?.[0] as ScheduleDraft).curves;
+    expect(curves.sat).toEqual(Array.from({ length: 25 }, () => 1));
+    expect(curves.mon[12]).toBeLessThan(1);
+  });
+
+  it('shows the problems of the plan at its fields', () => {
+    render(
+      <Harness
+        start={random}
+        errors={{
+          fields: {
+            to: 'Das Ende liegt vor dem Start.',
+            runs: 'Bitte eine ganze Zahl zwischen 1 und 10.000 eingeben.',
+            curves: 'Die Kurven lassen im Zeitraum keinen Start zu.',
+          },
+          slots: {},
+        }}
+      />,
+    );
+    expect(screen.getByRole('textbox', { name: 'Bis' })).toHaveAccessibleDescription(
+      'Das Ende liegt vor dem Start.',
+    );
+    expect(screen.getByRole('textbox', { name: 'Läufe im Zeitraum' })).toHaveAccessibleDescription(
+      /zwischen 1 und 10.000/,
+    );
+    expect(screen.getByText('Die Kurven lassen im Zeitraum keinen Start zu.')).toBeVisible();
+  });
+});

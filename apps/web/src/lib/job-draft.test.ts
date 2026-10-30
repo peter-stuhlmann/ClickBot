@@ -680,3 +680,49 @@ describe('.htaccess steps in the wizard', () => {
     });
   });
 });
+
+describe('random plans in the wizard', () => {
+  const random = (overrides: Partial<WizardDraft['schedule']> = {}) =>
+    draft({ schedule: { ...emptyDraft(now).schedule, type: 'random', ...overrides } });
+
+  it('starts with a week from today, 50 runs, even curves on every day and a seed', () => {
+    const { schedule } = emptyDraft(now);
+    expect(schedule).toMatchObject({
+      randomFrom: '2026-11-05',
+      randomTo: '2026-11-11',
+      randomRuns: '50',
+    });
+    expect(Object.keys(schedule.curves)).toEqual(['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun']);
+    expect(schedule.curves.mon).toEqual(Array.from({ length: 25 }, () => 1));
+    expect(Number.isInteger(schedule.seed)).toBe(true);
+  });
+
+  it('builds a random plan that draws from now on', () => {
+    expect(toNewJobInput(random({ randomRuns: '120' }), now).schedule).toMatchObject({
+      type: 'random',
+      from: '2026-11-05',
+      to: '2026-11-11',
+      runs: 120,
+      drawFrom: now.toISOString(),
+      timezone: 'Europe/Berlin',
+    });
+  });
+
+  it('says what is wrong with the period and the number of runs', () => {
+    const issues = validateWizardStep(
+      random({ randomFrom: '2026-11-10', randomTo: '2026-11-09', randomRuns: '0' }),
+      'schedule',
+      now,
+    );
+    expect(scheduleErrors(issues).fields).toMatchObject({
+      to: 'Das Ende liegt vor dem Start.',
+      runs: 'Bitte eine ganze Zahl zwischen 1 und 10.000 eingeben.',
+    });
+  });
+
+  it('counts the runs of a random plan for every device', () => {
+    expect(describeRunTotal(random({ randomRuns: '30' }), now)).toBe(
+      '30 Starts × 1 Gerät = 30 Läufe',
+    );
+  });
+});
