@@ -5,28 +5,77 @@ import { DevicePicker, type DevicePickerProps } from './DevicePicker';
 
 const props: DevicePickerProps = {
   selected: ['desktop'],
+  deviceBrowsers: { desktop: ['chromium'] },
   onToggle: vi.fn(),
-  browsers: ['chromium'],
   onToggleBrowser: vi.fn(),
 };
+
+const browsersOf = (device: string) =>
+  within(screen.getByRole('group', { name: `Browser für ${device}` }));
 
 describe('DevicePicker', () => {
   it('offers four devices and shows which are chosen', () => {
     render(<DevicePicker {...props} selected={['desktop', 'iphone']} />);
     const pressed = (name: RegExp) =>
       screen.getByRole('button', { name }).getAttribute('aria-pressed');
-    expect(pressed(/Desktop/)).toBe('true');
-    expect(pressed(/iPhone 15/)).toBe('true');
-    expect(pressed(/Android \(Pixel 8\)/)).toBe('false');
-    expect(pressed(/iPad/)).toBe('false');
+    expect(pressed(/^Desktop/)).toBe('true');
+    expect(pressed(/^iPhone 15/)).toBe('true');
+    expect(pressed(/^Android \(Pixel 8\)/)).toBe('false');
+    expect(pressed(/^iPad/)).toBe('false');
   });
 
   it('toggles a device on click', async () => {
     const user = userEvent.setup();
     const onToggle = vi.fn();
     render(<DevicePicker {...props} onToggle={onToggle} />);
-    await user.click(screen.getByRole('button', { name: /Android/ }));
+    await user.click(screen.getByRole('button', { name: /^Android/ }));
     expect(onToggle).toHaveBeenCalledWith('android');
+  });
+
+  it('offers each chosen device its own browsers', () => {
+    render(
+      <DevicePicker
+        {...props}
+        selected={['desktop', 'android', 'ipad']}
+        deviceBrowsers={{ desktop: ['chromium', 'webkit'], android: ['firefox'] }}
+      />,
+    );
+    const pressed = (device: string) =>
+      browsersOf(device)
+        .getAllByRole('button')
+        .map((chip) => `${chip.textContent}:${chip.getAttribute('aria-pressed')}`);
+    expect(pressed('Desktop')).toEqual(['Chrome:true', 'Firefox:false', 'Safari:true']);
+    expect(pressed('Android (Pixel 8)')).toEqual(['Chrome:false', 'Firefox:true']);
+    expect(pressed('iPad')).toEqual(['Safari:true']);
+    expect(browsersOf('iPad').getByRole('button', { name: 'Safari' })).toBeDisabled();
+    // Devices that are not chosen show no browsers.
+    expect(screen.queryByRole('group', { name: 'Browser für iPhone 15' })).not.toBeInTheDocument();
+  });
+
+  it('switches a browser of one device and says what a device is missing', async () => {
+    const user = userEvent.setup();
+    const onToggleBrowser = vi.fn();
+    render(
+      <DevicePicker
+        {...props}
+        selected={['desktop', 'android']}
+        deviceBrowsers={{ desktop: ['chromium'], android: [] }}
+        browserErrors={{ android: 'Mindestens einen Browser wählen.' }}
+        onToggleBrowser={onToggleBrowser}
+      />,
+    );
+    await user.click(browsersOf('Desktop').getByRole('button', { name: 'Firefox' }));
+    expect(onToggleBrowser).toHaveBeenCalledWith('desktop', 'firefox');
+    expect(
+      screen.getByRole('group', { name: 'Browser für Android (Pixel 8)' }),
+    ).toHaveAccessibleDescription('Mindestens einen Browser wählen.');
+  });
+
+  it('says at once when a chosen device has no browser left', () => {
+    render(<DevicePicker {...props} selected={['desktop']} deviceBrowsers={{ desktop: [] }} />);
+    expect(screen.getByRole('group', { name: 'Browser für Desktop' })).toHaveAccessibleDescription(
+      'Mindestens einen Browser wählen.',
+    );
   });
 
   it('says honestly that location profiles do not exist yet', () => {
@@ -37,41 +86,6 @@ describe('DevicePicker', () => {
 
   it('fits a narrow column without the location card', () => {
     render(<DevicePicker {...props} compact />);
-    expect(screen.getAllByRole('button')).toHaveLength(7);
     expect(screen.queryByRole('region', { name: 'Von wo aus testen?' })).not.toBeInTheDocument();
-  });
-
-  it('offers Chrome, Firefox and Safari and shows which are chosen', () => {
-    render(<DevicePicker {...props} browsers={['chromium', 'webkit']} />);
-    const browsers = screen.getByRole('region', { name: 'In welchen Browsern testen?' });
-    const pressed = (name: string) =>
-      within(browsers)
-        .getByRole('button', { name: new RegExp(`^${name}`) })
-        .getAttribute('aria-pressed');
-    expect(pressed('Chrome')).toBe('true');
-    expect(pressed('Firefox')).toBe('false');
-    expect(pressed('Safari')).toBe('true');
-  });
-
-  it('toggles a browser on click and shows why a choice does not work', async () => {
-    const user = userEvent.setup();
-    const onToggleBrowser = vi.fn();
-    render(
-      <DevicePicker
-        {...props}
-        onToggleBrowser={onToggleBrowser}
-        browserError="Android gibt es nur mit Chrome oder Firefox."
-      />,
-    );
-    await user.click(screen.getByRole('button', { name: /^Firefox/ }));
-    expect(onToggleBrowser).toHaveBeenCalledWith('firefox');
-    expect(screen.getByText('Android gibt es nur mit Chrome oder Firefox.')).toBeVisible();
-  });
-
-  it('explains that iPhone and iPad always run in Safari', () => {
-    render(<DevicePicker {...props} />);
-    expect(screen.getByRole('region', { name: 'In welchen Browsern testen?' })).toHaveTextContent(
-      'iPhone und iPad laufen immer in Safari',
-    );
   });
 });

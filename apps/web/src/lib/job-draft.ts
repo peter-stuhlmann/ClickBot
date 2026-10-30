@@ -1,19 +1,21 @@
 import {
   ALL_MARKINGS_ON,
-  browserProblem,
   DEFAULT_TIMEZONE,
+  deviceBrowserProblems,
   describeMarking,
   flowSchema,
   localToUtc,
+  normalizeDeviceBrowsers,
   runTargets,
   scheduleSchema,
   type AnalyticsMarking,
+  type DeviceBrowsers,
   type Flow,
   type Schedule,
   type Step,
   type Target,
 } from '@click-bot/shared';
-import { describeTargets, type BrowserKey, type DeviceKey } from './devices';
+import { describeTargets, type DeviceKey } from './devices';
 import { describeSchedule, displayUrl, plural } from './format';
 import type { SummaryRowView } from './views';
 
@@ -108,8 +110,11 @@ export type WizardDraft = {
   steps: StepDraft[];
   schedule: ScheduleDraft;
   devices: DeviceKey[];
-  /** Browsers to run in; iPhone and iPad always run in Safari (runTargets). */
-  browsers: BrowserKey[];
+  /**
+   * The browsers of each device; also of devices switched off again, so switching one on
+   * brings its browsers back. iPhone and iPad always run in Safari (runTargets).
+   */
+  deviceBrowsers: DeviceBrowsers;
   /** Which GA4 markers the bot runs set (all on by default). */
   analyticsMarking: AnalyticsMarking;
 };
@@ -123,7 +128,7 @@ export type NewJobDraftInput = {
   flow: { version: 1; steps: Record<string, unknown>[] };
   schedule: Record<string, unknown>;
   devices: DeviceKey[];
-  browsers: BrowserKey[];
+  deviceBrowsers: DeviceBrowsers;
   analyticsMarking: AnalyticsMarking;
   status: 'active';
 };
@@ -170,7 +175,7 @@ export function emptyDraft(now: Date): WizardDraft {
       staggerSeconds: STAGGER_SECONDS,
     },
     devices: ['desktop'],
-    browsers: ['chromium'],
+    deviceBrowsers: { desktop: ['chromium'] },
     analyticsMarking: ALL_MARKINGS_ON,
   };
 }
@@ -428,7 +433,7 @@ export function toNewJobInput(draft: WizardDraft, now: Date): NewJobDraftInput {
     flow: { version: 1, steps: draft.steps.map(toStep) },
     schedule: toSchedule(draft.schedule, now),
     devices: draft.devices,
-    browsers: draft.browsers,
+    deviceBrowsers: normalizeDeviceBrowsers(draft.devices, draft.deviceBrowsers),
     analyticsMarking: draft.analyticsMarking,
     status: 'active',
   };
@@ -469,8 +474,9 @@ function deviceIssues(draft: WizardDraft): Issue[] {
   if (draft.devices.length === 0) {
     return [{ path: 'devices', message: 'Mindestens ein Gerät wählen.' }];
   }
-  const problem = browserProblem(draft.devices, draft.browsers);
-  return problem ? [{ path: 'browsers', message: problem }] : [];
+  return Object.entries(deviceBrowserProblems(draft.devices, draft.deviceBrowsers)).map(
+    ([device, message]) => ({ path: `deviceBrowsers.${device}`, message }),
+  );
 }
 
 /** Product rule: whoever creates a job confirms that the website may be tested (last step). */
@@ -555,7 +561,7 @@ export type StoredJob = {
   flow: Flow;
   schedule: Schedule;
   devices: readonly DeviceKey[];
-  browsers: readonly BrowserKey[];
+  deviceBrowsers: DeviceBrowsers;
   analyticsMarking: AnalyticsMarking;
 };
 
@@ -612,7 +618,7 @@ export function jobToDraft(
       steps: steps as StepDraft[],
       schedule: scheduleDraft,
       devices: [...job.devices],
-      browsers: [...job.browsers],
+      deviceBrowsers: { ...job.deviceBrowsers },
       analyticsMarking: job.analyticsMarking,
     },
   };
@@ -670,8 +676,18 @@ export function wizardStepOf(path: string): WizardStep {
   const [head] = path.split('.');
   if (head === 'flow' || head === 'schedule' || head === 'devices') return head;
   if (head === 'startUrl') return 'flow';
-  if (head === 'browsers' || head === 'confirmed') return 'devices';
+  if (head === 'deviceBrowsers' || head === 'confirmed') return 'devices';
   return 'job';
+}
+
+/** The browser problems by device, e.g. { android: 'Mindestens einen Browser wählen.' }. */
+export function browserErrors(issues: Issue[]): Partial<Record<DeviceKey, string>> {
+  const errors: Partial<Record<DeviceKey, string>> = {};
+  for (const { path, message } of issues) {
+    const [head, device] = path.split('.');
+    if (head === 'deviceBrowsers' && device) errors[device as DeviceKey] ??= message;
+  }
+  return errors;
 }
 
 /** First message per path, for fields that show a single error. */
@@ -768,7 +784,7 @@ export function summarise(
       value: draft.steps.length > 0 ? plural(draft.steps.length, 'Schritt', 'Schritte') : DASH,
     },
     { label: 'Zeitplan', value: scheduleText },
-    { label: 'Geräte', value: describeTargets(draft.devices, draft.browsers) || DASH },
+    { label: 'Geräte', value: describeTargets(draft.devices, draft.deviceBrowsers) || DASH },
     { label: 'GA4-Markierung', value: describeMarking(draft.analyticsMarking) ?? 'alle an' },
   ];
 }
@@ -779,7 +795,7 @@ export function summarise(
  */
 export function describeRunTotal(draft: WizardDraft, now: Date): string | null {
   const parsed = scheduleSchema.safeParse(toSchedule(draft.schedule, now));
-  const targets = runTargets(draft.devices, draft.browsers).length;
+  const targets = runTargets(draft.devices, draft.deviceBrowsers).length;
   if (!parsed.success || targets === 0) return null;
   const schedule = parsed.data;
   const starts =

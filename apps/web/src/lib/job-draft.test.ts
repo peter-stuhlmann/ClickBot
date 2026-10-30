@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  browserErrors,
   addSlot,
   describeRunTotal,
   emptyDraft,
@@ -41,7 +42,7 @@ describe('emptyDraft', () => {
   it('starts on desktop with an hourly interval from now and one slot at the next full hour', () => {
     const fresh = emptyDraft(now);
     expect(fresh.devices).toEqual(['desktop']);
-    expect(fresh.browsers).toEqual(['chromium']);
+    expect(fresh.deviceBrowsers).toEqual({ desktop: ['chromium'] });
     expect(fresh.steps).toEqual([]);
     expect(fresh.schedule).toMatchObject({
       type: 'interval',
@@ -102,7 +103,8 @@ describe('toNewJobInput', () => {
         startUrl: 'beispiel.de/kontakt',
         name: '  Kontaktformular-Test ',
         devices: ['desktop', 'iphone'],
-        browsers: ['chromium', 'firefox'],
+        // Android was chosen and switched off again: its browsers stay in the draft only.
+        deviceBrowsers: { desktop: ['chromium', 'firefox'], android: ['firefox'] },
         steps: [
           step('open', { id: 'open-1', url: 'https://beispiel.de/kontakt' }),
           step('fill', {
@@ -124,7 +126,7 @@ describe('toNewJobInput', () => {
       name: 'Kontaktformular-Test',
       startUrl: 'https://beispiel.de/kontakt',
       devices: ['desktop', 'iphone'],
-      browsers: ['chromium', 'firefox'],
+      deviceBrowsers: { desktop: ['chromium', 'firefox'], iphone: ['webkit'] },
       status: 'active',
       schedule: {
         type: 'interval',
@@ -364,13 +366,37 @@ describe('validateWizardStep', () => {
     ]);
   });
 
-  it('needs a browser each chosen device exists in', () => {
-    expect(validateWizardStep(draft({ browsers: [] }), 'devices', now)).toEqual([
-      { path: 'browsers', message: 'Mindestens einen Browser wählen.' },
+  it('needs a browser for every chosen device, said at the device', () => {
+    expect(
+      validateWizardStep(
+        draft({ devices: ['desktop', 'android'], deviceBrowsers: { desktop: [] } }),
+        'devices',
+        now,
+      ),
+    ).toEqual([
+      { path: 'deviceBrowsers.desktop', message: 'Mindestens einen Browser wählen.' },
+      { path: 'deviceBrowsers.android', message: 'Mindestens einen Browser wählen.' },
     ]);
     expect(
-      validateWizardStep(draft({ devices: ['android'], browsers: ['webkit'] }), 'devices', now),
-    ).toEqual([{ path: 'browsers', message: 'Android gibt es nur mit Chrome oder Firefox.' }]);
+      validateWizardStep(
+        draft({ devices: ['android'], deviceBrowsers: { android: ['webkit'] } }),
+        'devices',
+        now,
+      ),
+    ).toEqual([
+      { path: 'deviceBrowsers.android', message: 'Android gibt es nur mit Chrome oder Firefox.' },
+    ]);
+  });
+
+  it('sorts browser problems by device for the device cards', () => {
+    expect(
+      browserErrors([
+        { path: 'deviceBrowsers.android', message: 'Mindestens einen Browser wählen.' },
+        { path: 'deviceBrowsers.android', message: 'zweite Meldung' },
+        { path: 'devices', message: 'Mindestens ein Gerät wählen.' },
+        { path: 'deviceBrowsers', message: 'Unbekanntes Gerät.' },
+      ]),
+    ).toEqual({ android: 'Mindestens einen Browser wählen.' });
   });
 });
 
@@ -405,7 +431,7 @@ describe('wizardStepOf', () => {
     ['flow.steps.2.target.label', 'flow'],
     ['schedule.slots.0.time', 'schedule'],
     ['devices', 'devices'],
-    ['browsers', 'devices'],
+    ['deviceBrowsers.android', 'devices'],
     ['something.else', 'job'],
   ])('sends %s to the %s step', (path, wizardStep) => {
     expect(wizardStepOf(path)).toBe(wizardStep);
@@ -535,7 +561,10 @@ describe('describeRunTotal', () => {
   it('counts every device in each of its browsers, iPhone once in Safari', () => {
     expect(
       describeRunTotal(
-        draft({ devices: ['desktop', 'iphone'], browsers: ['chromium', 'firefox'] }),
+        draft({
+          devices: ['desktop', 'iphone'],
+          deviceBrowsers: { desktop: ['chromium', 'firefox'] },
+        }),
         now,
       ),
     ).toBe('24 Starts × 3 Kombinationen = 72 Läufe');
@@ -547,7 +576,7 @@ describe('describeRunTotal', () => {
       describeRunTotal(draft({ schedule: { ...fresh.schedule, maxRuns: '' } }), now),
     ).toBeNull();
     expect(describeRunTotal(draft({ devices: [] }), now)).toBeNull();
-    expect(describeRunTotal(draft({ browsers: [] }), now)).toBeNull();
+    expect(describeRunTotal(draft({ deviceBrowsers: { desktop: [] } }), now)).toBeNull();
   });
 });
 

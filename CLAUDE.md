@@ -245,12 +245,17 @@ Hochziehen erst, wenn beide Pakete die neue Version offiziell unterstützen.
     (Viewport, User-Agent, Touch).
   - Vor jedem Lauf prüft der Bot, in welchem Land seine IP tatsächlich landet. Bei falschem
     Land wird der Lauf abgebrochen.
-- **Browser je Job** (`jobs.browsers`, `runTargets` in `packages/shared/src/browsers.ts`): Chrome
-  (Chromium), Firefox und Safari (WebKit), Mehrfachauswahl wie die Geräte.
-  - Jede Kombination aus Gerät und Browser ist ein eigener Lauf (`runs.browser`).
-  - iPhone und iPad laufen immer einmal in WebKit, egal welche Browser gewählt sind: Auf iOS ist
-    jeder Browser WebKit. Android gibt es nur mit Chrome oder Firefox (`browserProblem`).
-  - Läufe und Jobs von vor der Auswahl sind Chrome.
+- **Browser je Gerät** (`jobs.device_browsers`, z. B. `{ desktop: [chromium, firefox] }`, Regeln
+  in `packages/shared/src/browsers.ts`): Chrome (Chromium), Firefox und Safari (WebKit).
+  - Jedes gewählte Gerät hat seine eigenen Browser, Mehrfachauswahl. Desktop hat alle drei,
+    Android Chrome oder Firefox (`browsersFor`). iPhone und iPad laufen immer in WebKit, denn auf
+    iOS ist jeder Browser WebKit; die Oberfläche zeigt Safari dort fest.
+  - Jede Kombination aus Gerät und Browser ist ein eigener Lauf (`runTargets`, `runs.browser`).
+  - Ein neu gewähltes Gerät startet in Chrome (iOS: Safari, `defaultBrowsers`). Abgewählte Geräte
+    behalten im Formular ihre Browser; gespeichert werden nur die gewählten
+    (`normalizeDeviceBrowsers`). Fehler stehen am Gerät (`deviceBrowsers.<gerät>`).
+  - Läufe und Jobs von vor der Auswahl sind Chrome. Migration 0010 hat die alte gemeinsame
+    Browserliste (`jobs.browsers`) je Gerät übernommen, ohne dass sich ein Lauf ändert.
 - **Live-Browser:** CDP-Screencast über WebSocket direkt vom Worker, nur in Chromium (siehe
   Worker → Live-Browser). Next.js gibt dafür einen
   kurzlebigen Token aus.

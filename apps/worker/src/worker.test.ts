@@ -134,7 +134,7 @@ describe('worker', () => {
     const { job } = await dueJob(contactSteps);
     await db
       .update(schema.jobs)
-      .set({ devices: ['desktop', 'iphone'], browsers: ['firefox'] })
+      .set({ devices: ['desktop', 'iphone'], deviceBrowsers: { desktop: ['firefox'] } })
       .where(eq(schema.jobs.id, job.id));
     const opened: string[] = [];
     const w = startWorker({

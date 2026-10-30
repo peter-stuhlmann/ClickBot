@@ -14,10 +14,11 @@ import { ScheduleForm } from '@/components/organisms/ScheduleForm';
 import { StepForm } from '@/components/organisms/StepForm';
 import { StepList } from '@/components/organisms/StepList';
 import { EditorLayout } from '@/components/templates/EditorLayout';
-import { browserLabel, deviceLabel, toggleBrowser, toggleDevice } from '@/lib/devices';
+import { browserLabel, deviceLabel, toggleDevice, toggleDeviceBrowser } from '@/lib/devices';
 import {
   appendStep,
   describeRunTotal,
+  browserErrors,
   errorsByPath,
   moveStep,
   removeStep,
@@ -140,7 +141,7 @@ export function JobEditor({
 
   const selectedStep = selected === null ? undefined : draft.steps[selected];
   // The test run takes the first device in its first browser, as queueTestRun does.
-  const [testTarget] = runTargets(draft.devices, draft.browsers);
+  const [testTarget] = runTargets(draft.devices, draft.deviceBrowsers);
 
   return (
     <EditorLayout
@@ -205,12 +206,14 @@ export function JobEditor({
           <DevicePicker
             compact
             selected={draft.devices}
+            deviceBrowsers={draft.deviceBrowsers}
             error={errors.devices}
-            onToggle={(device) => update({ devices: toggleDevice(draft.devices, device) })}
-            browsers={draft.browsers}
-            browserError={errors.browsers}
-            onToggleBrowser={(browser) =>
-              update({ browsers: toggleBrowser(draft.browsers, browser) })
+            browserErrors={browserErrors(issues)}
+            onToggle={(device) => update(toggleDevice(draft.devices, draft.deviceBrowsers, device))}
+            onToggleBrowser={(device, browser) =>
+              update({
+                deviceBrowsers: toggleDeviceBrowser(draft.deviceBrowsers, device, browser),
+              })
             }
           />
           <AnalyticsMarkingForm

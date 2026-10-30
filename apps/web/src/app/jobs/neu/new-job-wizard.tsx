@@ -17,11 +17,12 @@ import { StepForm } from '@/components/organisms/StepForm';
 import { StepList } from '@/components/organisms/StepList';
 import { WizardStepper } from '@/components/organisms/WizardStepper';
 import { WizardLayout } from '@/components/templates/WizardLayout';
-import { toggleBrowser, toggleDevice } from '@/lib/devices';
+import { toggleDevice, toggleDeviceBrowser } from '@/lib/devices';
 import {
   appendStep,
   describeRunTotal,
   emptyDraft,
+  browserErrors,
   errorsByPath,
   moveStep,
   removeStep,
@@ -258,12 +259,14 @@ export function NewJobWizard({
         <>
           <DevicePicker
             selected={draft.devices}
+            deviceBrowsers={draft.deviceBrowsers}
             error={errors.devices}
-            onToggle={(device) => update({ devices: toggleDevice(draft.devices, device) })}
-            browsers={draft.browsers}
-            browserError={errors.browsers}
-            onToggleBrowser={(browser) =>
-              update({ browsers: toggleBrowser(draft.browsers, browser) })
+            browserErrors={browserErrors(issues)}
+            onToggle={(device) => update(toggleDevice(draft.devices, draft.deviceBrowsers, device))}
+            onToggleBrowser={(device, browser) =>
+              update({
+                deviceBrowsers: toggleDeviceBrowser(draft.deviceBrowsers, device, browser),
+              })
             }
           />
           <AnalyticsMarkingForm

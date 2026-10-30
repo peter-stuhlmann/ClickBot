@@ -20,7 +20,7 @@ export async function queueTestRun(
   return db.transaction(async (tx) => {
     // Serialises concurrent clicks: the second one sees the run of the first.
     const [job] = await tx
-      .select({ id: jobs.id, devices: jobs.devices, browsers: jobs.browsers })
+      .select({ id: jobs.id, devices: jobs.devices, deviceBrowsers: jobs.deviceBrowsers })
       .from(jobs)
       .where(eq(jobs.id, jobId))
       .for('update');
@@ -39,7 +39,7 @@ export async function queueTestRun(
       .limit(1);
     if (open) return { runId: open.id, existing: true };
 
-    const [target] = runTargets(job.devices, job.browsers);
+    const [target] = runTargets(job.devices, job.deviceBrowsers);
     const runNr = await allocateRunNumber(tx, jobId);
     const [run] = await tx
       .insert(runs)

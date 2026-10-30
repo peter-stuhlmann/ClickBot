@@ -13,12 +13,12 @@ const STATUS: Record<Job['status'], { tone: Tone; label: string }> = {
 
 /** Title line of the editor (screen 02). */
 export function toJobHeader(
-  job: Pick<Job, 'name' | 'status' | 'schedule' | 'devices' | 'browsers'>,
+  job: Pick<Job, 'name' | 'status' | 'schedule' | 'devices' | 'deviceBrowsers'>,
 ): JobHeaderView {
   const { primary, secondary } = describeSchedule(job.schedule);
   return {
     title: job.name,
     status: STATUS[job.status],
-    description: [primary, secondary, describeTargets(job.devices, job.browsers)].join(' · '),
+    description: [primary, secondary, describeTargets(job.devices, job.deviceBrowsers)].join(' · '),
   };
 }

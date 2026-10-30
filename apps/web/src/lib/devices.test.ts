@@ -1,11 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import {
-  BROWSER_OPTIONS,
   DEVICE_OPTIONS,
+  browserChoices,
   describeTargets,
   deviceLabel,
-  toggleBrowser,
   toggleDevice,
+  toggleDeviceBrowser,
 } from './devices';
 
 describe('devices', () => {
@@ -26,35 +26,73 @@ describe('devices', () => {
     expect(deviceLabel('watch' as never)).toBe('watch');
   });
 
-  it('adds and removes devices in the order of the cards', () => {
-    expect(toggleDevice(['ipad'], 'desktop')).toEqual(['desktop', 'ipad']);
-    expect(toggleDevice(['desktop', 'ipad'], 'desktop')).toEqual(['ipad']);
-  });
-
-  it('says which browser engine each device really uses', () => {
+  it('describes screen and input of each device', () => {
     expect(DEVICE_OPTIONS.map((option) => option.spec)).toEqual([
-      '1440 × 900 · Maus · in jedem Browser',
-      '393 × 659 · Touch · immer Safari (WebKit)',
-      '412 × 839 · Touch · Chrome oder Firefox',
-      '656 × 944 · Touch · immer Safari (WebKit)',
+      '1440 × 900 · Maus',
+      '393 × 659 · Touch',
+      '412 × 839 · Touch',
+      '656 × 944 · Touch',
     ]);
   });
 });
 
-describe('browsers', () => {
-  it('offers Chrome, Firefox and Safari', () => {
-    expect(BROWSER_OPTIONS.map((option) => option.label)).toEqual(['Chrome', 'Firefox', 'Safari']);
+describe('toggleDevice', () => {
+  it('adds and removes devices in the order of the cards', () => {
+    expect(toggleDevice(['ipad'], {}, 'desktop').devices).toEqual(['desktop', 'ipad']);
+    expect(toggleDevice(['desktop', 'ipad'], {}, 'desktop').devices).toEqual(['ipad']);
+  });
+
+  it('starts a newly chosen device in its default browser', () => {
+    expect(toggleDevice([], {}, 'android').deviceBrowsers).toEqual({ android: ['chromium'] });
+    expect(toggleDevice([], {}, 'iphone').deviceBrowsers).toEqual({ iphone: ['webkit'] });
+  });
+
+  it('remembers the browsers of a device that is switched off and on again', () => {
+    const off = toggleDevice(['android'], { android: ['firefox'] }, 'android');
+    expect(off).toEqual({ devices: [], deviceBrowsers: { android: ['firefox'] } });
+    expect(toggleDevice(off.devices, off.deviceBrowsers, 'android').deviceBrowsers).toEqual({
+      android: ['firefox'],
+    });
+  });
+
+  it('gives a device back its default browser when all of them were switched off', () => {
+    expect(toggleDevice([], { desktop: [] }, 'desktop').deviceBrowsers).toEqual({
+      desktop: ['chromium'],
+    });
+  });
+});
+
+describe('browsers per device', () => {
+  it('adds and removes a browser of one device, in browser order', () => {
+    expect(toggleDeviceBrowser({ desktop: ['webkit'] }, 'desktop', 'chromium')).toEqual({
+      desktop: ['chromium', 'webkit'],
+    });
+    expect(
+      toggleDeviceBrowser({ desktop: ['chromium'], android: ['firefox'] }, 'desktop', 'chromium'),
+    ).toEqual({ desktop: [], android: ['firefox'] });
+  });
+
+  it('offers each device its possible browsers, chosen or not, and locks iOS to Safari', () => {
+    expect(browserChoices('android', { android: ['firefox'] })).toEqual({
+      locked: false,
+      browsers: [
+        { key: 'chromium', label: 'Chrome', chosen: false },
+        { key: 'firefox', label: 'Firefox', chosen: true },
+      ],
+    });
+    expect(browserChoices('ipad', {})).toEqual({
+      locked: true,
+      browsers: [{ key: 'webkit', label: 'Safari', chosen: true }],
+    });
   });
 
   it('names what a job runs on, device with browser', () => {
-    expect(describeTargets(['desktop', 'iphone'], ['chromium', 'firefox'])).toBe(
-      'Desktop (Chrome), Desktop (Firefox), iPhone 15 (Safari)',
-    );
-    expect(describeTargets([], ['chromium'])).toBe('');
-  });
-
-  it('adds and removes browsers in the order of the cards', () => {
-    expect(toggleBrowser(['webkit'], 'chromium')).toEqual(['chromium', 'webkit']);
-    expect(toggleBrowser(['chromium', 'webkit'], 'chromium')).toEqual(['webkit']);
+    expect(
+      describeTargets(['desktop', 'iphone', 'android'], {
+        desktop: ['chromium', 'firefox'],
+        android: ['firefox'],
+      }),
+    ).toBe('Desktop (Chrome), Desktop (Firefox), iPhone 15 (Safari), Android (Pixel 8) (Firefox)');
+    expect(describeTargets([], { desktop: ['chromium'] })).toBe('');
   });
 });

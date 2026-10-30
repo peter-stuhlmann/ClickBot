@@ -88,13 +88,20 @@ describe('updateJob', () => {
     expect(updated.updatedAt.getTime()).toBeGreaterThan(job.updatedAt.getTime());
   });
 
-  it('stores the chosen browsers, and keeps them when the input leaves them out', async () => {
+  it('stores the browsers per device, and keeps them when the input leaves them out', async () => {
     const job = await newJob();
-    const changed = await update(job, { browsers: ['firefox', 'chromium'] });
-    expect(changed.browsers).toEqual(['chromium', 'firefox']);
+    const changed = await update(job, { deviceBrowsers: { desktop: ['firefox', 'chromium'] } });
+    expect(changed.deviceBrowsers).toEqual({ desktop: ['chromium', 'firefox'] });
 
     const kept = await update(changed, { name: 'Ohne Browser-Angabe' });
-    expect(kept.browsers).toEqual(['chromium', 'firefox']);
+    expect(kept.deviceBrowsers).toEqual({ desktop: ['chromium', 'firefox'] });
+
+    // A device added without browsers starts in its default one.
+    const more = await update(kept, { devices: ['desktop', 'android'] });
+    expect(more.deviceBrowsers).toEqual({
+      desktop: ['chromium', 'firefox'],
+      android: ['chromium'],
+    });
   });
 
   it('reports every problem with its path and changes nothing', async () => {

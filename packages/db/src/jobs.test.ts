@@ -42,7 +42,7 @@ describe('createJob', () => {
     expect(job).toMatchObject({
       status: 'draft',
       devices: ['desktop'],
-      browsers: ['chromium'],
+      deviceBrowsers: { desktop: ['chromium'] },
       runCounter: 0,
     });
     expect(job.flow.steps[1]).toMatchObject({ timeoutMs: 10_000, aiFallback: true });
@@ -63,8 +63,9 @@ describe('createJob', () => {
     ['startUrl', { startUrl: 'beispiel.de' }],
     ['startUrl', { startUrl: 'ftp://beispiel.de' }],
     ['devices', { devices: [] }],
-    ['browsers', { browsers: [] }],
-    ['browsers', { devices: ['android'], browsers: ['webkit'] }],
+    ['deviceBrowsers.desktop', { deviceBrowsers: { desktop: [] } }],
+    ['deviceBrowsers.android', { devices: ['android'], deviceBrowsers: { android: ['webkit'] } }],
+    ['deviceBrowsers', { deviceBrowsers: { fridge: ['chromium'] } }],
   ])('rejects an invalid %s', async (field, overrides) => {
     const error = await newJob(overrides).catch((e: unknown) => e);
     expect(issuePaths(error)).toEqual([field]);
@@ -80,17 +81,33 @@ describe('createJob', () => {
     expect(job.devices).toEqual(['desktop', 'iphone']);
   });
 
-  it('stores the chosen browsers without duplicates, in the order of the list', async () => {
-    const job = await newJob({ browsers: ['webkit', 'firefox', 'webkit'] });
-    expect(job.browsers).toEqual(['firefox', 'webkit']);
+  it('stores the browsers of each device without duplicates, in browser order', async () => {
+    const job = await newJob({
+      devices: ['desktop', 'android', 'iphone'],
+      deviceBrowsers: { desktop: ['webkit', 'firefox', 'webkit'], android: ['firefox'] },
+    });
+    expect(job.deviceBrowsers).toEqual({
+      desktop: ['firefox', 'webkit'],
+      android: ['firefox'],
+      iphone: ['webkit'],
+    });
   });
 
-  it('says why Android cannot run in Safari alone', async () => {
-    const error = await newJob({ devices: ['android'], browsers: ['webkit'] }).catch(
-      (e: unknown) => e,
-    );
+  it('starts a device without browsers of its own in Chrome, and keeps only chosen devices', async () => {
+    const job = await newJob({
+      devices: ['android'],
+      deviceBrowsers: { desktop: ['firefox'] },
+    });
+    expect(job.deviceBrowsers).toEqual({ android: ['chromium'] });
+  });
+
+  it('says why Android cannot run in Safari alone, at the device', async () => {
+    const error = await newJob({
+      devices: ['desktop', 'android'],
+      deviceBrowsers: { android: ['webkit'] },
+    }).catch((e: unknown) => e);
     expect((error as ValidationError).issues).toEqual([
-      { path: 'browsers', message: 'Android gibt es nur mit Chrome oder Firefox.' },
+      { path: 'deviceBrowsers.android', message: 'Android gibt es nur mit Chrome oder Firefox.' },
     ]);
   });
 

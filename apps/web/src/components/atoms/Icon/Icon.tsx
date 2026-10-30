@@ -85,8 +85,8 @@ export type IconName = keyof typeof ICONS;
 
 export type IconProps = {
   name: IconName;
-  /** Pixel size; the design uses 18 in navigation and 16 in buttons. */
-  size?: 16 | 18;
+  /** Pixel size; the design uses 18 in navigation, 16 in buttons and 12 in chips. */
+  size?: 12 | 16 | 18;
   className?: string;
 };
 

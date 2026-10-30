@@ -3,6 +3,7 @@ import {
   BROWSER_KINDS,
   DEVICE_KINDS,
   type AnalyticsMarking,
+  type DeviceBrowsers,
   type PageFacts,
   type Flow,
   type Schedule,
@@ -186,11 +187,14 @@ export const jobs = pgTable(
       .array()
       .notNull()
       .default(sql`ARRAY['desktop']::device[]`),
-    /** Browsers to run in; which device runs in which one decides runTargets in @click-bot/shared. */
-    browsers: browser('browsers')
-      .array()
+    /**
+     * The browsers of each device, e.g. { desktop: ['chromium', 'firefox'] }; validated with
+     * deviceBrowsersSchema, run as runTargets in @click-bot/shared.
+     */
+    deviceBrowsers: jsonb('device_browsers')
+      .$type<DeviceBrowsers>()
       .notNull()
-      .default(sql`ARRAY['chromium']::browser[]`),
+      .default({ desktop: ['chromium'] }),
     status: jobStatus('status').notNull().default('draft'),
     /** How bot runs mark their GA4 requests; see analyticsMarkingSchema in @click-bot/shared. */
     analyticsMarking: jsonb('analytics_marking')
@@ -211,7 +215,7 @@ export const jobs = pgTable(
       foreignColumns: [campaigns.id, campaigns.customerId],
     }).onDelete('restrict'),
     check('jobs_devices_not_empty', sql`cardinality(${t.devices}) > 0`),
-    check('jobs_browsers_not_empty', sql`cardinality(${t.browsers}) > 0`),
+    check('jobs_device_browsers_object', sql`jsonb_typeof(${t.deviceBrowsers}) = 'object'`),
   ],
 );
 

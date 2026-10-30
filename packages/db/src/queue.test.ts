@@ -97,13 +97,14 @@ describe('planDueRuns', () => {
     ]);
   });
 
-  it('runs every device in each of its browsers, iPhone once in Safari', async () => {
+  it('runs every device in each of its own browsers, iPhone once in Safari', async () => {
     await activeJob(wave(1), {
-      devices: ['desktop', 'iphone'],
-      browsers: ['chromium', 'firefox'],
+      devices: ['desktop', 'iphone', 'android'],
+      deviceBrowsers: { desktop: ['chromium', 'firefox'], android: ['firefox'] },
     });
     await planDueRuns(db, { now, lookaheadMs: 2 * MIN });
     expect((await allRuns()).map((r) => `${r.device}-${r.browser}`).sort()).toEqual([
+      'android-firefox',
       'desktop-chromium',
       'desktop-firefox',
       'iphone-webkit',
@@ -111,11 +112,14 @@ describe('planDueRuns', () => {
   });
 
   it('plans a browser added later only for the starts it has not run yet', async () => {
-    const job = await activeJob(wave(1), { devices: ['desktop'], browsers: ['chromium'] });
+    const job = await activeJob(wave(1), {
+      devices: ['desktop'],
+      deviceBrowsers: { desktop: ['chromium'] },
+    });
     await planDueRuns(db, { now, lookaheadMs: 2 * MIN });
     await db
       .update(jobs)
-      .set({ browsers: ['chromium', 'webkit'] })
+      .set({ deviceBrowsers: { desktop: ['chromium', 'webkit'] } })
       .where(eq(jobs.id, job.id));
     await planDueRuns(db, { now: at(5_000), lookaheadMs: 2 * MIN });
     expect((await allRuns()).map((r) => r.browser).sort()).toEqual(['chromium', 'webkit']);

@@ -71,6 +71,13 @@
       "when": 1793364718602,
       "tag": "0009_user_avatars",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1793376674746,
+      "tag": "0010_device_browsers",
+      "breakpoints": true
     }
   ]
 }

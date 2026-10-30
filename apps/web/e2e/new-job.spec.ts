@@ -30,17 +30,25 @@ test.describe('Neuer Job', () => {
     await page.getByRole('button', { name: 'Weiter' }).click();
 
     // 4 · Geräte: beside the summary the card is narrow, so the devices take two rows of two.
+    // The cards, not their buttons: a chosen card has a thicker border.
     const top = async (name: RegExp) =>
-      (await page.getByRole('button', { name }).boundingBox())?.y ?? Number.NaN;
+      (await page.getByRole('button', { name }).locator('..').boundingBox())?.y ?? Number.NaN;
     expect(await top(/^Desktop/)).toBe(await top(/iPhone 15/));
     expect(await top(/Android/)).toBeGreaterThan(await top(/^Desktop/));
     await page.getByRole('button', { name: /iPhone 15/ }).click();
     await expect(page.getByText(/2 Starts × 2 Geräte = 4 Läufe/)).toBeVisible();
-    // The desktop also in Firefox; the iPhone stays in Safari.
-    await page.getByRole('button', { name: /^Firefox/ }).click();
-    await expect(page.getByText(/2 Starts × 3 Kombinationen = 6 Läufe/)).toBeVisible();
+    // Each device in its own browsers: the desktop also in Firefox, Android only in Firefox,
+    // the iPhone always in Safari.
+    const browsersOf = (device: string) =>
+      page.getByRole('group', { name: `Browser für ${device}` });
+    await browsersOf('Desktop').getByRole('button', { name: 'Firefox' }).click();
+    await page.getByRole('button', { name: /^Android/ }).click();
+    await browsersOf('Android (Pixel 8)').getByRole('button', { name: 'Firefox' }).click();
+    await browsersOf('Android (Pixel 8)').getByRole('button', { name: 'Chrome' }).click();
+    await expect(browsersOf('iPhone 15').getByRole('button', { name: 'Safari' })).toBeDisabled();
+    await expect(page.getByText(/2 Starts × 4 Kombinationen = 8 Läufe/)).toBeVisible();
     await expect(page.getByRole('complementary', { name: 'Zusammenfassung' })).toContainText(
-      'Desktop (Chrome), Desktop (Firefox), iPhone 15 (Safari)',
+      'Desktop (Chrome), Desktop (Firefox), iPhone 15 (Safari), Android (Pixel 8) (Firefox)',
     );
     await page.getByRole('checkbox', { name: /Test freigegeben/ }).check();
     await page.getByRole('button', { name: 'Job anlegen' }).click();

@@ -12,7 +12,7 @@ const job = {
     startAt: '2026-11-05T10:00:00Z',
   },
   devices: ['desktop' as const, 'iphone' as const],
-  browsers: ['chromium' as const],
+  deviceBrowsers: { desktop: ['chromium' as const] },
 };
 
 describe('toJobHeader', () => {

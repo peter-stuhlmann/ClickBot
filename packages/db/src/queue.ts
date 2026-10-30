@@ -33,7 +33,7 @@ async function planJob(db: Database, job: Job, due: BotStart[]): Promise<number>
         status: jobs.status,
         runCounter: jobs.runCounter,
         devices: jobs.devices,
-        browsers: jobs.browsers,
+        deviceBrowsers: jobs.deviceBrowsers,
       })
       .from(jobs)
       .where(eq(jobs.id, job.id))
@@ -53,7 +53,7 @@ async function planJob(db: Database, job: Job, due: BotStart[]): Promise<number>
       `${slot}:${bot}:${target.device}:${target.browser}`;
     const planned = new Set(existing.map((r) => key(r.slotIndex, r.botNr, r)));
 
-    const targets = runTargets(locked.devices, locked.browsers);
+    const targets = runTargets(locked.devices, locked.deviceBrowsers);
     const missing = due.flatMap((start) =>
       targets
         .filter((target) => !planned.has(key(start.slotIndex, start.botNr, target)))

@@ -51,7 +51,7 @@ function draftOf(schedule: Schedule = interval): WizardDraft {
       flow,
       schedule,
       devices: ['desktop'],
-      browsers: ['chromium'],
+      deviceBrowsers: { desktop: ['chromium'] },
       analyticsMarking: { debugMode: true, internalTraffic: true, botFlag: true, runNumber: true },
     },
     new Date(NOW),
