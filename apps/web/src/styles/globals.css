@@ -84,3 +84,63 @@
     @apply bg-bg font-sans text-body text-text antialiased;
   }
 }
+
+/*
+ * Auth screens (AuthLayout): from one screen to the next the card stays and changes its size.
+ * The group itself draws the card, so the corners stay round while it resizes; a stretched
+ * snapshot would distort them. The content crossfades on top, unstretched (same width).
+ */
+::view-transition-group(.auth-card),
+::view-transition-group(.auth-content),
+::view-transition-group(.auth-move) {
+  animation-duration: 320ms;
+  animation-timing-function: cubic-bezier(0.2, 0, 0, 1);
+}
+
+::view-transition-group(.auth-card) {
+  box-sizing: border-box;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-dialog);
+  background: var(--color-surface);
+  box-shadow: var(--shadow-dialog);
+}
+
+::view-transition-old(.auth-card),
+::view-transition-new(.auth-card) {
+  display: none;
+}
+
+/* Taller old content must not stick out of a card that shrinks; the margin keeps focus rings. */
+::view-transition-group(.auth-content) {
+  overflow: clip;
+  overflow-clip-margin: 4px;
+}
+
+::view-transition-old(.auth-content) {
+  animation: 120ms ease-out both auth-fade-out;
+}
+
+::view-transition-new(.auth-content) {
+  animation: 200ms ease-in 100ms both auth-fade-in;
+}
+
+@keyframes auth-fade-out {
+  to {
+    opacity: 0;
+  }
+}
+
+@keyframes auth-fade-in {
+  from {
+    opacity: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  ::view-transition-group(*),
+  ::view-transition-old(*),
+  ::view-transition-new(*) {
+    animation-duration: 0s !important;
+    animation-delay: 0s !important;
+  }
+}

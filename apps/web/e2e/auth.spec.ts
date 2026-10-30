@@ -54,6 +54,34 @@ test.describe('Anmeldung', () => {
     await expect(page).toHaveURL('/anmelden');
   });
 
+  test('keeps the card and lets it change size from one screen to the next', async ({ page }) => {
+    // Records which elements take part in each view transition React starts.
+    await page.addInitScript(() => {
+      const recorded: string[][] = [];
+      Object.assign(window, { viewTransitions: recorded });
+      const start = document.startViewTransition.bind(document);
+      // React passes { update, types }; the old snapshot is taken before update runs.
+      document.startViewTransition = ((options: StartViewTransitionOptions) => {
+        recorded.push(
+          [...document.querySelectorAll('body *')]
+            .map((element) => getComputedStyle(element).viewTransitionName)
+            .filter((name) => name !== 'none'),
+        );
+        return start(options);
+      }) as typeof document.startViewTransition;
+    });
+    await page.goto('/anmelden');
+    await page.getByLabel('E-Mail').fill(admin.email);
+    await page.getByLabel('Passwort').fill(admin.password);
+    await page.getByRole('button', { name: 'Anmelden' }).click();
+    await expect(page).toHaveURL('/anmelden/code');
+
+    const recorded = await page.evaluate(
+      () => (window as unknown as { viewTransitions: string[][] }).viewTransitions,
+    );
+    expect(recorded).toContainEqual(['auth-card', 'auth-content', 'auth-logo', 'auth-footer']);
+  });
+
   test('keeps the registration closed once an account exists', async ({ page }) => {
     await page.goto('/registrieren');
     await expect(
