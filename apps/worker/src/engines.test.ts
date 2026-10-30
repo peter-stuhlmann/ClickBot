@@ -58,6 +58,18 @@ describe.each([
     }
   });
 
+  it('goes on in the tab a link or a script opens', async () => {
+    const { result } = await run([
+      { id: 'open', type: 'open', url: '/neuer-tab.html' },
+      { id: 'link', type: 'click', target: role('link', 'Danke im neuen Tab') },
+      { id: 'tab', type: 'assert', assertion: { kind: 'urlContains', value: 'ticket=T-1' } },
+      { id: 'back', type: 'open', url: '/neuer-tab.html' },
+      { id: 'script', type: 'click', target: role('button', 'Per Skript öffnen') },
+      { id: 'popup', type: 'assert', assertion: { kind: 'urlContains', value: 'ticket=T-2' } },
+    ]);
+    expect(result.steps.filter((step) => step.status !== 'passed')).toEqual([]);
+  });
+
   it('clicks the consent button inside an iframe', async () => {
     const { result } = await run([
       { id: 'open', type: 'open', url: '/consent-iframe.html' },

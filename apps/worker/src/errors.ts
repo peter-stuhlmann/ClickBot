@@ -13,6 +13,14 @@ export function isTimeout(error: unknown): boolean {
   return error instanceof errors.TimeoutError;
 }
 
+/**
+ * A page asked for a password (HTTP 401) and the browser gave up: the full Chromium reports that
+ * as an error instead of the answer. The headless shell, Firefox and WebKit return the 401.
+ */
+export function refusedCredentials(error: unknown): boolean {
+  return error instanceof Error && error.message.includes('ERR_INVALID_AUTH_CREDENTIALS');
+}
+
 /** Number of elements from Playwright's strict-mode error, or null for other errors. */
 export function ambiguousCount(error: unknown): number | null {
   const match = error instanceof Error && /resolved to (\d+) elements/.exec(error.message);

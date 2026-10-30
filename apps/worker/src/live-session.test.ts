@@ -111,6 +111,23 @@ describe('startLiveSession', () => {
     await session.close();
   });
 
+  it('shows a PDF a link opens in a new tab, in the same view, and records the click', async () => {
+    const { session, steps, messages, centre, page } = await open('/neuer-tab.html');
+    await session.handle({ type: 'click', ...(await centre('a[href="lebenslauf.pdf"]')) });
+
+    await expect
+      .poll(() => messages.filter((m) => m.type === 'url').at(-1))
+      .toEqual({ type: 'url', url: `${browser.origin()}/lebenslauf.pdf` });
+    expect(page.url()).toBe(`${browser.origin()}/lebenslauf.pdf`);
+    expect(steps().at(-1)).toEqual({
+      type: 'click',
+      target: { by: 'role', role: 'link', name: 'Curriculum vitae (PDF)' },
+    });
+    // The run follows the new tab after this click, like the live view did.
+    expect(messages.filter((m) => m.type === 'error')).toEqual([]);
+    await session.close();
+  });
+
   it('says so when the start page cannot be opened, and stays usable', async () => {
     const { session, messages } = await open('/fehler');
     expect(messages).toContainEqual({ type: 'error', message: 'Seite antwortet mit HTTP 500.' });

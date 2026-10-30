@@ -5,7 +5,10 @@ import { extname, join, normalize } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const SITE_DIR = fileURLToPath(new URL('./fixtures/site', import.meta.url));
-const TYPES: Record<string, string> = { '.html': 'text/html; charset=utf-8' };
+const TYPES: Record<string, string> = {
+  '.html': 'text/html; charset=utf-8',
+  '.pdf': 'application/pdf',
+};
 
 export type FixtureServer = { origin: string; close: () => Promise<void> };
 

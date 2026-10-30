@@ -267,6 +267,10 @@ Hochziehen erst, wenn beide Pakete die neue Version offiziell unterstützen.
     `skipped`.
   - Ein fehlgeschlagener Schritt bekommt ein Bildschirmfoto. Das Foto hat ein eigenes kurzes
     Zeitlimit, damit eine hängende Seite den Browser-Platz nicht blockiert.
+  - Öffnet ein Schritt einen neuen Tab, machen die folgenden Schritte dort weiter (auch Foto bei
+    Fehler). Ein Klick auf einen Link oder ein Formular mit eigenem `target` wartet auf den Tab;
+    nach anderen Klicks wartet er 250 ms auf einen per Skript geöffneten Tab (gemessen: bis
+    27 ms).
 - **Variablen** werden vor der Aktion aufgelöst. Eine unbekannte Variable bricht den Schritt
   ab, ohne dass die Seite angefasst wird.
 - **Meldungen:**
@@ -333,6 +337,10 @@ Hochziehen erst, wenn beide Pakete die neue Version offiziell unterstützen.
   startet mit dem Worker, Firefox und WebKit beim ersten Lauf, der sie braucht. Stürzt einer ab,
   scheitern nur die Läufe darin, mit der Meldung des Browsers. Der nächste Lauf startet einen
   neuen. Ein gescheiterter Start wird beim nächsten Lauf erneut versucht.
+  - Gestartet über `launchEngine` (`engines.ts`), auch in den Tests. Chromium läuft als ganzer
+    Browser im neuen Headless-Modus (`channel: 'chromium'`), nicht als Headless-Shell: nur so
+    zeigt er PDFs, z. B. einen Lebenslauf im neuen Tab. Er meldet HTTP 401 als Fehler
+    `ERR_INVALID_AUTH_CREDENTIALS` statt als Antwort (`refusedCredentials`).
 - **Live-Browser** („Im Browser aufnehmen“, `live-server.ts`, `live-session.ts`, `recorder.ts`):
   - `startRecordingAction` legt eine Sitzung mit einmaligem Token an (`recording_sessions`, nur
     SHA-256, 2 Min. gültig, eine je Nutzer). Der Browser verbindet sich damit zu
@@ -351,7 +359,8 @@ Hochziehen erst, wenn beide Pakete die neue Version offiziell unterstützen.
   - Modi: Aufnehmen, Nur bedienen, „Prüfung hinzufügen“ (der nächste Klick wird eine Prüfung
     „Element sichtbar“, die Seite reagiert nicht darauf). Eine neue Adresse in der Adressleiste
     wird ein Schritt „Seite öffnen“, Zurück und Vor auch (mit der Adresse, auf der man landet).
-  - Neue Tabs öffnen sich im selben Tab.
+  - Neue Tabs öffnen sich im selben Tab, PDFs mit dem Viewer von Chromium. Der aufgenommene
+    Klick öffnet im Lauf den neuen Tab, in dem der Bot weitermacht.
 - **Lebenszeichen:** Alle 10 s schreibt der Worker in `worker_heartbeats`. Die Web-App zeigt
   „online“, wenn der letzte Eintrag höchstens 30 s alt ist.
 - **Geräte** (`contextOptionsFor`):
@@ -438,7 +447,8 @@ Hochziehen erst, wenn beide Pakete die neue Version offiziell unterstützen.
 - Caddy leitet `wss://<domain>/live` an den Worker-Port `LIVE_PORT` weiter. `LIVE_URL` und
   `APP_URL` zeigen auf die öffentliche Adresse.
 - Das Worker-Image braucht Chromium, Firefox und WebKit samt Systembibliotheken (z. B. das
-  offizielle Playwright-Image). Jede Engine ist ein eigener Prozess und kostet RAM.
+  offizielle Playwright-Image), Chromium als ganzen Browser, nicht nur die Headless-Shell. Jede
+  Engine ist ein eigener Prozess und kostet RAM.
 - `MAX_CONCURRENT_BROWSERS=6` auf KVM 2. Der echte Wert kommt aus einem Lasttest, nicht aus
   einer Schätzung.
 

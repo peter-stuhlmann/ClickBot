@@ -37,7 +37,8 @@ export type RunResult = {
 
 /**
  * Runs a flow in a fresh page of `context` and stops at the first failing step; the rest are
- * reported as skipped. A failing step gets a screenshot of the moment it failed.
+ * reported as skipped. A failing step gets a screenshot of the moment it failed. When a step opens
+ * a new tab (a link with target="_blank", window.open), the following steps go on in that tab.
  */
 export async function runFlow(
   context: BrowserContext,
@@ -47,7 +48,10 @@ export async function runFlow(
   await markBotTraffic(context, options.runNr, options.analyticsMarking ?? ALL_MARKINGS_ON);
   const analytics = createGa4Recorder();
   context.on('request', (request) => analytics.record(request.url(), request.postData()));
-  const page = await context.newPage();
+  let page = await context.newPage();
+  context.on('page', (opened) => {
+    page = opened;
+  });
 
   const vars = {
     runNr: options.runNr,
@@ -74,7 +78,11 @@ export async function runFlow(
     const started = performance.now();
     const duration = () => Math.ceil(performance.now() - started);
     try {
-      const outcome = await executeStep(page, step, { vars, baseUrl: options.baseUrl, analytics });
+      const outcome = await executeStep(() => page, step, {
+        vars,
+        baseUrl: options.baseUrl,
+        analytics,
+      });
       if (step.type === 'extract' && outcome.extracted !== undefined) {
         result.extracted[step.saveAs] = mask(outcome.extracted);
       }
@@ -99,6 +107,6 @@ export async function runFlow(
   }
 
   result.analyticsEvents = analytics.events();
-  await page.close();
+  await Promise.all(context.pages().map((open) => open.close()));
   return result;
 }

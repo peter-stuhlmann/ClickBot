@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { StepError, formatSeconds, toStepMessage } from './errors';
+import { StepError, formatSeconds, refusedCredentials, toStepMessage } from './errors';
 
 describe('formatSeconds', () => {
   it.each([
@@ -27,5 +27,15 @@ describe('toStepMessage', () => {
   it('handles thrown non-errors and empty messages', () => {
     expect(toStepMessage('Text statt Error')).toBe('Text statt Error');
     expect(toStepMessage(new Error(''))).toBe('Unbekannter Fehler.');
+  });
+});
+
+describe('refusedCredentials', () => {
+  it('recognises a password page the full Chromium gave up on', () => {
+    expect(
+      refusedCredentials(new Error('page.goto: net::ERR_INVALID_AUTH_CREDENTIALS at http://x/')),
+    ).toBe(true);
+    expect(refusedCredentials(new Error('page.goto: net::ERR_CONNECTION_REFUSED'))).toBe(false);
+    expect(refusedCredentials('ERR_INVALID_AUTH_CREDENTIALS')).toBe(false);
   });
 });

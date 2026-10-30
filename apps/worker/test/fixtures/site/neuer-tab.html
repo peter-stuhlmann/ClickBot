@@ -1,0 +1,19 @@
+<!doctype html>
+<html lang="de">
+  <head>
+    <meta charset="utf-8" />
+    <title>Links in neuen Tabs – Beispiel GmbH</title>
+  </head>
+  <body>
+    <h1>Downloads</h1>
+    <a href="danke.html?ticket=T-1&name=Tab" target="_blank">Danke im neuen Tab</a>
+    <a href="lebenslauf.pdf" target="_blank">Curriculum vitae (PDF)</a>
+    <a href="danke.html?ticket=T-3&name=Hier">Danke im selben Tab</a>
+    <button type="button" id="script">Per Skript öffnen</button>
+    <script>
+      document.getElementById('script').addEventListener('click', () => {
+        window.open('danke.html?ticket=T-2&name=Skript');
+      });
+    </script>
+  </body>
+</html>

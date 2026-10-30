@@ -30,6 +30,28 @@ export function locate(scope: Page | Frame, target: Target): Locator {
 
 const pause = () => new Promise((resolve) => setTimeout(resolve, POLL_MS));
 
+/**
+ * The page a step works in, or a way to ask for it: while a step waits, a tab the previous click
+ * opened may still arrive, and the waiting goes on in it (see runFlow).
+ */
+export type PageSource = Page | (() => Page);
+
+export const pageOf = (source: PageSource): Page =>
+  typeof source === 'function' ? source() : source;
+
+/** Polls `check` until it holds; false when the time is up. */
+export async function waitUntil(
+  check: () => boolean | Promise<boolean>,
+  timeoutMs: number,
+): Promise<boolean> {
+  const deadline = Date.now() + timeoutMs;
+  for (;;) {
+    if (await check()) return true;
+    if (Date.now() >= deadline) return false;
+    await pause();
+  }
+}
+
 /** Matches in a frame; 0 for a frame that went away in the meantime. */
 const countIn = (locator: Locator) => locator.count().catch(() => 0);
 
@@ -38,14 +60,20 @@ const countIn = (locator: Locator) => locator.count().catch(() => 0);
  * live in an iframe. Waits until exactly one element matches. More than one, in one document or
  * across several, is ambiguous: the step fails instead of guessing.
  */
-export async function findTarget(page: Page, target: Target, timeoutMs: number): Promise<Locator> {
+export async function findTarget(
+  page: PageSource,
+  target: Target,
+  timeoutMs: number,
+): Promise<Locator> {
   const deadline = Date.now() + timeoutMs;
   for (;;) {
     const matches = await Promise.all(
-      page.frames().map(async (frame) => {
-        const locator = locate(frame, target);
-        return { locator, count: await countIn(locator) };
-      }),
+      pageOf(page)
+        .frames()
+        .map(async (frame) => {
+          const locator = locate(frame, target);
+          return { locator, count: await countIn(locator) };
+        }),
     );
     const total = matches.reduce((sum, match) => sum + match.count, 0);
     if (total > 1) {
@@ -70,25 +98,24 @@ export function notFound(target: Target, timeoutMs: number): StepError {
 
 /** Waits until `text` is visible in the page or one of its iframes. */
 export async function waitForVisibleText(
-  page: Page,
+  page: PageSource,
   text: string,
   timeoutMs: number,
 ): Promise<boolean> {
-  const deadline = Date.now() + timeoutMs;
-  for (;;) {
+  return waitUntil(async () => {
     const visible = await Promise.all(
-      page.frames().map((frame) =>
-        frame
-          .getByText(text)
-          .first()
-          .isVisible()
-          .catch(() => false),
-      ),
+      pageOf(page)
+        .frames()
+        .map((frame) =>
+          frame
+            .getByText(text)
+            .first()
+            .isVisible()
+            .catch(() => false),
+        ),
     );
-    if (visible.includes(true)) return true;
-    if (Date.now() >= deadline) return false;
-    await pause();
-  }
+    return visible.includes(true);
+  }, timeoutMs);
 }
 
 /** Human-readable description for step messages and reports. */

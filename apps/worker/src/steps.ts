@@ -1,9 +1,17 @@
 import { interpolate, type Step, type Target, type VariableContext } from '@click-bot/shared';
-import type { Locator, Page } from 'playwright';
+import type { Locator } from 'playwright';
 import type { Ga4Recorder } from './analytics';
 import { basicAuthHeader, hasBasicAuth, useBasicAuth } from './basic-auth';
-import { StepError, ambiguousCount, formatSeconds, isTimeout } from './errors';
-import { describeTarget, findTarget, notFound, waitForVisibleText } from './targets';
+import { StepError, ambiguousCount, formatSeconds, isTimeout, refusedCredentials } from './errors';
+import {
+  describeTarget,
+  findTarget,
+  notFound,
+  pageOf,
+  waitForVisibleText,
+  waitUntil,
+  type PageSource,
+} from './targets';
 
 export type StepContext = {
   vars: VariableContext;
@@ -21,7 +29,7 @@ export type StepOutcome = {
  * translates Playwright errors into report text.
  */
 async function onTarget<T>(
-  page: Page,
+  page: PageSource,
   target: Target,
   timeoutMs: number,
   action: (locator: Locator, timeout: number) => Promise<T>,
@@ -41,6 +49,19 @@ async function onTarget<T>(
   }
 }
 
+// A tab a page opens by script (window.open) is reported a few ms after the click; measured up to
+// 27 ms in Chromium, Firefox and WebKit. Ten times that covers a busy server.
+const NEW_TAB_GRACE_MS = 250;
+
+/** Whether a click on the element opens another tab: a link or form with a target of its own. */
+function opensNewTab(element: Element): boolean {
+  const owner =
+    element.closest('a[href], area[href]') ??
+    (element.closest('button, input') as HTMLButtonElement | HTMLInputElement | null)?.form;
+  const target = (owner?.getAttribute('target') ?? '').toLowerCase();
+  return target !== '' && !['_self', '_parent', '_top'].includes(target);
+}
+
 async function onTimeout<T>(
   action: Promise<T>,
   message: () => string | Promise<string>,
@@ -53,7 +74,16 @@ async function onTimeout<T>(
   }
 }
 
-export async function executeStep(page: Page, step: Step, ctx: StepContext): Promise<StepOutcome> {
+/**
+ * Runs one step. `current` gives the page to work in; steps that wait ask it again while waiting,
+ * so a tab the previous click opened late is still where they look.
+ */
+export async function executeStep(
+  current: PageSource,
+  step: Step,
+  ctx: StepContext,
+): Promise<StepOutcome> {
+  const page = pageOf(current);
   // Variables are resolved before the page is touched, so an unknown one fails cleanly.
   const text = (template: string) => interpolate(template, ctx.vars).value;
   const timeout = step.timeoutMs;
@@ -63,36 +93,50 @@ export async function executeStep(page: Page, step: Step, ctx: StepContext): Pro
     case 'open': {
       const url = new URL(text(step.url), ctx.baseUrl).href;
       const response = await onTimeout(
-        page.goto(url, { timeout }),
+        page.goto(url, { timeout }).catch((error: unknown) => {
+          if (refusedCredentials(error)) return 401 as const;
+          throw error;
+        }),
         () => `Seite lädt nicht (nach ${after}).`,
       );
-      if (response?.status() === 401) {
+      const status = response === 401 ? 401 : response?.status();
+      if (status === 401) {
         throw new StepError(
           hasBasicAuth(page.context())
             ? 'Seite antwortet mit HTTP 401: Sie ist passwortgeschützt, Benutzername oder Passwort stimmen nicht.'
             : 'Seite antwortet mit HTTP 401: Sie ist passwortgeschützt. Davor gehört ein Schritt „Passwortschutz“.',
         );
       }
-      if (response && response.status() >= 400) {
-        throw new StepError(`Seite antwortet mit HTTP ${response.status()}.`);
+      if (status && status >= 400) {
+        throw new StepError(`Seite antwortet mit HTTP ${status}.`);
       }
       return {};
     }
 
     case 'click':
-      await onTarget(page, step.target, timeout, (l, left) => l.click({ timeout: left }));
+      await onTarget(current, step.target, timeout, async (l, left) => {
+        // A new tab must be there before the next step, which goes on in it (runFlow). A link with
+        // a target is waited for; a tab opened by script only for a moment.
+        const expected = await l.evaluate(opensNewTab, undefined, { timeout: left });
+        const newTab = page
+          .context()
+          .waitForEvent('page', { timeout: expected ? left : NEW_TAB_GRACE_MS })
+          .catch(() => undefined);
+        await l.click({ timeout: left });
+        await newTab;
+      });
       return {};
 
     case 'fill': {
       const value = text(step.value);
-      await onTarget(page, step.target, timeout, (l, left) => l.fill(value, { timeout: left }));
+      await onTarget(current, step.target, timeout, (l, left) => l.fill(value, { timeout: left }));
       return {};
     }
 
     case 'select': {
       const option = text(step.option);
       const started = Date.now();
-      const field = await findTarget(page, step.target, timeout);
+      const field = await findTarget(current, step.target, timeout);
       try {
         await field.selectOption(option, {
           timeout: Math.max(1, timeout - (Date.now() - started)),
@@ -115,31 +159,36 @@ export async function executeStep(page: Page, step: Step, ctx: StepContext): Pro
       switch (assertion.kind) {
         case 'textVisible': {
           const expected = text(assertion.text);
-          if (!(await waitForVisibleText(page, expected, timeout))) {
+          if (!(await waitForVisibleText(current, expected, timeout))) {
             throw new StepError(`Text „${expected}“ ist nicht sichtbar (nach ${after}).`);
           }
           return {};
         }
         case 'elementVisible':
-          await onTarget(page, assertion.target, timeout, (l, left) =>
+          await onTarget(current, assertion.target, timeout, (l, left) =>
             l.waitFor({ state: 'visible', timeout: left }),
           );
           return {};
         case 'urlContains': {
           const expected = text(assertion.value);
-          await onTimeout(
-            page.waitForURL((url) => url.href.includes(expected), { timeout }),
-            () => `URL enthält „${expected}“ nicht (aktuell: ${page.url()}).`,
-          );
+          if (!(await waitUntil(() => pageOf(current).url().includes(expected), timeout))) {
+            throw new StepError(
+              `URL enthält „${expected}“ nicht (aktuell: ${pageOf(current).url()}).`,
+            );
+          }
           return {};
         }
         case 'titleContains': {
           const expected = text(assertion.value);
-          await onTimeout(
-            page.waitForFunction((value) => document.title.includes(value), expected, { timeout }),
-            async () =>
-              `Seitentitel enthält „${expected}“ nicht (aktuell: „${await page.title()}“).`,
-          );
+          const title = () =>
+            pageOf(current)
+              .title()
+              .catch(() => '');
+          if (!(await waitUntil(async () => (await title()).includes(expected), timeout))) {
+            throw new StepError(
+              `Seitentitel enthält „${expected}“ nicht (aktuell: „${await title()}“).`,
+            );
+          }
           return {};
         }
       }
@@ -147,7 +196,7 @@ export async function executeStep(page: Page, step: Step, ctx: StepContext): Pro
     }
 
     case 'extract': {
-      const value = await onTarget(page, step.target, timeout, (l, left) =>
+      const value = await onTarget(current, step.target, timeout, (l, left) =>
         l.textContent({ timeout: left }),
       );
       return { extracted: (value ?? '').trim() };
@@ -158,7 +207,7 @@ export async function executeStep(page: Page, step: Step, ctx: StepContext): Pro
       if (until.kind === 'duration') {
         await page.waitForTimeout(until.ms);
       } else if (until.kind === 'element') {
-        await onTarget(page, until.target, timeout, (l, left) =>
+        await onTarget(current, until.target, timeout, (l, left) =>
           l.waitFor({ state: 'visible', timeout: left }),
         );
       } else {

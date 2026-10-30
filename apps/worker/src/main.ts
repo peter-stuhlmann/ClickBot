@@ -10,10 +10,10 @@ import {
 import { hostname } from 'node:os';
 import { fileURLToPath } from 'node:url';
 import { BROWSER_KINDS } from '@click-bot/shared';
-import { chromium, firefox, webkit } from 'playwright';
 import { createFileArtifactStore } from './artifacts';
 import { createBrowserManager, type BrowserManager } from './browser-manager';
 import { contextOptionsFor } from './devices';
+import { launchEngine } from './engines';
 import { originPolicy, startLiveServer } from './live-server';
 import { LIVE_VIEWPORT } from './live-session';
 import { createWorker } from './worker';
@@ -41,9 +41,8 @@ const artifactsDir =
 const connection = createDb(databaseUrl);
 // One shared process per browser engine, started by the first run that needs it; after a crash
 // the next run starts a new one.
-const engines = { chromium, firefox, webkit };
 const browsers = Object.fromEntries(
-  BROWSER_KINDS.map((kind) => [kind, createBrowserManager(() => engines[kind].launch(), log)]),
+  BROWSER_KINDS.map((kind) => [kind, createBrowserManager(() => launchEngine(kind), log)]),
 ) as Record<Browser, BrowserManager>;
 // Chromium right away, so a missing installation shows up at once.
 await browsers.chromium.get();

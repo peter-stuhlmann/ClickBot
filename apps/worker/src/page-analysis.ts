@@ -1,7 +1,7 @@
 import { ALL_MARKINGS_ON, type PageFacts } from '@click-bot/shared';
 import type { BrowserContext, Frame } from 'playwright';
 import { markBotTraffic } from './bot-marking';
-import { StepError } from './errors';
+import { StepError, refusedCredentials } from './errors';
 
 const OPEN_TIMEOUT_MS = 20_000;
 const SETTLE_TIMEOUT_MS = 5_000;
@@ -48,12 +48,12 @@ export async function analysePage(context: BrowserContext, url: string): Promise
   await markBotTraffic(context, ANALYSIS_RUN_NR, ALL_MARKINGS_ON);
   const page = await context.newPage();
   try {
-    const response = await page.goto(url, { timeout: OPEN_TIMEOUT_MS }).catch(() => {
+    const locked = new StepError('Seite ist passwortgeschützt (HTTP 401).');
+    const response = await page.goto(url, { timeout: OPEN_TIMEOUT_MS }).catch((error: unknown) => {
+      if (refusedCredentials(error)) throw locked;
       throw new StepError(`Seite lädt nicht (nach ${OPEN_TIMEOUT_MS / 1000} s).`);
     });
-    if (response?.status() === 401) {
-      throw new StepError('Seite ist passwortgeschützt (HTTP 401).');
-    }
+    if (response?.status() === 401) throw locked;
     if (response && response.status() >= 400) {
       throw new StepError(`Seite antwortet mit HTTP ${response.status()}.`);
     }

@@ -271,6 +271,67 @@ describe('runFlow – .htaccess password protection', () => {
   });
 });
 
+describe('runFlow – links that open a new tab', () => {
+  const start = step('open', { type: 'open', url: '/neuer-tab.html' });
+  const passed = (result: Awaited<ReturnType<typeof run>>) =>
+    result.steps.map((s) => [s.stepId, s.status, s.message]);
+
+  it('goes on in the tab a link opens', async () => {
+    const result = await run([
+      start,
+      step('tab', { type: 'click', target: role('link', 'Danke im neuen Tab') }),
+      step('thanks', { type: 'assert', assertion: { kind: 'textVisible', text: 'Vielen Dank' } }),
+      step('url', { type: 'assert', assertion: { kind: 'urlContains', value: 'ticket=T-1' } }),
+      step('ticket', { type: 'extract', target: { by: 'testId', testId: 'ticket' }, saveAs: 't' }),
+    ]);
+    expect(passed(result).filter(([, status]) => status !== 'passed')).toEqual([]);
+    expect(result.extracted).toEqual({ t: 'T-1' });
+  });
+
+  it('goes on in a tab the page opens by script', async () => {
+    const result = await run([
+      start,
+      step('tab', { type: 'click', target: role('button', 'Per Skript öffnen') }),
+      step('url', { type: 'assert', assertion: { kind: 'urlContains', value: 'ticket=T-2' } }),
+    ]);
+    expect(result.steps.map((s) => s.message)).toEqual([undefined, undefined, undefined]);
+  });
+
+  it('shows a PDF opened in a new tab, so the bot can check and photograph it', async () => {
+    const result = await run([
+      start,
+      step('cv', { type: 'click', target: role('link', 'Curriculum vitae (PDF)') }),
+      step('url', { type: 'assert', assertion: { kind: 'urlContains', value: 'lebenslauf.pdf' } }),
+      step('shot', { type: 'screenshot', fullPage: false }),
+    ]);
+    expect(passed(result).filter(([, status]) => status !== 'passed')).toEqual([]);
+    expect(result.screenshots).toHaveLength(1);
+  });
+
+  it('stays in its tab for links without a new tab', async () => {
+    const result = await run([
+      start,
+      step('same', { type: 'click', target: role('link', 'Danke im selben Tab') }),
+      step('url', { type: 'assert', assertion: { kind: 'urlContains', value: 'ticket=T-3' } }),
+    ]);
+    expect(result.status).toBe('passed');
+  });
+
+  it('photographs the new tab when a step there fails', async () => {
+    const result = await run([
+      start,
+      step('tab', { type: 'click', target: role('link', 'Danke im neuen Tab') }),
+      step('missing', {
+        type: 'click',
+        target: role('button', 'Downloads'),
+        timeoutMs: 1_000,
+      }),
+    ]);
+    expect(result.steps[2]).toMatchObject({ status: 'failed' });
+    expect(result.screenshots.map((shot) => shot.stepId)).toEqual(['missing']);
+  });
+});
+
 describe('runFlow – failures', () => {
   it('stops at a missing element, explains it and skips the remaining steps', async () => {
     const result = await run([

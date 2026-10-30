@@ -1,7 +1,7 @@
 import { ALL_MARKINGS_ON } from '@click-bot/shared';
 import type { BrowserContext, Page } from 'playwright';
 import { markBotTraffic } from './bot-marking';
-import { toStepMessage } from './errors';
+import { refusedCredentials, toStepMessage } from './errors';
 import { startRecorder, type RecordedStep, type RecorderMode } from './recorder';
 
 /** Size of the live browser, as in the design ("Chromium auf dem Server · 1280 × 800"). */
@@ -112,7 +112,7 @@ async function open(page: Page, url: string): Promise<string | null> {
       return `Seite antwortet mit HTTP ${response.status()}.`;
     return null;
   } catch (error) {
-    return toStepMessage(error);
+    return refusedCredentials(error) ? 'Seite antwortet mit HTTP 401.' : toStepMessage(error);
   }
 }
 
