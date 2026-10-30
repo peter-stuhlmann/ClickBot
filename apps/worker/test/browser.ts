@@ -6,8 +6,8 @@ import { startFixtureServer, type FixtureServer } from './fixture-server';
 const GA_HOST = /(^|\.)google-analytics\.com$|(^|\.)analytics\.google\.com$/;
 
 /**
- * Lets a context reach only the fixture site at `origin`: GA4 requests are answered locally with
- * 204, every other outside request is aborted.
+ * Lets a context reach only the fixture site at `origin` (and Chrome's built-in pages): GA4
+ * requests are answered locally with 204, every other outside request is aborted.
  */
 export async function guardContext(
   context: BrowserContext,
@@ -16,6 +16,8 @@ export async function guardContext(
   await context.route('**/*', (route) => {
     const url = new URL(route.request().url());
     if (url.origin === origin) return route.continue();
+    // Chrome's own pages, e.g. its PDF viewer and its resources: they never leave the browser.
+    if (url.protocol === 'chrome-extension:' || url.protocol === 'chrome:') return route.continue();
     if (GA_HOST.test(url.hostname)) return route.fulfill({ status: 204 });
     return route.abort('blockedbyclient');
   });

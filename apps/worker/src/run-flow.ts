@@ -3,6 +3,7 @@ import type { BrowserContext } from 'playwright';
 import { createGa4Recorder } from './analytics';
 import { markBotTraffic } from './bot-marking';
 import { toStepMessage } from './errors';
+import { waitForPdf } from './pdf';
 import { executeStep } from './steps';
 import { createTestData } from './test-data';
 
@@ -99,6 +100,7 @@ export async function runFlow(
         message: mask(toStepMessage(error)),
       });
       // Bounded: on a page that hangs, an unbounded screenshot would block the browser slot.
+      await waitForPdf(page, FAILURE_SCREENSHOT_TIMEOUT_MS);
       const image = await page
         .screenshot({ timeout: FAILURE_SCREENSHOT_TIMEOUT_MS })
         .catch(() => null);

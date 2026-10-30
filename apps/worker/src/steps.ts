@@ -2,6 +2,7 @@ import { interpolate, type Step, type Target, type VariableContext } from '@clic
 import type { Locator } from 'playwright';
 import type { Ga4Recorder } from './analytics';
 import { basicAuthHeader, hasBasicAuth, useBasicAuth } from './basic-auth';
+import { waitForPdf } from './pdf';
 import { StepError, ambiguousCount, formatSeconds, isTimeout, refusedCredentials } from './errors';
 import {
   describeTarget,
@@ -123,7 +124,9 @@ export async function executeStep(
           .waitForEvent('page', { timeout: expected ? left : NEW_TAB_GRACE_MS })
           .catch(() => undefined);
         await l.click({ timeout: left });
-        await newTab;
+        // Loaded before the next step, so a photo right after shows the page (or the PDF).
+        const tab = await newTab;
+        await tab?.waitForLoadState('load', { timeout: left }).catch(() => undefined);
       });
       return {};
 
@@ -220,6 +223,7 @@ export async function executeStep(
     }
 
     case 'screenshot':
+      await waitForPdf(page, timeout);
       return { screenshot: await page.screenshot({ fullPage: step.fullPage }) };
 
     case 'analytics': {

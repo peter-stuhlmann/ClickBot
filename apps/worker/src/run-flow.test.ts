@@ -1,7 +1,9 @@
 import { flowSchema, type Flow } from '@click-bot/shared';
 import { describe, expect, it } from 'vitest';
 import { useBrowser } from '../test/browser';
+import { createGa4Recorder } from './analytics';
 import { runFlow, type RunOptions } from './run-flow';
+import { executeStep } from './steps';
 import { createTestData } from './test-data';
 
 const browser = useBrowser();
@@ -306,6 +308,28 @@ describe('runFlow – links that open a new tab', () => {
     ]);
     expect(passed(result).filter(([, status]) => status !== 'passed')).toEqual([]);
     expect(result.screenshots).toHaveLength(1);
+  });
+
+  it('lets a click into a new tab end once that tab has loaded, so a photo shows it', async () => {
+    const context = await browser.newContext();
+    try {
+      const page = await context.newPage();
+      await page.goto(`${browser.origin()}/neuer-tab.html`);
+      const [click] = flow([
+        step('tab', { type: 'click', target: role('link', 'Bilder im neuen Tab') }),
+      ]).steps;
+      if (!click) throw new Error('no step');
+      await executeStep(page, click, {
+        vars: { runNr: 1, botNr: 1, faker: () => undefined, secrets: {} },
+        baseUrl: browser.origin(),
+        analytics: createGa4Recorder(),
+      });
+      const tab = context.pages().at(-1);
+      expect(tab?.url()).toBe(`${browser.origin()}/bilder.html`);
+      expect(await tab?.evaluate(() => document.readyState)).toBe('complete');
+    } finally {
+      await context.close();
+    }
   });
 
   it('stays in its tab for links without a new tab', async () => {

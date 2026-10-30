@@ -270,7 +270,11 @@ Hochziehen erst, wenn beide Pakete die neue Version offiziell unterstützen.
   - Öffnet ein Schritt einen neuen Tab, machen die folgenden Schritte dort weiter (auch Foto bei
     Fehler). Ein Klick auf einen Link oder ein Formular mit eigenem `target` wartet auf den Tab;
     nach anderen Klicks wartet er 250 ms auf einen per Skript geöffneten Tab (gemessen: bis
-    27 ms).
+    27 ms). Ein neuer Tab ist geladen, bevor der nächste Schritt beginnt.
+  - PDFs zeigt der PDF-Viewer von Chromium. Er zeichnet erst kurz nach dem Laden; Fotos warten
+    darauf (`waitForPdf`, liest den internen Ladezustand `loadState_` des Viewers, wartet daher
+    nur, scheitert nie). Text im PDF finden Schritte nicht, URL und Foto gehen. In Tests lässt
+    `guardContext` dafür `chrome:`- und `chrome-extension:`-Adressen durch.
 - **Variablen** werden vor der Aktion aufgelöst. Eine unbekannte Variable bricht den Schritt
   ab, ohne dass die Seite angefasst wird.
 - **Meldungen:**

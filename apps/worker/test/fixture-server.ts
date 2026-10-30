@@ -15,7 +15,8 @@ export type FixtureServer = { origin: string; close: () => Promise<void> };
 /**
  * Serves test/fixtures/site on a random local port.
  * Special paths: `/fehler` answers with HTTP 500, `/haengt` never answers, `/geschuetzt` needs
- * HTTP Basic Auth with demo / geheim-123 (like an .htaccess password).
+ * HTTP Basic Auth with demo / geheim-123 (like an .htaccess password), `/spaet.svg` is an image
+ * that comes after 400 ms, so the page holding it fires its load event late.
  */
 export async function startFixtureServer(): Promise<FixtureServer> {
   const server = createServer(async (request, response) => {
@@ -26,6 +27,14 @@ export async function startFixtureServer(): Promise<FixtureServer> {
       return;
     }
     if (pathname === '/haengt') return;
+    if (pathname === '/spaet.svg') {
+      setTimeout(() => {
+        response
+          .writeHead(200, { 'content-type': 'image/svg+xml' })
+          .end('<svg xmlns="http://www.w3.org/2000/svg" width="10" height="10"/>');
+      }, 400);
+      return;
+    }
     if (pathname === '/geschuetzt') {
       const expected = `Basic ${Buffer.from('demo:geheim-123').toString('base64')}`;
       if (request.headers.authorization !== expected) {
