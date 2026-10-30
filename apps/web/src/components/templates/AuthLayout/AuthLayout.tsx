@@ -11,7 +11,7 @@ export type AuthLayoutProps = {
 export function AuthLayout({ title, description, children }: AuthLayoutProps) {
   return (
     <div className="flex min-h-screen flex-col items-center justify-center gap-6 bg-bg px-4 py-12">
-      <main className="w-full max-w-105 rounded-dialog border border-border bg-surface p-9 shadow-dialog">
+      <main className="w-full max-w-107.5 rounded-dialog border border-border bg-surface p-9 shadow-dialog">
         <div className="mb-6 flex items-center gap-3">
           <LogoMark />
           <span className="text-h2 font-semibold text-text">Click-Bot</span>
