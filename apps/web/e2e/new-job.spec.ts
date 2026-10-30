@@ -29,7 +29,11 @@ test.describe('Neuer Job', () => {
     await page.getByRole('textbox', { name: 'Max. Läufe' }).fill('2');
     await page.getByRole('button', { name: 'Weiter' }).click();
 
-    // 4 · Geräte
+    // 4 · Geräte: beside the summary the card is narrow, so the devices take two rows of two.
+    const top = async (name: RegExp) =>
+      (await page.getByRole('button', { name }).boundingBox())?.y ?? Number.NaN;
+    expect(await top(/^Desktop/)).toBe(await top(/iPhone 15/));
+    expect(await top(/Android/)).toBeGreaterThan(await top(/^Desktop/));
     await page.getByRole('button', { name: /iPhone 15/ }).click();
     await expect(page.getByText(/2 Starts × 2 Geräte = 4 Läufe/)).toBeVisible();
     // The desktop also in Firefox; the iPhone stays in Safari.

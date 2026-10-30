@@ -1,7 +1,6 @@
 import { Card } from '@/components/atoms/Card';
 import { Icon, type IconName } from '@/components/atoms/Icon';
 import { ChoiceCard } from '@/components/molecules/ChoiceCard';
-import { cn } from '@/lib/cn';
 import { BROWSER_OPTIONS, DEVICE_OPTIONS, type BrowserKey, type DeviceKey } from '@/lib/devices';
 
 export type DevicePickerProps = {
@@ -38,17 +37,20 @@ export function DevicePicker({
         title="Auf welchen Geräten testen?"
         description="Mehrfachauswahl möglich – jedes Gerät läuft als eigener Bot und bekommt eine eigene Zeile im Report."
       >
-        <div className={cn('grid grid-cols-2 gap-3', !compact && 'xl:grid-cols-4')}>
-          {DEVICE_OPTIONS.map((device) => (
-            <ChoiceCard
-              key={device.key}
-              icon={ICONS[device.key]}
-              title={device.label}
-              description={device.spec}
-              selected={selected.includes(device.key)}
-              onClick={() => onToggle(device.key)}
-            />
-          ))}
+        {/* Columns by the width of the card, not of the window: beside the summary it is narrow. */}
+        <div className="@container">
+          <div className="grid grid-cols-2 gap-3 @3xl:grid-cols-4">
+            {DEVICE_OPTIONS.map((device) => (
+              <ChoiceCard
+                key={device.key}
+                icon={ICONS[device.key]}
+                title={device.label}
+                description={device.spec}
+                selected={selected.includes(device.key)}
+                onClick={() => onToggle(device.key)}
+              />
+            ))}
+          </div>
         </div>
         {error && <p className="text-small text-danger">{error}</p>}
         <p className="text-small text-text-muted">
@@ -59,17 +61,19 @@ export function DevicePicker({
         title="In welchen Browsern testen?"
         description="Mehrfachauswahl möglich – jedes Gerät läuft in jedem passenden Browser als eigener Bot."
       >
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-          {BROWSER_OPTIONS.map((browser) => (
-            <ChoiceCard
-              key={browser.key}
-              icon="globe"
-              title={browser.label}
-              description={browser.spec}
-              selected={browsers.includes(browser.key)}
-              onClick={() => onToggleBrowser(browser.key)}
-            />
-          ))}
+        <div className="@container">
+          <div className="grid grid-cols-1 gap-3 @lg:grid-cols-3">
+            {BROWSER_OPTIONS.map((browser) => (
+              <ChoiceCard
+                key={browser.key}
+                icon="globe"
+                title={browser.label}
+                description={browser.spec}
+                selected={browsers.includes(browser.key)}
+                onClick={() => onToggleBrowser(browser.key)}
+              />
+            ))}
+          </div>
         </div>
         {browserError && <p className="text-small text-danger">{browserError}</p>}
         <p className="text-small text-text-muted">
