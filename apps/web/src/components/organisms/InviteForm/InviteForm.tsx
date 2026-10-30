@@ -4,7 +4,7 @@ import { useActionState } from 'react';
 import { Button } from '@/components/atoms/Button';
 import { Card } from '@/components/atoms/Card';
 import { Input } from '@/components/atoms/Input';
-import { Select } from '@/components/atoms/Select';
+import { Select } from '@/components/molecules/Select';
 import { Field } from '@/components/molecules/Field';
 import type { FormAction } from '@/lib/views';
 

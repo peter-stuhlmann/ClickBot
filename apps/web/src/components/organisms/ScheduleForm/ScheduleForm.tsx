@@ -3,7 +3,7 @@ import { Card } from '@/components/atoms/Card';
 import { Icon } from '@/components/atoms/Icon';
 import { Input } from '@/components/atoms/Input';
 import { SegmentedControl } from '@/components/atoms/SegmentedControl';
-import { Select } from '@/components/atoms/Select';
+import { Select } from '@/components/molecules/Select';
 import { Toggle } from '@/components/atoms/Toggle';
 import { DatePicker } from '@/components/molecules/DatePicker';
 import { Field } from '@/components/molecules/Field';
@@ -99,8 +99,8 @@ export function ScheduleForm({
                 {...control}
                 options={START_OPTIONS}
                 value={schedule.startMode}
-                onChange={(event) =>
-                  set({ startMode: event.target.value as ScheduleDraft['startMode'] })
+                onChange={(startMode) =>
+                  set({ startMode: startMode as ScheduleDraft['startMode'] })
                 }
               />
             )}

@@ -1,6 +1,7 @@
 import { createServer, type Server } from 'node:http';
 import type { AddressInfo } from 'node:net';
 import { expect, test } from '@playwright/test';
+import { chooseOption } from './select';
 
 // Never a real AI provider: a local server answers like an OpenAI-compatible API ("Custom").
 const SUGGESTION = {
@@ -51,7 +52,7 @@ test.describe('Neuer Job – Mit KI beschreiben', () => {
     await expect(custom.getByText('Standard', { exact: true })).toBeVisible();
 
     await page.goto('/jobs/neu');
-    await page.getByRole('combobox', { name: 'Kampagne' }).selectOption({ label: 'Allgemein' });
+    await chooseOption(page.getByRole('combobox', { name: 'Kampagne' }), 'Allgemein');
     await page.getByRole('textbox', { name: 'Job-Name' }).fill('KI-Kontakt');
     await page.getByRole('button', { name: 'Weiter' }).click();
     // The start address is asked for with the flow.

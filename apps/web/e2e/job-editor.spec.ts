@@ -1,4 +1,5 @@
 import { expect, test } from '@playwright/test';
+import { chooseOption } from './select';
 
 // Changes only the flow of "Newsletter-Anmeldung": the other specs rely on names and figures.
 test.describe('Job-Editor', () => {
@@ -15,7 +16,7 @@ test.describe('Job-Editor', () => {
     const before = await steps.count();
 
     await page.getByRole('button', { name: 'Schritt hinzufügen' }).click();
-    await page.getByRole('combobox', { name: 'Aktion' }).selectOption({ label: 'Prüfen' });
+    await chooseOption(page.getByRole('combobox', { name: 'Aktion' }), 'Prüfen');
     await page.getByRole('textbox', { name: 'Text' }).fill('Newsletter');
     await save.click();
 
@@ -42,9 +43,10 @@ test.describe('Job-Editor', () => {
     const before = await steps.count();
 
     await page.getByRole('button', { name: 'Schritt hinzufügen' }).click();
-    await page
-      .getByRole('combobox', { name: 'Aktion' })
-      .selectOption({ label: 'Passwortschutz (.htaccess)' });
+    await chooseOption(
+      page.getByRole('combobox', { name: 'Aktion' }),
+      'Passwortschutz (.htaccess)',
+    );
     await page.getByRole('textbox', { name: 'Benutzername' }).fill('kunde');
     await page.getByLabel('Passwort', { exact: true }).fill('e2e-geheim-4711');
     await page.getByRole('button', { name: 'Speichern' }).click();

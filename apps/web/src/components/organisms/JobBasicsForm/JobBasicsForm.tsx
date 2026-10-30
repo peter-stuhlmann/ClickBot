@@ -1,7 +1,7 @@
 import Link from 'next/link';
 import { Card } from '@/components/atoms/Card';
 import { Input } from '@/components/atoms/Input';
-import { Select } from '@/components/atoms/Select';
+import { Select } from '@/components/molecules/Select';
 import { Field } from '@/components/molecules/Field';
 
 export type JobBasicsValues = { campaignId: string; name: string };
@@ -35,7 +35,7 @@ export function JobBasicsForm({ values, campaigns, errors, onChange }: JobBasics
             placeholder="Kampagne wählen"
             options={campaigns.map((campaign) => ({ value: campaign.id, label: campaign.name }))}
             value={values.campaignId}
-            onChange={(event) => onChange({ campaignId: event.target.value })}
+            onChange={(campaignId) => onChange({ campaignId })}
           />
         )}
       </Field>

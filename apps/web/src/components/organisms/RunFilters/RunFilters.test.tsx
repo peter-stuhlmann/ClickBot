@@ -22,16 +22,22 @@ describe('RunFilters', () => {
     const form = screen.getByRole('form', { name: 'Läufe filtern' });
     expect(form).toHaveAttribute('method', 'get');
     expect(form).toHaveAttribute('action', '/laeufe');
-    expect(screen.getByRole('combobox', { name: 'Kampagne' })).toHaveAttribute('name', 'kampagne');
-    expect(screen.getByRole('combobox', { name: 'Gerät' })).toHaveAttribute('name', 'geraet');
+    expect(Object.fromEntries(new FormData(form as HTMLFormElement))).toEqual({
+      kampagne: 'c2',
+      ergebnis: 'fehlgeschlagen',
+      zeitraum: '24h',
+      geraet: '',
+    });
   });
 
   it('shows the current filters', () => {
     render(<RunFilters {...props} />);
-    expect(screen.getByRole('combobox', { name: 'Kampagne' })).toHaveValue('c2');
-    expect(screen.getByRole('combobox', { name: 'Ergebnis' })).toHaveValue('fehlgeschlagen');
-    expect(screen.getByRole('combobox', { name: 'Zeitraum' })).toHaveValue('24h');
-    expect(screen.getByRole('combobox', { name: 'Gerät' })).toHaveValue('');
+    expect(screen.getByRole('combobox', { name: 'Kampagne' })).toHaveTextContent('Müller Shop');
+    expect(screen.getByRole('combobox', { name: 'Ergebnis' })).toHaveTextContent('Fehlgeschlagen');
+    expect(screen.getByRole('combobox', { name: 'Zeitraum' })).toHaveTextContent(
+      'Letzte 24 Stunden',
+    );
+    expect(screen.getByRole('combobox', { name: 'Gerät' })).toHaveTextContent('Alle Geräte');
   });
 
   it('applies and resets the filters', () => {
@@ -51,8 +57,8 @@ describe('RunFilters', () => {
     rerender(
       <RunFilters {...props} values={{ kampagne: '', ergebnis: '', zeitraum: '7d', geraet: '' }} />,
     );
-    expect(screen.getByRole('combobox', { name: 'Kampagne' })).toHaveValue('');
-    expect(screen.getByRole('combobox', { name: 'Ergebnis' })).toHaveValue('');
-    expect(screen.getByRole('combobox', { name: 'Zeitraum' })).toHaveValue('7d');
+    expect(screen.getByRole('combobox', { name: 'Kampagne' })).toHaveTextContent('Alle Kampagnen');
+    expect(screen.getByRole('combobox', { name: 'Ergebnis' })).toHaveTextContent('Alle');
+    expect(screen.getByRole('combobox', { name: 'Zeitraum' })).toHaveTextContent('Letzte 7 Tage');
   });
 });

@@ -1,6 +1,6 @@
 import { Button } from '@/components/atoms/Button';
 import { Card } from '@/components/atoms/Card';
-import { Select, type SelectOption } from '@/components/atoms/Select';
+import { Select, type SelectOption } from '@/components/molecules/Select';
 import { Field } from '@/components/molecules/Field';
 
 export type RunFiltersProps = {

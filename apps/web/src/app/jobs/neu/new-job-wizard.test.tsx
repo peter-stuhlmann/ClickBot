@@ -4,6 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { newStep, type Issue, type WizardDraft } from '@/lib/job-draft';
 import type { StartRecordingAction, SuggestFlowAction } from '@/lib/views';
 import { NewJobWizard } from './new-job-wizard';
+import { chooseOption } from '../../../../test/select';
 
 // 13:30 in Berlin. Only Date is faked, so user-event's timers keep working.
 const NOW = '2026-11-05T12:30:00.000Z';
@@ -71,7 +72,7 @@ const subtitle = () => screen.getByText(/^Schritt \d von 4/);
 
 /** Step 1 asks only for project and name. */
 async function fillJob(user: ReturnType<typeof userEvent.setup>) {
-  await user.selectOptions(screen.getByRole('combobox', { name: 'Kampagne' }), 'Black Friday');
+  await chooseOption(user, screen.getByRole('combobox', { name: 'Kampagne' }), 'Black Friday');
   fireEvent.change(screen.getByRole('textbox', { name: 'Job-Name' }), {
     target: { value: 'Kontaktformular-Test' },
   });
@@ -204,7 +205,7 @@ describe('NewJobWizard', () => {
         startRecording={noRecording}
       />,
     );
-    expect(screen.getByRole('combobox', { name: 'Kampagne' })).toHaveValue('k1');
+    expect(screen.getByRole('combobox', { name: 'Kampagne' })).toHaveTextContent('Allgemein');
     fireEvent.change(screen.getByRole('textbox', { name: 'Job-Name' }), {
       target: { value: 'Kontakt' },
     });
@@ -244,7 +245,7 @@ describe('NewJobWizard', () => {
       screen.getByRole('button', { name: /^Schritt 1: Öffne 127\.0\.0\.1:4100/ }),
     ).toBeVisible();
     await user.click(screen.getByRole('button', { name: 'Schritt hinzufügen' }));
-    await user.selectOptions(screen.getByRole('combobox', { name: 'Aktion' }), 'Prüfen');
+    await chooseOption(user, screen.getByRole('combobox', { name: 'Aktion' }), 'Prüfen');
     fireEvent.change(screen.getByRole('textbox', { name: 'Text' }), {
       target: { value: 'Kontakt' },
     });
@@ -309,7 +310,8 @@ describe('NewJobWizard', () => {
     await toFlowStep(user);
 
     await user.click(screen.getByRole('button', { name: 'Schritt hinzufügen' }));
-    await user.selectOptions(
+    await chooseOption(
+      user,
       screen.getByRole('combobox', { name: 'Element finden über' }),
       'Label',
     );

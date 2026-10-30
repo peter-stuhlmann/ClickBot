@@ -2,6 +2,7 @@ import { fireEvent, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
 import { JobBasicsForm } from './JobBasicsForm';
+import { chooseOption } from '../../../../test/select';
 
 const empty = { campaignId: '', name: '' };
 const campaigns = [
@@ -17,7 +18,7 @@ describe('JobBasicsForm', () => {
     expect(screen.getAllByRole('combobox')).toHaveLength(1);
     expect(screen.getAllByRole('textbox')).toHaveLength(1);
 
-    await user.selectOptions(screen.getByRole('combobox', { name: 'Kampagne' }), 'Black Friday');
+    await chooseOption(user, screen.getByRole('combobox', { name: 'Kampagne' }), 'Black Friday');
     fireEvent.change(screen.getByRole('textbox', { name: 'Job-Name' }), {
       target: { value: 'Kontakt' },
     });

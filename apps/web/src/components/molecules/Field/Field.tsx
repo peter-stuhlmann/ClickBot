@@ -23,7 +23,7 @@ export function Field({ id, label, hint, error, children }: FieldProps) {
   const describedBy = [error ? errorId : null, hint ? hintId : null].filter(Boolean).join(' ');
   return (
     <div className="flex flex-col gap-1.5">
-      <label htmlFor={id} className="text-body font-medium text-text">
+      <label id={`${id}-label`} htmlFor={id} className="text-body font-medium text-text">
         {label}
       </label>
       {children({

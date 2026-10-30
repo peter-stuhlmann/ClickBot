@@ -1,4 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
+import { chooseOption } from './select';
 
 // A small Android phone; iPhones are 375 to 430 px wide.
 const PHONE = { width: 360, height: 780 };
@@ -96,7 +97,7 @@ test.describe('Auf dem Handy', () => {
   test('every step of the new-job wizard fits', async ({ page }) => {
     await page.goto('/jobs/neu');
     await expectFits(page);
-    await page.getByRole('combobox', { name: 'Kampagne' }).selectOption({ label: 'Allgemein' });
+    await chooseOption(page.getByRole('combobox', { name: 'Kampagne' }), 'Allgemein');
     await page.getByRole('textbox', { name: 'Job-Name' }).fill('Handy-Test');
     await page.getByRole('button', { name: 'Weiter' }).click();
     // The start address is asked for with the flow.
@@ -107,7 +108,7 @@ test.describe('Auf dem Handy', () => {
     await expect(page.getByRole('button', { name: /^Schritt 1: Öffne/ })).toBeVisible();
     await page.getByRole('button', { name: 'Schritt hinzufügen' }).click();
     await expectFits(page);
-    await page.getByRole('combobox', { name: 'Aktion' }).selectOption({ label: 'Prüfen' });
+    await chooseOption(page.getByRole('combobox', { name: 'Aktion' }), 'Prüfen');
     await page.getByRole('textbox', { name: 'Text' }).fill('Kontakt');
     await page.getByRole('button', { name: 'Weiter' }).click();
 

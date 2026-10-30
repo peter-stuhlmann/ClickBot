@@ -1,6 +1,8 @@
 import { fireEvent, render, screen } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 import { JobSettingsForm } from './JobSettingsForm';
+import { chooseOption } from '../../../../test/select';
+import userEvent from '@testing-library/user-event';
 
 const values = {
   name: 'Kontaktformular-Test',
@@ -51,14 +53,14 @@ describe('JobSettingsForm', () => {
     expect(screen.getByRole('textbox', { name: 'Website (Start-URL)' })).toBeInvalid();
   });
 
-  it('moves the job to another campaign of its project', () => {
+  it('moves the job to another campaign of its project', async () => {
     const onChange = vi.fn();
     render(
       <JobSettingsForm values={values} campaigns={campaigns} errors={{}} onChange={onChange} />,
     );
     const campaign = screen.getByRole('combobox', { name: 'Kampagne' });
-    expect(campaign).toHaveValue('k1');
-    fireEvent.change(campaign, { target: { value: 'k2' } });
+    expect(campaign).toHaveTextContent('Allgemein');
+    await chooseOption(userEvent.setup(), campaign, 'Black Friday');
     expect(onChange).toHaveBeenCalledWith({ campaignId: 'k2' });
   });
 });

@@ -1,4 +1,5 @@
 import { expect, test } from '@playwright/test';
+import { chooseOption } from './select';
 
 test.describe('Läufe', () => {
   test('lists the runs of all jobs, newest first, in pages of 50', async ({ page }) => {
@@ -22,14 +23,12 @@ test.describe('Läufe', () => {
 
   test('filters by result and opens the report of a run', async ({ page }) => {
     await page.goto('/laeufe');
-    await page
-      .getByRole('combobox', { name: 'Ergebnis' })
-      .selectOption({ label: 'Fehlgeschlagen' });
+    await chooseOption(page.getByRole('combobox', { name: 'Ergebnis' }), 'Fehlgeschlagen');
     await page.getByRole('button', { name: 'Filter anwenden' }).click();
 
     // A plain GET form also sends the empty fields.
     await expect(page).toHaveURL(/[?&]ergebnis=fehlgeschlagen(&|$)/);
-    await expect(page.getByRole('combobox', { name: 'Ergebnis' })).toHaveValue('fehlgeschlagen');
+    await expect(page.getByRole('combobox', { name: 'Ergebnis' })).toHaveText('Fehlgeschlagen');
     const rows = page.getByRole('region', { name: 'Läufe' }).getByRole('row');
     const count = await rows.count();
     expect(count).toBeGreaterThan(1);
@@ -48,7 +47,7 @@ test.describe('Läufe', () => {
 
     await page.getByRole('link', { name: 'Filter zurücksetzen' }).click();
     await expect(page).toHaveURL('/laeufe');
-    await expect(page.getByRole('combobox', { name: 'Gerät' })).toHaveValue('');
+    await expect(page.getByRole('combobox', { name: 'Gerät' })).toHaveText('Alle Geräte');
   });
 
   test('keeps the filters in view while the list scrolls', async ({ page }) => {

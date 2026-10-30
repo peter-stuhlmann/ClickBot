@@ -1,4 +1,5 @@
 import { expect, test } from '@playwright/test';
+import { chooseOption } from './select';
 
 // Runs after jobs.spec.ts (one worker, files in name order), which expects only the demo jobs.
 test.describe('Neuer Job', () => {
@@ -8,7 +9,7 @@ test.describe('Neuer Job', () => {
     await expect(page.getByRole('heading', { level: 1, name: 'Neuer Job' })).toBeVisible();
 
     // 1 · Job
-    await page.getByRole('combobox', { name: 'Kampagne' }).selectOption({ label: 'Allgemein' });
+    await chooseOption(page.getByRole('combobox', { name: 'Kampagne' }), 'Allgemein');
     await page.getByRole('textbox', { name: 'Job-Name' }).fill('E2E Kontaktseite');
     await page.getByRole('button', { name: 'Weiter' }).click();
     // The start address is asked for with the flow.
@@ -19,7 +20,7 @@ test.describe('Neuer Job', () => {
     // 2 · Ablauf: the open step is there, add a check.
     await expect(page.getByRole('button', { name: /^Schritt 1: Öffne/ })).toBeVisible();
     await page.getByRole('button', { name: 'Schritt hinzufügen' }).click();
-    await page.getByRole('combobox', { name: 'Aktion' }).selectOption({ label: 'Prüfen' });
+    await chooseOption(page.getByRole('combobox', { name: 'Aktion' }), 'Prüfen');
     await page.getByRole('textbox', { name: 'Text' }).fill('Kontakt');
     await page.getByRole('button', { name: 'Weiter' }).click();
 
@@ -49,7 +50,7 @@ test.describe('Neuer Job', () => {
 
   test('creates no job without the confirmation that testing is allowed', async ({ page }) => {
     await page.goto('/jobs/neu');
-    await page.getByRole('combobox', { name: 'Kampagne' }).selectOption({ label: 'Allgemein' });
+    await chooseOption(page.getByRole('combobox', { name: 'Kampagne' }), 'Allgemein');
     await page.getByRole('textbox', { name: 'Job-Name' }).fill('Ohne Freigabe');
     await page.getByRole('button', { name: 'Weiter' }).click();
     await page.getByRole('textbox', { name: 'Website (Start-URL)' }).fill('beispiel.de');
@@ -76,9 +77,7 @@ test.describe('Neuer Job', () => {
 
     await page.goto('/');
     await page.getByRole('link', { name: 'E2E Kontaktseite', exact: true }).click();
-    await page
-      .getByRole('combobox', { name: 'Kampagne' })
-      .selectOption({ label: 'E2E Verschoben' });
+    await chooseOption(page.getByRole('combobox', { name: 'Kampagne' }), 'E2E Verschoben');
     await page.getByRole('button', { name: 'Speichern' }).click();
     await expect(page.getByRole('status').filter({ hasText: 'Gespeichert' })).toBeVisible();
 

@@ -3,6 +3,7 @@ import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
 import type { FormAction } from '@/lib/views';
 import { InviteForm } from './InviteForm';
+import { chooseOption } from '../../../../test/select';
 
 describe('InviteForm', () => {
   it('creates a link for an address and role and shows it once', async () => {
@@ -13,7 +14,11 @@ describe('InviteForm', () => {
     render(<InviteForm action={action} />);
 
     await user.type(screen.getByLabelText('E-Mail'), 'anna@agentur.de');
-    await user.selectOptions(screen.getByLabelText('Rolle'), 'admin');
+    await chooseOption(
+      user,
+      screen.getByRole('combobox', { name: 'Rolle' }),
+      'Admin (verwaltet das Team)',
+    );
     await user.click(screen.getByRole('button', { name: 'Einladungslink erstellen' }));
 
     const data = action.mock.calls[0]?.[1];

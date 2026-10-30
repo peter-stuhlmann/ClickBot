@@ -4,6 +4,7 @@ import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { jobToDraft, type Issue, type WizardDraft } from '@/lib/job-draft';
 import { JobEditor } from './job-editor';
+import { chooseOption } from '../../../../test/select';
 
 const push = vi.fn();
 vi.mock('next/navigation', () => ({ useRouter: () => ({ push }) }));
@@ -100,7 +101,7 @@ describe('JobEditor', () => {
   it('moves the job to another campaign of its project', async () => {
     const user = userEvent.setup();
     const { saveAction } = renderEditor();
-    await user.selectOptions(screen.getByRole('combobox', { name: 'Kampagne' }), 'Black Friday');
+    await chooseOption(user, screen.getByRole('combobox', { name: 'Kampagne' }), 'Black Friday');
     await user.click(screen.getByRole('button', { name: 'Speichern' }));
     expect(saveAction.mock.calls[0]?.[1]).toMatchObject({ campaignId: 'k2' });
   });

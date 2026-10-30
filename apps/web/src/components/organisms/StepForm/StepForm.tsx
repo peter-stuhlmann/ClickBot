@@ -2,7 +2,7 @@ import { unknownTagHint } from '@click-bot/shared';
 import { Card } from '@/components/atoms/Card';
 import { Checkbox } from '@/components/atoms/Checkbox';
 import { Input } from '@/components/atoms/Input';
-import { Select } from '@/components/atoms/Select';
+import { Select } from '@/components/molecules/Select';
 import { Field } from '@/components/molecules/Field';
 import {
   defaultTargetBy,
@@ -91,7 +91,7 @@ export function StepForm({ index, step, errors, onChange }: StepFormProps) {
             {...control}
             options={STEP_TYPE_OPTIONS}
             value={step.type}
-            onChange={(event) => changeType(event.target.value as EditableStepType)}
+            onChange={(type) => changeType(type as EditableStepType)}
           />
         )}
       </Field>
@@ -155,9 +155,7 @@ export function StepForm({ index, step, errors, onChange }: StepFormProps) {
               {...control}
               options={ASSERT_OPTIONS}
               value={step.assertKind}
-              onChange={(event) =>
-                set({ assertKind: event.target.value as StepDraft['assertKind'] })
-              }
+              onChange={(assertKind) => set({ assertKind: assertKind as StepDraft['assertKind'] })}
             />
           )}
         </Field>
@@ -170,7 +168,7 @@ export function StepForm({ index, step, errors, onChange }: StepFormProps) {
               {...control}
               options={WAIT_OPTIONS}
               value={step.waitKind}
-              onChange={(event) => set({ waitKind: event.target.value as StepDraft['waitKind'] })}
+              onChange={(waitKind) => set({ waitKind: waitKind as StepDraft['waitKind'] })}
             />
           )}
         </Field>
@@ -184,7 +182,7 @@ export function StepForm({ index, step, errors, onChange }: StepFormProps) {
                 {...control}
                 options={TARGET_OPTIONS}
                 value={step.targetBy}
-                onChange={(event) => set({ targetBy: event.target.value as TargetBy })}
+                onChange={(targetBy) => set({ targetBy: targetBy as TargetBy })}
               />
             )}
           </Field>
@@ -196,7 +194,7 @@ export function StepForm({ index, step, errors, onChange }: StepFormProps) {
                     {...control}
                     options={ROLE_OPTIONS}
                     value={step.targetRole}
-                    onChange={(event) => set({ targetRole: event.target.value })}
+                    onChange={(targetRole) => set({ targetRole })}
                   />
                 )}
               </Field>

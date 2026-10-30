@@ -52,7 +52,8 @@ test.describe('Projekte und Kampagnen', () => {
 
     // The wizard offers the campaigns of this project only.
     await page.goto('/jobs/neu');
-    await expect(page.getByRole('combobox', { name: 'Kampagne' }).getByRole('option')).toHaveText([
+    await page.getByRole('combobox', { name: 'Kampagne' }).click();
+    await expect(page.getByRole('listbox', { name: 'Kampagne' }).getByRole('option')).toHaveText([
       'Kampagne wählen',
       'Allgemein',
       'Black Friday',

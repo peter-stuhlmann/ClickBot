@@ -509,6 +509,10 @@ Regeln:
   - Zuerst prüfen, ob es sie auf einer Ebene schon gibt.
   - Bei Unsicherheit über die Ebene: so niedrig wie möglich einordnen.
   - Erst nach oben verschieben, wenn ein Import es erzwingt.
+- **Auswahlfelder** nur über `Select` (Molekül), nie `<select>`: eigene Liste mit Haken am
+  gewählten Eintrag, Tastatur wie die „Select-Only Combobox“ aus WAI-ARIA (Pfeile, Pos1/Ende,
+  Enter, Escape, Anfangsbuchstaben). Fokus bleibt auf dem Feld; `name` legt ein verstecktes Feld
+  für schlichte Formulare an. In Tests wählt `chooseOption` (`test/select.ts`, `e2e/select.ts`).
 - **Datumsfelder** nur über `DatePicker` (Molekül), nie `type="date"`: Eingabe als „20.11.2026“
   oder im Kalender (Tastatur wie im WAI-ARIA-Muster), weitergegeben als „2026-11-20“, ein
   Tippfehler unverändert, damit die Prüfung ihn meldet. In schlichten Formularen trägt ein

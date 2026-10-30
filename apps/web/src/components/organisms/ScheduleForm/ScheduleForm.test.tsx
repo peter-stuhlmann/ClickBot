@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { describe, expect, it, vi } from 'vitest';
 import { emptyDraft, type ScheduleDraft, type ScheduleErrors } from '@/lib/job-draft';
 import { ScheduleForm } from './ScheduleForm';
+import { chooseOption } from '../../../../test/select';
 
 const initial = emptyDraft(new Date('2026-11-05T12:30:00Z')).schedule;
 const noErrors: ScheduleErrors = { fields: {}, slots: {} };
@@ -37,7 +38,9 @@ describe('ScheduleForm', () => {
     expect(screen.getByRole('radio', { name: 'Intervall' })).toBeChecked();
     expect(screen.getByRole('textbox', { name: 'Alle (Minuten)' })).toHaveValue('60');
     expect(screen.getByRole('textbox', { name: 'Max. Läufe' })).toHaveValue('24');
-    expect(screen.getByRole('combobox', { name: 'Start' })).toHaveValue('now');
+    expect(screen.getByRole('combobox', { name: 'Start' })).toHaveTextContent(
+      'Sofort nach dem Anlegen',
+    );
     expect(screen.getByText('24 Starts × 1 Gerät = 24 Läufe')).toBeVisible();
   });
 
@@ -60,7 +63,7 @@ describe('ScheduleForm', () => {
     const onChange = vi.fn();
     render(<Harness onChange={onChange} />);
 
-    await user.selectOptions(screen.getByRole('combobox', { name: 'Start' }), 'Zu einem Zeitpunkt');
+    await chooseOption(user, screen.getByRole('combobox', { name: 'Start' }), 'Zu einem Zeitpunkt');
     fireEvent.change(screen.getByLabelText('Startdatum'), { target: { value: '2026-11-06' } });
     fireEvent.change(screen.getByLabelText('Startzeit'), { target: { value: '09:00' } });
 

@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { describe, expect, it, vi } from 'vitest';
 import { newStep, type StepDraft, type StepField } from '@/lib/job-draft';
 import { StepForm } from './StepForm';
+import { chooseOption } from '../../../../test/select';
 
 function Harness({
   initial,
@@ -75,7 +76,8 @@ describe('StepForm', () => {
       'Timeout (Sekunden)',
     ]);
 
-    await user.selectOptions(
+    await chooseOption(
+      user,
       screen.getByRole('combobox', { name: 'Element finden über' }),
       'CSS-Selektor',
     );
@@ -93,7 +95,7 @@ describe('StepForm', () => {
     const onChange = vi.fn();
     render(<Harness initial={step('click')} onChange={onChange} />);
 
-    await user.selectOptions(screen.getByRole('combobox', { name: 'Aktion' }), 'Ausfüllen');
+    await chooseOption(user, screen.getByRole('combobox', { name: 'Aktion' }), 'Ausfüllen');
 
     expect(onChange).toHaveBeenLastCalledWith(expect.objectContaining({ type: 'fill' }));
     expect(screen.getByRole('textbox', { name: 'Wert' })).toHaveAccessibleDescription(
@@ -105,20 +107,26 @@ describe('StepForm', () => {
     const user = userEvent.setup();
     render(<Harness initial={step('click')} />);
 
-    await user.selectOptions(screen.getByRole('combobox', { name: 'Aktion' }), 'Ausfüllen');
-    expect(screen.getByRole('combobox', { name: 'Element finden über' })).toHaveValue('label');
+    await chooseOption(user, screen.getByRole('combobox', { name: 'Aktion' }), 'Ausfüllen');
+    expect(screen.getByRole('combobox', { name: 'Element finden über' })).toHaveTextContent(
+      'Label',
+    );
 
-    await user.selectOptions(screen.getByRole('combobox', { name: 'Aktion' }), 'Klicken');
-    expect(screen.getByRole('combobox', { name: 'Element finden über' })).toHaveValue('role');
+    await chooseOption(user, screen.getByRole('combobox', { name: 'Aktion' }), 'Klicken');
+    expect(screen.getByRole('combobox', { name: 'Element finden über' })).toHaveTextContent(
+      'Rolle und Name',
+    );
   });
 
   it('keeps an element that is already filled in when the action changes', async () => {
     const user = userEvent.setup();
     render(<Harness initial={step('click', { targetValue: 'Absenden' })} />);
 
-    await user.selectOptions(screen.getByRole('combobox', { name: 'Aktion' }), 'Ausfüllen');
+    await chooseOption(user, screen.getByRole('combobox', { name: 'Aktion' }), 'Ausfüllen');
 
-    expect(screen.getByRole('combobox', { name: 'Element finden über' })).toHaveValue('role');
+    expect(screen.getByRole('combobox', { name: 'Element finden über' })).toHaveTextContent(
+      'Rolle und Name',
+    );
     expect(screen.getByRole('textbox', { name: 'Name' })).toHaveValue('Absenden');
   });
 
@@ -156,7 +164,7 @@ describe('StepForm', () => {
   ])('checks "%s" with the matching fields', async (kind, expected) => {
     const user = userEvent.setup();
     render(<Harness initial={step('assert')} />);
-    await user.selectOptions(screen.getByRole('combobox', { name: 'Prüfung' }), kind);
+    await chooseOption(user, screen.getByRole('combobox', { name: 'Prüfung' }), kind);
     expect(labels()).toEqual(expected);
   });
 
@@ -170,7 +178,7 @@ describe('StepForm', () => {
   ])('waits "%s" with the matching fields', async (kind, expected) => {
     const user = userEvent.setup();
     render(<Harness initial={step('wait')} />);
-    await user.selectOptions(screen.getByRole('combobox', { name: 'Warten auf' }), kind);
+    await chooseOption(user, screen.getByRole('combobox', { name: 'Warten auf' }), kind);
     expect(labels()).toEqual(expected);
   });
 
@@ -204,7 +212,7 @@ describe('StepForm', () => {
     const onChange = vi.fn();
     render(<Harness initial={step('click')} onChange={onChange} />);
 
-    await user.selectOptions(screen.getByRole('combobox', { name: 'Rolle' }), 'Link');
+    await chooseOption(user, screen.getByRole('combobox', { name: 'Rolle' }), 'Link');
     fireEvent.change(screen.getByRole('textbox', { name: 'Name' }), {
       target: { value: 'Kontakt' },
     });
