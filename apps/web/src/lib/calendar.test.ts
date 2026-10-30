@@ -3,6 +3,8 @@ import {
   addDays,
   addMonths,
   describeDay,
+  earliestEnd,
+  endAfterNewStart,
   endOfWeek,
   formatGermanDate,
   isIsoDate,
@@ -103,5 +105,20 @@ describe('labels', () => {
 
   it('knows today in German time, also shortly after midnight there', () => {
     expect(todayIn(new Date('2026-11-19T23:30:00Z'))).toBe('2026-11-20');
+  });
+});
+
+describe('periods', () => {
+  it('lets the end start at the start, once the start is a day', () => {
+    expect(earliestEnd('2026-11-20')).toBe('2026-11-20');
+    expect(earliestEnd('')).toBeUndefined();
+    expect(earliestEnd('31.11.2026')).toBeUndefined();
+  });
+
+  it('clears an end that lies before a newly chosen start, and keeps one that fits', () => {
+    expect(endAfterNewStart('2026-11-20', '2026-11-19')).toBe('');
+    expect(endAfterNewStart('2026-11-20', '2026-11-20')).toBe('2026-11-20');
+    expect(endAfterNewStart('2026-11-20', '2026-12-01')).toBe('2026-12-01');
+    expect(endAfterNewStart('2026-11-20', '')).toBe('');
   });
 });

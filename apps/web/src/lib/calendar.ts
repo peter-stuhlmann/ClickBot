@@ -113,3 +113,13 @@ export function describeDay(iso: string): string {
 export function todayIn(now: Date): string {
   return berlinDay.format(now);
 }
+
+/** The earliest day the end of a period may have: its start, once that is a day. */
+export function earliestEnd(start: string): string | undefined {
+  return isIsoDate(start) ? start : undefined;
+}
+
+/** The end once a new start is chosen: one before the start no longer fits and is cleared. */
+export function endAfterNewStart(start: string, end: string): string {
+  return isIsoDate(end) && end < start ? '' : end;
+}

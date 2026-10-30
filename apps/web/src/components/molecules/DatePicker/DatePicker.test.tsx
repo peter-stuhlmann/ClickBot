@@ -1,8 +1,8 @@
-import { fireEvent, render, screen } from '@testing-library/react';
+import { act, fireEvent, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { useState } from 'react';
+import { createRef, useState } from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { DatePicker } from './DatePicker';
+import { DatePicker, type DatePickerHandle } from './DatePicker';
 
 /** A parent that keeps the value, like the schedule form. */
 function Controlled({ initial = '', onChange = vi.fn() }) {
@@ -209,5 +209,71 @@ describe('DatePicker', () => {
     expect(input).toHaveAttribute('aria-invalid', 'true');
     expect(input).toHaveAttribute('aria-describedby', 'd-error');
     expect(input).toHaveAttribute('placeholder', 'TT.MM.JJJJ');
+  });
+
+  describe('with an earliest day (min), e.g. the end of a period', () => {
+    const end = (props: Partial<Parameters<typeof DatePicker>[0]> = {}) => (
+      <DatePicker label="Ende" aria-label="Ende" min="2026-11-20" {...props} />
+    );
+
+    it('opens on the earliest day and offers no day before it', async () => {
+      const user = userEvent.setup();
+      render(end());
+      await user.click(screen.getByRole('button', { name: 'Kalender für Ende' }));
+      expect(screen.getByRole('button', { name: 'Freitag, 20. November 2026' })).toHaveFocus();
+      expect(screen.getByRole('button', { name: 'Donnerstag, 19. November 2026' })).toBeDisabled();
+      expect(screen.getByRole('button', { name: 'Samstag, 21. November 2026' })).toBeEnabled();
+      // Today (5 November) lies before it.
+      expect(screen.getByRole('button', { name: 'Heute' })).toBeDisabled();
+    });
+
+    it('keeps the keyboard from going before it', async () => {
+      const user = userEvent.setup();
+      render(end());
+      await user.click(screen.getByRole('button', { name: 'Kalender für Ende' }));
+      await user.keyboard('{ArrowLeft}{PageUp}{ArrowUp}');
+      expect(screen.getByRole('button', { name: 'Freitag, 20. November 2026' })).toHaveFocus();
+    });
+
+    it('marks a typed day before it as invalid, so the form cannot be sent', async () => {
+      const user = userEvent.setup();
+      render(end());
+      const input = screen.getByRole('textbox', { name: 'Ende' }) as HTMLInputElement;
+      await user.type(input, '19.11.2026');
+      expect(input).toHaveAttribute('aria-invalid', 'true');
+      expect(input.validationMessage).toBe('Frühestens am 20.11.2026.');
+
+      await user.clear(input);
+      await user.type(input, '20.11.2026');
+      expect(input).not.toHaveAttribute('aria-invalid');
+      expect(input.validationMessage).toBe('');
+    });
+  });
+
+  it('marks a typed day after the latest day (max) as invalid', async () => {
+    const user = userEvent.setup();
+    render(<DatePicker label="Start" aria-label="Start" max="2026-11-30" />);
+    const input = screen.getByRole('textbox', { name: 'Start' }) as HTMLInputElement;
+    await user.type(input, '01.12.2026');
+    expect(input.validationMessage).toBe('Spätestens am 30.11.2026.');
+  });
+
+  it('tells when a day was chosen in the calendar, not while typing', async () => {
+    const user = userEvent.setup();
+    const onPick = vi.fn();
+    render(<DatePicker label="Start" aria-label="Start" onPick={onPick} />);
+    await user.type(screen.getByRole('textbox', { name: 'Start' }), '20.11.2026');
+    expect(onPick).not.toHaveBeenCalled();
+    await user.click(screen.getByRole('button', { name: 'Kalender für Start' }));
+    await user.click(screen.getByRole('button', { name: 'Samstag, 21. November 2026' }));
+    expect(onPick).toHaveBeenCalledWith('2026-11-21');
+  });
+
+  it('opens from outside, e.g. after the start of a period was chosen', async () => {
+    const handle = createRef<DatePickerHandle>();
+    render(<DatePicker ref={handle} label="Ende" aria-label="Ende" />);
+    await act(async () => handle.current?.open());
+    expect(screen.getByRole('dialog', { name: 'Ende wählen' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Donnerstag, 5. November 2026' })).toHaveFocus();
   });
 });

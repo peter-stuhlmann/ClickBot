@@ -513,6 +513,10 @@ Regeln:
   oder im Kalender (Tastatur wie im WAI-ARIA-Muster), weitergegeben als „2026-11-20“, ein
   Tippfehler unverändert, damit die Prüfung ihn meldet. In schlichten Formularen trägt ein
   verstecktes Feld (`name`) den Wert. Datumsrechnung in `src/lib/calendar.ts`.
+  - Zeitraum (Start und Ende, z. B. `CampaignForm`): Ein im Kalender gewählter Start öffnet den
+    Kalender des Endes (`onPick`, `DatePickerHandle.open`). Das Ende bekommt `min` = Start
+    (`earliestEnd`): frühere Tage sind gesperrt, getippt blockieren sie das Absenden. Ein Ende vor
+    einem neu gewählten Start wird geleert (`endAfterNewStart`).
 - **Varianten** über `cva` (class-variance-authority), Klassen zusammenführen mit
   `tailwind-merge`. Keine Varianten über String-Bastelei mit Template-Strings.
 

@@ -143,19 +143,23 @@ test.describe('Projekte und Kampagnen', () => {
     await page.setViewportSize({ width: 360, height: 800 });
     await page.goto('/kampagnen/neu');
     await page.getByRole('textbox', { name: 'Name' }).fill('E2E Kalender');
-    await page.getByLabel('Start (optional)').fill('20.11.2026');
-
     // The calendar opens on the month of the date in the field (without one: today).
-    await page.getByLabel('Ende (optional)').fill('01.11.2026');
-    await page.getByRole('button', { name: 'Kalender für Ende' }).click();
-    const calendar = page.getByRole('dialog', { name: 'Ende wählen' });
-    await expect(calendar).toContainText('November 2026');
-    const box = await calendar.boundingBox();
+    await page.getByLabel('Start (optional)').fill('01.11.2026');
+    await page.getByRole('button', { name: 'Kalender für Start' }).click();
+    const start = page.getByRole('dialog', { name: 'Start wählen' });
+    await expect(start).toContainText('November 2026');
+    const box = await start.boundingBox();
     expect(box && box.x >= 0 && box.x + box.width <= 360).toBe(true);
+    await start.getByRole('button', { name: 'Freitag, 20. November 2026' }).click();
 
-    await calendar.getByRole('button', { name: 'Nächster Monat' }).click();
-    await calendar.getByRole('button', { name: 'Montag, 7. Dezember 2026' }).click();
-    await expect(calendar).toBeHidden();
+    // Once the start is chosen, the end follows: no day before the start can be chosen.
+    const end = page.getByRole('dialog', { name: 'Ende wählen' });
+    await expect(end).toContainText('November 2026');
+    await expect(end.getByRole('button', { name: 'Donnerstag, 19. November 2026' })).toBeDisabled();
+    await end.getByRole('button', { name: 'Nächster Monat' }).click();
+    await end.getByRole('button', { name: 'Montag, 7. Dezember 2026' }).click();
+    await expect(end).toBeHidden();
+    await expect(page.getByLabel('Start (optional)')).toHaveValue('20.11.2026');
     await expect(page.getByLabel('Ende (optional)')).toHaveValue('07.12.2026');
 
     await page.getByRole('button', { name: 'Kampagne anlegen' }).click();

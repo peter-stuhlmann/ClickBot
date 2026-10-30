@@ -1,13 +1,14 @@
 'use client';
 
-import { useActionState } from 'react';
+import { useActionState, useEffect, useRef, useState } from 'react';
 import { Button } from '@/components/atoms/Button';
 import { Card } from '@/components/atoms/Card';
 import { Icon } from '@/components/atoms/Icon';
 import { Input } from '@/components/atoms/Input';
 import { Textarea } from '@/components/atoms/Textarea';
-import { DatePicker } from '@/components/molecules/DatePicker';
+import { DatePicker, type DatePickerHandle } from '@/components/molecules/DatePicker';
 import { Field } from '@/components/molecules/Field';
+import { earliestEnd, endAfterNewStart } from '@/lib/calendar';
 import type { FormState } from '@/lib/views';
 
 export type CampaignFormProps = {
@@ -36,6 +37,20 @@ export function CampaignForm({ projectName, action, campaign }: CampaignFormProp
     endsOn: campaign?.endsOn ?? '',
     description: campaign?.description ?? '',
   };
+  // The period: the end never lies before the start.
+  const [startsOn, setStartsOn] = useState(values.startsOn ?? '');
+  const [endsOn, setEndsOn] = useState(values.endsOn ?? '');
+  const endPicker = useRef<DatePickerHandle>(null);
+  // Counts starts chosen in the calendar; the end opens after the render that gives it its new
+  // earliest day, also when the same start is chosen again.
+  const [startsPicked, setStartsPicked] = useState(0);
+  useEffect(() => {
+    if (startsPicked > 0) endPicker.current?.open();
+  }, [startsPicked]);
+  const minEnd = earliestEnd(startsOn);
+  const endTooEarly =
+    minEnd && endsOn && endsOn < minEnd ? 'Das Ende liegt vor dem Start.' : undefined;
+
   return (
     <form
       action={formAction}
@@ -67,13 +82,27 @@ export function CampaignForm({ projectName, action, campaign }: CampaignFormProp
                 {...control}
                 label="Start"
                 name="startsOn"
-                defaultValue={values.startsOn}
+                value={startsOn}
+                onChange={setStartsOn}
+                onPick={(start) => {
+                  // Chosen in the calendar: the end follows right away.
+                  setEndsOn((end) => endAfterNewStart(start, end));
+                  setStartsPicked((count) => count + 1);
+                }}
               />
             )}
           </Field>
-          <Field id="campaign-end" label="Ende (optional)" error={errors.endsOn}>
+          <Field id="campaign-end" label="Ende (optional)" error={endTooEarly ?? errors.endsOn}>
             {(control) => (
-              <DatePicker {...control} label="Ende" name="endsOn" defaultValue={values.endsOn} />
+              <DatePicker
+                {...control}
+                ref={endPicker}
+                label="Ende"
+                name="endsOn"
+                min={minEnd}
+                value={endsOn}
+                onChange={setEndsOn}
+              />
             )}
           </Field>
         </div>

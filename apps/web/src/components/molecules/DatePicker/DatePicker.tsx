@@ -1,6 +1,15 @@
 'use client';
 
-import { useEffect, useId, useRef, useState, type ChangeEvent, type KeyboardEvent } from 'react';
+import {
+  useEffect,
+  useId,
+  useImperativeHandle,
+  useRef,
+  useState,
+  type ChangeEvent,
+  type KeyboardEvent,
+  type Ref,
+} from 'react';
 import { Button } from '@/components/atoms/Button';
 import { Icon } from '@/components/atoms/Icon';
 import { Input } from '@/components/atoms/Input';
@@ -19,7 +28,11 @@ import {
 } from '@/lib/calendar';
 import { cn } from '@/lib/cn';
 
+/** Opens the calendar from outside, e.g. the end of a period once its start is chosen. */
+export type DatePickerHandle = { open: () => void };
+
 export type DatePickerProps = {
+  ref?: Ref<DatePickerHandle>;
   /** What the date is, e.g. "Startdatum": names the calendar button and the calendar. */
   label: string;
   /** Id of the text field, e.g. from Field. */
@@ -31,6 +44,11 @@ export type DatePickerProps = {
   /** Uncontrolled start value. */
   defaultValue?: string;
   onChange?: (value: string) => void;
+  /** A day was chosen in the calendar (not typed). */
+  onPick?: (day: string) => void;
+  /** Earliest and latest day: others are locked in the calendar and invalid when typed. */
+  min?: string;
+  max?: string;
   required?: boolean;
   disabled?: boolean;
   className?: string;
@@ -61,12 +79,16 @@ const iconButton =
  * the date on as "2026-11-20"; a typo passes on as typed, so the form can say what is wrong.
  */
 export function DatePicker({
+  ref,
   label,
   id,
   name,
   value,
   defaultValue = '',
   onChange,
+  onPick,
+  min,
+  max,
   required = false,
   disabled = false,
   className,
@@ -88,6 +110,23 @@ export function DatePicker({
   const dialogId = useId();
   const headingId = useId();
   const today = todayIn(new Date());
+  const tooEarly = (day: string) => Boolean(min && day < min);
+  const tooLate = (day: string) => Boolean(max && day > max);
+  const outside = (day: string) => tooEarly(day) || tooLate(day);
+  const clamp = (day: string) =>
+    tooEarly(day) ? (min as string) : tooLate(day) ? (max as string) : day;
+  const rangeProblem = !isIsoDate(current)
+    ? ''
+    : tooEarly(current)
+      ? `Frühestens am ${formatGermanDate(min as string)}.`
+      : tooLate(current)
+        ? `Spätestens am ${formatGermanDate(max as string)}.`
+        : '';
+
+  // A day out of range blocks the form like a missing required value.
+  useEffect(() => {
+    field.current?.setCustomValidity(rangeProblem);
+  }, [rangeProblem]);
 
   useEffect(() => {
     if (!open || !moveFocus.current) return;
@@ -118,7 +157,7 @@ export function DatePicker({
   function show() {
     const box = root.current?.getBoundingClientRect();
     setAlignEnd(Boolean(box && box.left + CALENDAR_WIDTH > window.innerWidth - 16));
-    setFocused(isIsoDate(current) ? current : today);
+    setFocused(clamp(isIsoDate(current) ? current : today));
     moveFocus.current = true;
     setOpen(true);
   }
@@ -133,6 +172,7 @@ export function DatePicker({
     setText(null);
     setOpen(false);
     field.current?.focus();
+    if (day) onPick?.(day);
   }
 
   function onFieldKey(event: KeyboardEvent<HTMLInputElement>) {
@@ -158,8 +198,10 @@ export function DatePicker({
     if (!next) return;
     event.preventDefault();
     moveFocus.current = true;
-    setFocused(next);
+    setFocused(clamp(next));
   }
+
+  useImperativeHandle(ref, () => ({ open: show }));
 
   return (
     <div
@@ -190,6 +232,7 @@ export function DatePicker({
         disabled={disabled}
         className="pr-10"
         {...aria}
+        aria-invalid={aria['aria-invalid'] || (rangeProblem ? true : undefined)}
       />
       <button
         ref={toggle}
@@ -270,6 +313,7 @@ export function DatePicker({
                           tabIndex={day === focused ? 0 : -1}
                           aria-label={describeDay(day)}
                           aria-current={day === today ? 'date' : undefined}
+                          disabled={outside(day)}
                           onClick={() => choose(day)}
                           onKeyDown={(event) => onDayKey(event, day)}
                           className={cn(
@@ -279,6 +323,7 @@ export function DatePicker({
                               : 'hover:bg-neutral-soft',
                             !selected && (inMonth ? 'text-text' : 'text-text-subtle'),
                             !selected && day === today && 'font-semibold text-primary',
+                            'disabled:bg-transparent disabled:text-text-subtle disabled:line-through disabled:opacity-60',
                           )}
                         >
                           {Number(day.slice(8))}
@@ -292,7 +337,12 @@ export function DatePicker({
           </table>
 
           <div className="mt-2 flex justify-between border-t border-border pt-2">
-            <Button variant="ghost" size="sm" onClick={() => choose(today)}>
+            <Button
+              variant="ghost"
+              size="sm"
+              disabled={outside(today)}
+              onClick={() => choose(today)}
+            >
               Heute
             </Button>
             {!required && current && (
