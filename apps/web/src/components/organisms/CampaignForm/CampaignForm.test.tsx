@@ -11,8 +11,8 @@ describe('CampaignForm', () => {
     render(<CampaignForm projectName="Müller Shop" action={action} />);
 
     await user.type(screen.getByRole('textbox', { name: 'Name' }), 'Black Friday');
-    await user.type(screen.getByLabelText('Start (optional)'), '2026-11-20');
-    await user.type(screen.getByLabelText('Ende (optional)'), '2026-11-30');
+    await user.type(screen.getByLabelText('Start (optional)'), '20.11.2026');
+    await user.type(screen.getByLabelText('Ende (optional)'), '30.11.26');
     await user.type(
       screen.getByRole('textbox', { name: 'Notiz (optional)' }),
       'Rabattcode prüfen.',
@@ -70,7 +70,7 @@ describe('CampaignForm', () => {
       />,
     );
     expect(screen.getByRole('textbox', { name: 'Name' })).toHaveValue('Black Friday');
-    expect(screen.getByLabelText('Start (optional)')).toHaveValue('2026-11-20');
+    expect(screen.getByLabelText('Start (optional)')).toHaveValue('20.11.2026');
     await user.click(screen.getByRole('button', { name: 'Speichern' }));
     expect(Object.fromEntries((action.mock.calls[0]?.[1] as FormData).entries())).toMatchObject({
       id: 'k1',

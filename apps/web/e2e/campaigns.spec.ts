@@ -42,8 +42,8 @@ test.describe('Projekte und Kampagnen', () => {
 
     await page.getByRole('link', { name: 'Kampagne anlegen' }).click();
     await page.getByRole('textbox', { name: 'Name' }).fill('Black Friday');
-    await page.getByLabel('Start (optional)').fill('2026-11-20');
-    await page.getByLabel('Ende (optional)').fill('2026-11-30');
+    await page.getByLabel('Start (optional)').fill('20.11.2026');
+    await page.getByLabel('Ende (optional)').fill('30.11.2026');
     await page.getByRole('button', { name: 'Kampagne anlegen' }).click();
     await expect(page).toHaveURL('/kampagnen');
     await expect(page.getByRole('row', { name: /Black Friday/ })).toContainText(
@@ -123,7 +123,7 @@ test.describe('Projekte und Kampagnen', () => {
     await page.getByRole('link', { name: 'E2E Sommer' }).click();
     await expect(page.getByRole('heading', { level: 1, name: 'E2E Sommer' })).toBeVisible();
     await page.getByRole('textbox', { name: 'Name' }).fill('E2E Spätsommer');
-    await page.getByLabel('Start (optional)').fill('2026-09-01');
+    await page.getByLabel('Start (optional)').fill('01.09.2026');
     await page.getByRole('button', { name: 'Speichern' }).click();
     await expect(page).toHaveURL('/kampagnen');
     await expect(page.getByRole('row', { name: /E2E Spätsommer/ })).toContainText('ab 01.09.2026');
@@ -137,5 +137,31 @@ test.describe('Projekte und Kampagnen', () => {
     await page.getByRole('link', { name: 'Allgemein', exact: true }).click();
     await expect(page.getByRole('row', { name: /Login & Bestellstatus/ })).toBeVisible();
     await expect(page.getByRole('button', { name: 'Kampagne löschen' })).toBeDisabled();
+  });
+
+  test('chooses the period in the calendar, also on a phone', async ({ page }) => {
+    await page.setViewportSize({ width: 360, height: 800 });
+    await page.goto('/kampagnen/neu');
+    await page.getByRole('textbox', { name: 'Name' }).fill('E2E Kalender');
+    await page.getByLabel('Start (optional)').fill('20.11.2026');
+
+    // The calendar opens on the month of the date in the field (without one: today).
+    await page.getByLabel('Ende (optional)').fill('01.11.2026');
+    await page.getByRole('button', { name: 'Kalender für Ende' }).click();
+    const calendar = page.getByRole('dialog', { name: 'Ende wählen' });
+    await expect(calendar).toContainText('November 2026');
+    const box = await calendar.boundingBox();
+    expect(box && box.x >= 0 && box.x + box.width <= 360).toBe(true);
+
+    await calendar.getByRole('button', { name: 'Nächster Monat' }).click();
+    await calendar.getByRole('button', { name: 'Montag, 7. Dezember 2026' }).click();
+    await expect(calendar).toBeHidden();
+    await expect(page.getByLabel('Ende (optional)')).toHaveValue('07.12.2026');
+
+    await page.getByRole('button', { name: 'Kampagne anlegen' }).click();
+    await expect(page).toHaveURL('/kampagnen');
+    await expect(page.getByRole('row', { name: /E2E Kalender/ })).toContainText(
+      '20.11.–07.12.2026',
+    );
   });
 });

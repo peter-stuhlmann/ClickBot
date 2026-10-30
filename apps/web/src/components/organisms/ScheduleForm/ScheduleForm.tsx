@@ -5,6 +5,7 @@ import { Input } from '@/components/atoms/Input';
 import { SegmentedControl } from '@/components/atoms/SegmentedControl';
 import { Select } from '@/components/atoms/Select';
 import { Toggle } from '@/components/atoms/Toggle';
+import { DatePicker } from '@/components/molecules/DatePicker';
 import { Field } from '@/components/molecules/Field';
 import { SlotRow } from '@/components/molecules/SlotRow';
 import { addSlot, type ScheduleDraft, type ScheduleErrors } from '@/lib/job-draft';
@@ -108,11 +109,12 @@ export function ScheduleForm({
             <div className="grid grid-cols-2 gap-3">
               <Field id="schedule-start-date" label="Startdatum" error={startError}>
                 {(control) => (
-                  <Input
+                  <DatePicker
                     {...control}
-                    type="date"
+                    label="Startdatum"
+                    required
                     value={schedule.startDate}
-                    onChange={(event) => set({ startDate: event.target.value })}
+                    onChange={(startDate) => set({ startDate })}
                   />
                 )}
               </Field>
@@ -158,7 +160,9 @@ export function ScheduleForm({
                     ? () => set({ slots: schedule.slots.filter((other) => other.key !== slot.key) })
                     : undefined
                 }
-              />
+              >
+                {(date) => <DatePicker {...date} />}
+              </SlotRow>
             ))}
             {errors.fields.slots && <p className="text-small text-danger">{errors.fields.slots}</p>}
           </div>

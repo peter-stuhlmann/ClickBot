@@ -1,7 +1,7 @@
-import type { InputHTMLAttributes } from 'react';
+import type { ComponentProps } from 'react';
 import { cn } from '@/lib/cn';
 
-export type InputProps = InputHTMLAttributes<HTMLInputElement> & {
+export type InputProps = ComponentProps<'input'> & {
   /** Roboto Mono, for URLs, selectors and variables like {{faker.email}}. */
   mono?: boolean;
 };

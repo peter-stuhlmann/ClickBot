@@ -6,6 +6,7 @@ import { Card } from '@/components/atoms/Card';
 import { Icon } from '@/components/atoms/Icon';
 import { Input } from '@/components/atoms/Input';
 import { Textarea } from '@/components/atoms/Textarea';
+import { DatePicker } from '@/components/molecules/DatePicker';
 import { Field } from '@/components/molecules/Field';
 import type { FormState } from '@/lib/views';
 
@@ -62,12 +63,17 @@ export function CampaignForm({ projectName, action, campaign }: CampaignFormProp
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <Field id="campaign-start" label="Start (optional)" error={errors.startsOn}>
             {(control) => (
-              <Input {...control} type="date" name="startsOn" defaultValue={values.startsOn} />
+              <DatePicker
+                {...control}
+                label="Start"
+                name="startsOn"
+                defaultValue={values.startsOn}
+              />
             )}
           </Field>
           <Field id="campaign-end" label="Ende (optional)" error={errors.endsOn}>
             {(control) => (
-              <Input {...control} type="date" name="endsOn" defaultValue={values.endsOn} />
+              <DatePicker {...control} label="Ende" name="endsOn" defaultValue={values.endsOn} />
             )}
           </Field>
         </div>

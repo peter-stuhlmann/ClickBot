@@ -508,6 +508,10 @@ Regeln:
   - Zuerst prüfen, ob es sie auf einer Ebene schon gibt.
   - Bei Unsicherheit über die Ebene: so niedrig wie möglich einordnen.
   - Erst nach oben verschieben, wenn ein Import es erzwingt.
+- **Datumsfelder** nur über `DatePicker` (Molekül), nie `type="date"`: Eingabe als „20.11.2026“
+  oder im Kalender (Tastatur wie im WAI-ARIA-Muster), weitergegeben als „2026-11-20“, ein
+  Tippfehler unverändert, damit die Prüfung ihn meldet. In schlichten Formularen trägt ein
+  verstecktes Feld (`name`) den Wert. Datumsrechnung in `src/lib/calendar.ts`.
 - **Varianten** über `cva` (class-variance-authority), Klassen zusammenführen mit
   `tailwind-merge`. Keine Varianten über String-Bastelei mit Template-Strings.
 

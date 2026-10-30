@@ -1,10 +1,24 @@
 import { Button } from '@/components/atoms/Button';
 import { Icon } from '@/components/atoms/Icon';
+import type { ReactNode } from 'react';
 import { Input } from '@/components/atoms/Input';
 
 export const MAX_BOTS_PER_SLOT = 50;
 
 export type SlotValue = { date: string; time: string; bots: number };
+
+/** Props for the date field of a slot, which the organism fills with its date picker. */
+export type SlotDateControl = {
+  label: string;
+  'aria-label': string;
+  value: string;
+  required: true;
+  disabled: boolean;
+  onChange: (date: string) => void;
+  className: string;
+  'aria-invalid'?: true;
+  'aria-describedby'?: string;
+};
 
 export type SlotRowProps = {
   /** 0-based position; labels count from 1. */
@@ -16,25 +30,36 @@ export type SlotRowProps = {
   onRemove?: () => void;
   /** The slot already has runs: only the number of bots may change. */
   locked?: boolean;
+  /** Renders the date field, like Field renders its control (a molecule holds no molecule). */
+  children: (date: SlotDateControl) => ReactNode;
 };
 
 /** One date of a "Termine" schedule: date, time and the number of bots of its wave. */
-export function SlotRow({ index, slot, error, onChange, onRemove, locked = false }: SlotRowProps) {
+export function SlotRow({
+  index,
+  slot,
+  error,
+  onChange,
+  onRemove,
+  locked = false,
+  children,
+}: SlotRowProps) {
   const name = `Termin ${index + 1}`;
   const errorId = `slot-${index}-error`;
   const invalid = error ? { 'aria-invalid': true as const, 'aria-describedby': errorId } : {};
   return (
     <div className="flex flex-col gap-1">
       <div className="flex items-center gap-2">
-        <Input
-          type="date"
-          aria-label={`Datum ${name}`}
-          value={slot.date}
-          disabled={locked}
-          onChange={(event) => onChange({ ...slot, date: event.target.value })}
-          className="flex-1"
-          {...invalid}
-        />
+        {children({
+          label: `Datum ${name}`,
+          'aria-label': `Datum ${name}`,
+          value: slot.date,
+          required: true,
+          disabled: locked,
+          onChange: (date) => onChange({ ...slot, date }),
+          className: 'flex-1',
+          ...invalid,
+        })}
         <Input
           type="time"
           aria-label={`Uhrzeit ${name}`}
