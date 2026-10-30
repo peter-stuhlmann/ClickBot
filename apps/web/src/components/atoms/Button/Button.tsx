@@ -7,7 +7,8 @@ export const buttonVariants = cva(
   [
     'inline-flex items-center justify-center gap-2 rounded-input font-medium whitespace-nowrap',
     'transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary',
-    'disabled:cursor-not-allowed disabled:opacity-60',
+    // Cursors (hand, not-allowed, progress while loading) come from the base styles.
+    'disabled:opacity-60',
   ],
   {
     variants: {

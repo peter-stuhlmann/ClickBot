@@ -83,6 +83,28 @@
   body {
     @apply bg-bg font-sans text-body text-text antialiased;
   }
+
+  /* Tailwind 4 leaves buttons with the arrow; everything clickable gets the hand. */
+  button,
+  [role='button'],
+  [role='option'],
+  [role='tab'],
+  summary,
+  select,
+  label:has(> input:is([type='checkbox'], [type='radio'])),
+  input:is([type='checkbox'], [type='radio'], [type='file'], [type='submit'], [type='button']) {
+    cursor: pointer;
+  }
+
+  :disabled,
+  [aria-disabled='true'] {
+    cursor: not-allowed;
+  }
+
+  /* A button that is busy (spinner) is waiting, not forbidden. */
+  [aria-busy='true'] {
+    cursor: progress;
+  }
 }
 
 /*
