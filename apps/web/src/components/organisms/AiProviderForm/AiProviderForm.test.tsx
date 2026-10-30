@@ -31,8 +31,22 @@ function actions(overrides: Partial<AiProviderActions> = {}): AiProviderActions 
 const card = (name: string) => within(screen.getByRole('region', { name }));
 
 describe('AiProviderForm', () => {
+  it('shows name and status in its header while closed, and asks to open on click', async () => {
+    const user = userEvent.setup();
+    const onToggle = vi.fn();
+    render(
+      <AiProviderForm provider={openai} actions={actions()} open={false} onToggle={onToggle} />,
+    );
+    const header = screen.getByRole('button', { name: 'OpenAI' });
+    expect(header).toHaveAttribute('aria-expanded', 'false');
+    expect(header).toHaveAccessibleDescription(/Nicht eingerichtet/);
+    expect(screen.getByLabelText('API-Schlüssel').closest('[inert]')).not.toBeNull();
+    await user.click(header);
+    expect(onToggle).toHaveBeenCalledOnce();
+  });
+
   it('asks a provider that is not set up for key and model', () => {
-    render(<AiProviderForm provider={openai} actions={actions()} />);
+    render(<AiProviderForm open onToggle={vi.fn()} provider={openai} actions={actions()} />);
     const openAi = card('OpenAI');
     expect(openAi.getByText('Nicht eingerichtet')).toBeInTheDocument();
     expect(openAi.getByLabelText('API-Schlüssel')).toHaveAttribute('type', 'password');
@@ -46,6 +60,8 @@ describe('AiProviderForm', () => {
   it('never puts the stored key into the form, only its last characters as a hint', () => {
     render(
       <AiProviderForm
+        open
+        onToggle={vi.fn()}
         provider={{ ...openai, configured: true, model: 'gpt-a', keyHint: '…1234' }}
         actions={actions()}
       />,
@@ -62,7 +78,9 @@ describe('AiProviderForm', () => {
   it('saves what was entered and confirms it', async () => {
     const user = userEvent.setup();
     const save = vi.fn(async (_state: FormState, _data: FormData) => ({ notice: 'Gespeichert.' }));
-    render(<AiProviderForm provider={openai} actions={actions({ save })} />);
+    render(
+      <AiProviderForm open onToggle={vi.fn()} provider={openai} actions={actions({ save })} />,
+    );
 
     await user.type(screen.getByLabelText('API-Schlüssel'), 'sk-neu');
     await user.type(screen.getByRole('combobox', { name: 'Modell' }), 'gpt-a');
@@ -82,7 +100,9 @@ describe('AiProviderForm', () => {
     const save = vi.fn(async () => ({
       fieldErrors: { apiKey: 'Bitte den API-Schlüssel eintragen.', model: 'Bitte ausfüllen.' },
     }));
-    render(<AiProviderForm provider={openai} actions={actions({ save })} />);
+    render(
+      <AiProviderForm open onToggle={vi.fn()} provider={openai} actions={actions({ save })} />,
+    );
     await user.click(screen.getByRole('button', { name: 'Speichern' }));
 
     await waitFor(() =>
@@ -102,7 +122,9 @@ describe('AiProviderForm', () => {
       message: 'Verbindung steht. 2 Modelle verfügbar, Auswahl im Feld „Modell“.',
       models: ['gpt-a', 'gpt-b'],
     }));
-    render(<AiProviderForm provider={openai} actions={actions({ test })} />);
+    render(
+      <AiProviderForm open onToggle={vi.fn()} provider={openai} actions={actions({ test })} />,
+    );
 
     await user.type(screen.getByLabelText('API-Schlüssel'), 'sk-test');
     await user.click(screen.getByRole('button', { name: 'Verbindung testen' }));
@@ -119,7 +141,9 @@ describe('AiProviderForm', () => {
       tone: 'danger' as const,
       message: 'OpenAI lehnt den API-Schlüssel ab (HTTP 401).',
     }));
-    render(<AiProviderForm provider={openai} actions={actions({ test })} />);
+    render(
+      <AiProviderForm open onToggle={vi.fn()} provider={openai} actions={actions({ test })} />,
+    );
     await user.click(screen.getByRole('button', { name: 'Verbindung testen' }));
     expect(await screen.findByRole('status')).toHaveClass('text-danger');
   });
@@ -127,6 +151,8 @@ describe('AiProviderForm', () => {
   it('offers the suggestions of a provider that cannot list its models', () => {
     render(
       <AiProviderForm
+        open
+        onToggle={vi.fn()}
         provider={{
           ...openai,
           kind: 'perplexity',
@@ -142,6 +168,8 @@ describe('AiProviderForm', () => {
   it('asks a custom endpoint for its address, with an optional key', () => {
     render(
       <AiProviderForm
+        open
+        onToggle={vi.fn()}
         provider={{
           ...openai,
           kind: 'custom',
@@ -162,6 +190,8 @@ describe('AiProviderForm', () => {
     const remove = vi.fn(async (_data: FormData) => {});
     render(
       <AiProviderForm
+        open
+        onToggle={vi.fn()}
         provider={{ ...openai, configured: true, model: 'gpt-a', keyHint: '…1234' }}
         actions={actions({ makeDefault, remove })}
       />,
@@ -180,6 +210,8 @@ describe('AiProviderForm', () => {
   it('marks the default provider and does not offer to make it the default again', () => {
     render(
       <AiProviderForm
+        open
+        onToggle={vi.fn()}
         provider={{ ...openai, configured: true, isDefault: true, model: 'gpt-a', keyHint: '…1' }}
         actions={actions()}
       />,
@@ -192,6 +224,8 @@ describe('AiProviderForm', () => {
     it('shows model and key hint, but no form', () => {
       render(
         <AiProviderForm
+          open
+          onToggle={vi.fn()}
           provider={{ ...openai, configured: true, model: 'gpt-a', keyHint: '…1234' }}
         />,
       );
@@ -202,13 +236,15 @@ describe('AiProviderForm', () => {
     });
 
     it('says who can set up a provider', () => {
-      render(<AiProviderForm provider={openai} />);
+      render(<AiProviderForm open onToggle={vi.fn()} provider={openai} />);
       expect(screen.getByText('Einrichten können nur Admins.')).toBeInTheDocument();
     });
 
     it('shows the address of a custom endpoint', () => {
       render(
         <AiProviderForm
+          open
+          onToggle={vi.fn()}
           provider={{
             ...openai,
             kind: 'custom',

@@ -79,6 +79,15 @@
   --shadow-dialog: 0 8px 24px rgb(16 24 40 / 0.06);
 }
 
+/* Accordion panels (AccordionItem): grid rows from 0fr to 1fr animate to the content's height. */
+@utility grid-rows-collapsed {
+  grid-template-rows: 0fr;
+}
+
+@utility grid-rows-expanded {
+  grid-template-rows: 1fr;
+}
+
 @layer base {
   body {
     @apply bg-bg font-sans text-body text-text antialiased;

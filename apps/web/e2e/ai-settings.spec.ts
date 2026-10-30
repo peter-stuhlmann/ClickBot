@@ -15,6 +15,7 @@ test.describe('Einstellungen → KI & API', () => {
 
     const claude = page.getByRole('region', { name: 'Claude', exact: true });
     await expect(claude.getByText('Nicht eingerichtet')).toBeVisible();
+    await claude.getByRole('button', { name: 'Claude', exact: true }).click();
     await claude.getByLabel('API-Schlüssel').fill('sk-ant-e2e-geheim-9876');
     await claude.getByRole('combobox', { name: 'Modell' }).fill('claude-sonnet-5-5');
     await claude.getByRole('button', { name: 'Speichern' }).click();
@@ -22,6 +23,7 @@ test.describe('Einstellungen → KI & API', () => {
 
     await page.reload();
     await expect(claude.getByText('Standard', { exact: true })).toBeVisible();
+    await claude.getByRole('button', { name: 'Claude', exact: true }).click();
     await expect(claude.getByLabel('API-Schlüssel')).toHaveValue('');
     await expect(claude.getByLabel('API-Schlüssel')).toHaveAttribute(
       'placeholder',
@@ -34,6 +36,7 @@ test.describe('Einstellungen → KI & API', () => {
   test('says when a provider cannot be reached', async ({ page }) => {
     await page.goto('/einstellungen/ki');
     const custom = page.getByRole('region', { name: 'Custom', exact: true });
+    await custom.getByRole('button', { name: 'Custom', exact: true }).click();
     // Port 9 (discard) has no HTTP server.
     await custom.getByRole('textbox', { name: 'Adresse der API' }).fill('http://127.0.0.1:9/v1');
     await custom.getByRole('combobox', { name: 'Modell' }).fill('llama');
@@ -44,6 +47,7 @@ test.describe('Einstellungen → KI & API', () => {
   test('asks for the missing fields instead of saving', async ({ page }) => {
     await page.goto('/einstellungen/ki');
     const gemini = page.getByRole('region', { name: 'Gemini', exact: true });
+    await gemini.getByRole('button', { name: 'Gemini', exact: true }).click();
     await gemini.getByRole('button', { name: 'Speichern' }).click();
     await expect(gemini.getByLabel('API-Schlüssel')).toHaveAccessibleDescription(
       /Bitte den API-Schlüssel eintragen/,
@@ -51,5 +55,31 @@ test.describe('Einstellungen → KI & API', () => {
     await expect(gemini.getByRole('combobox', { name: 'Modell' })).toHaveAccessibleDescription(
       /Bitte ausfüllen/,
     );
+  });
+
+  test('shows the providers as an accordion: all closed, at most one open', async ({ page }) => {
+    await page.goto('/einstellungen/ki');
+    const header = (name: string) => page.getByRole('button', { name, exact: true });
+    for (const name of ['Gemini', 'OpenAI', 'Perplexity', 'Claude', 'Custom']) {
+      await expect(header(name)).toHaveAttribute('aria-expanded', 'false');
+    }
+    await expect(page.locator('input[name="apiKey"]:visible')).toHaveCount(0);
+
+    await header('OpenAI').click();
+    const openai = page.getByRole('region', { name: 'OpenAI', exact: true });
+    await expect(openai.getByLabel('API-Schlüssel')).toBeVisible();
+    // It grows instead of popping open.
+    const panel = page.locator(`#${await header('OpenAI').getAttribute('aria-controls')}`);
+    expect(await panel.evaluate((element) => getComputedStyle(element).transitionDuration)).toBe(
+      '0.3s',
+    );
+
+    await header('Gemini').click();
+    await expect(header('OpenAI')).toHaveAttribute('aria-expanded', 'false');
+    await expect(header('Gemini')).toHaveAttribute('aria-expanded', 'true');
+    await expect(openai.getByLabel('API-Schlüssel')).toBeHidden();
+
+    await header('Gemini').click();
+    await expect(header('Gemini')).toHaveAttribute('aria-expanded', 'false');
   });
 });

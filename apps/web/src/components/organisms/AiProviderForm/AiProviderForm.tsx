@@ -3,8 +3,8 @@
 import { useActionState, useRef, useState, useTransition } from 'react';
 import { Badge } from '@/components/atoms/Badge';
 import { Button } from '@/components/atoms/Button';
-import { Card } from '@/components/atoms/Card';
 import { Input } from '@/components/atoms/Input';
+import { AccordionItem } from '@/components/molecules/AccordionItem';
 import { Field } from '@/components/molecules/Field';
 import { KeyValueRow } from '@/components/molecules/KeyValueRow';
 import { cn } from '@/lib/cn';
@@ -26,6 +26,9 @@ export type AiProviderFormProps = {
   provider: AiProviderView;
   /** Only admins get actions; without them the card shows the state only. */
   actions?: AiProviderActions;
+  /** An accordion item: the page keeps at most one provider open. */
+  open: boolean;
+  onToggle: () => void;
 };
 
 const CHECK_TONE: Record<ConnectionCheck['tone'], string> = {
@@ -45,10 +48,17 @@ function status(provider: AiProviderView) {
  * One AI provider in "Einstellungen → KI & API": key, model and, for a custom endpoint, its
  * address. The stored key never comes back to the browser; an empty key field keeps it.
  */
-export function AiProviderForm({ provider, actions }: AiProviderFormProps) {
+export function AiProviderForm({ provider, actions, open, onToggle }: AiProviderFormProps) {
+  const item = {
+    id: `ai-${provider.kind}`,
+    title: provider.label,
+    aside: status(provider),
+    open,
+    onToggle,
+  };
   if (!actions) {
     return (
-      <Card title={provider.label} aside={status(provider)}>
+      <AccordionItem {...item}>
         {provider.configured ? (
           <dl className="flex flex-col gap-2">
             <KeyValueRow label="Modell" value={provider.model} />
@@ -58,10 +68,14 @@ export function AiProviderForm({ provider, actions }: AiProviderFormProps) {
         ) : (
           <p className="text-body text-text-muted">Einrichten können nur Admins.</p>
         )}
-      </Card>
+      </AccordionItem>
     );
   }
-  return <EditableProvider provider={provider} actions={actions} />;
+  return (
+    <AccordionItem {...item} description={provider.keyHelp}>
+      <EditableProvider provider={provider} actions={actions} />
+    </AccordionItem>
+  );
 }
 
 function EditableProvider({
@@ -85,7 +99,7 @@ function EditableProvider({
   }
 
   return (
-    <Card title={provider.label} description={provider.keyHelp} aside={status(provider)}>
+    <>
       <form
         ref={form}
         action={formAction}
@@ -192,6 +206,6 @@ function EditableProvider({
           </form>
         </div>
       )}
-    </Card>
+    </>
   );
 }

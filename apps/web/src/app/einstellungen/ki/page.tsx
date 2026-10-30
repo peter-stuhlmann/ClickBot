@@ -2,7 +2,6 @@ import { listAiProviders } from '@click-bot/db';
 import type { Metadata } from 'next';
 import { InfoCard } from '@/components/molecules/InfoCard';
 import { Tabs } from '@/components/molecules/Tabs';
-import { AiProviderForm } from '@/components/organisms/AiProviderForm';
 import { PageHeader } from '@/components/organisms/PageHeader';
 import { AppShell } from '@/components/templates/AppShell';
 import { SettingsLayout } from '@/components/templates/SettingsLayout';
@@ -18,6 +17,7 @@ import {
   testAiProviderAction,
 } from '../../ai-actions';
 import { selectProjectAction } from '../../actions';
+import { AiProviderList } from './ai-provider-list';
 
 export const dynamic = 'force-dynamic';
 
@@ -64,13 +64,10 @@ export default async function AiSettingsPage() {
         tabs={<Tabs label="Einstellungen" items={SETTINGS_TABS} current="/einstellungen/ki" />}
         aside={<InfoCard title="Sicherheit" items={FACTS} />}
       >
-        {toAiProviderViews(providers).map((provider) => (
-          <AiProviderForm
-            key={provider.kind}
-            provider={provider}
-            actions={isAdmin ? ACTIONS : undefined}
-          />
-        ))}
+        <AiProviderList
+          providers={toAiProviderViews(providers)}
+          actions={isAdmin ? ACTIONS : undefined}
+        />
       </SettingsLayout>
     </AppShell>
   );

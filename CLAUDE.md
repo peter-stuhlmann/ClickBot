@@ -46,7 +46,8 @@ Profil und die Einstellungen der KI-Anbieter stehen.
       Job-Liste: Kennzahlen, Schritte mit Ergebnis, Fehler und Bildschirmfoto
     - „Einstellungen“ mit den Tabs aus Screen 08a, bisher nur „Team“ und „KI & API“
       (`/einstellungen/ki`): API-Schlüssel, Modell und Standard-Anbieter. Nur Admins ändern,
-      die anderen sehen den Stand.
+      die anderen sehen den Stand. Die Anbieter sind ein Accordion (`AccordionItem`): anfangs
+      alle zu, höchstens einer offen.
     - „Profil“ (`/profil`, über Name und Bild unten in der Sidebar): eigenen Namen und
       Profilbild ändern. E-Mail und Rolle stehen nur da.
   - `apps/worker`:

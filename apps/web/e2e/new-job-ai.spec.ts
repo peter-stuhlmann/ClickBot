@@ -40,6 +40,7 @@ test.describe('Neuer Job – Mit KI beschreiben', () => {
     requests = [];
     await page.goto('/einstellungen/ki');
     const custom = page.getByRole('region', { name: 'Custom', exact: true });
+    await custom.getByRole('button', { name: 'Custom', exact: true }).click();
     await custom
       .getByRole('textbox', { name: 'Adresse der API' })
       .fill(`http://127.0.0.1:${port}/v1`);
