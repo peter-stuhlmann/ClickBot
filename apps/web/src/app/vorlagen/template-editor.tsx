@@ -97,7 +97,7 @@ export function TemplateEditor({
       header={
         <PageHeader
           title={title}
-          description="Ein Ablauf für jede Website. Im Assistenten „Neuer Test“ unter „Aus Vorlage“."
+          description="Ein Ablauf, der für jede Website passt. Beim Anlegen eines Tests mit „Aus Vorlage übernehmen“."
           breadcrumb={[{ label: 'Vorlagen', href: '/vorlagen' }, { label: title }]}
         />
       }

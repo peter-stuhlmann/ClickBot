@@ -45,7 +45,7 @@ export default async function RunsPage({ searchParams }: Props) {
         header={
           <PageHeader
             title="Durchläufe"
-            description={`${shell.project?.name ?? 'Kein Projekt'} · Alle Durchläufe, neueste zuerst. Ein Klick öffnet den Report.`}
+            description={`${shell.project?.name ?? 'Kein Projekt'} · Was die Tests ergeben haben, neueste zuerst. Ein Klick öffnet den Report.`}
           />
         }
         stats={null}

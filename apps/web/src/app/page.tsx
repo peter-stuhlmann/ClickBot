@@ -28,7 +28,7 @@ export default async function JobsPage() {
     <AppShell active="jobs" {...shell} selectProject={selectProjectAction}>
       <PageHeader
         title="Tests"
-        description={`${shell.project?.name ?? 'Kein Projekt'} · Automatisierte Browser-Abläufe, die nach Zeitplan laufen.`}
+        description={`${shell.project?.name ?? 'Kein Projekt'} · Jeder Test prüft eine Website nach Zeitplan in einem echten Browser.`}
         actions={
           <Button href="/jobs/neu" icon={<Icon name="plus" size={16} />}>
             Neuer Test

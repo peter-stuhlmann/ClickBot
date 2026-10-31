@@ -43,7 +43,7 @@ export default async function CalendarPage({ searchParams }: Props) {
     <AppShell active="kalender" {...shell} selectProject={selectProjectAction}>
       <PageHeader
         title="Kalender"
-        description={`${shell.project?.name ?? 'Kein Projekt'} · Alle geplanten Durchläufe der Woche und ob die Browser des Testsystems für sie reichen.`}
+        description={`${shell.project?.name ?? 'Kein Projekt'} · Wann die Tests dieser Woche laufen und ob es dabei eng wird.`}
         actions={
           <>
             <WeekSwitcher {...view.nav} />
