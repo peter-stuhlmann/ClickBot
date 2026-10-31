@@ -11,8 +11,8 @@ import type { RunListRowView } from '@/lib/views';
 const COLUMNS = [
   { label: 'Job · Lauf', width: 'w-auto' },
   { label: 'Kampagne', width: 'w-32' },
-  // Time and duration on two lines, so a narrow column never breaks inside a value.
-  { label: 'Zeitpunkt · Dauer', width: 'w-32' },
+  // Time and duration on one line; wide enough for "29.10. 21:11 · 14:59 min".
+  { label: 'Zeitpunkt · Dauer', width: 'w-48' },
   { label: 'Ergebnis', width: 'w-36' },
 ];
 
@@ -106,15 +106,11 @@ export function RunsTable({ rows, summary, pager }: RunsTableProps) {
               <td
                 role="cell"
                 className={cn(
-                  'col-span-2 font-mono text-small md:py-3 md:pr-3',
+                  'col-span-2 font-mono text-small whitespace-nowrap md:py-3 md:pr-3',
                   row.failed ? 'text-danger' : 'text-text-muted',
                 )}
               >
-                <span className="whitespace-nowrap">{row.when}</span>
-                <span aria-hidden="true" className="md:hidden">
-                  {' · '}
-                </span>
-                <span className="whitespace-nowrap md:block">{row.duration}</span>
+                {row.when} · {row.duration}
               </td>
               <td role="cell" className="mt-1 justify-self-end md:mt-0 md:py-3">
                 <Badge tone={row.status.tone}>{row.status.label}</Badge>

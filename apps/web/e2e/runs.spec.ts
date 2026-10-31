@@ -58,7 +58,7 @@ test.describe('Läufe', () => {
   });
 
   test('never wraps a value of a run in the middle, also on a small laptop', async ({ page }) => {
-    for (const width of [1280, 1440]) {
+    for (const width of [768, 1280, 1440]) {
       await page.setViewportSize({ width, height: 900 });
       await page.goto('/laeufe');
       const row = page.getByRole('row').nth(1);
@@ -79,6 +79,16 @@ test.describe('Läufe', () => {
         return broken;
       });
       expect(wrapped, `bei ${width} px`).toEqual([]);
+      // Time and duration together on one line.
+      const lines = await row
+        .getByRole('cell')
+        .nth(2)
+        .evaluate((cell) => {
+          const range = document.createRange();
+          range.selectNodeContents(cell);
+          return new Set([...range.getClientRects()].map((rect) => Math.round(rect.top))).size;
+        });
+      expect(lines, `Zeitpunkt · Dauer bei ${width} px`).toBe(1);
     }
   });
 });
