@@ -8,6 +8,7 @@ export {
   type SlotMove,
 } from './calendar';
 export {
+  campaignDeletePhrase,
   createCampaign,
   DEFAULT_CAMPAIGN,
   deleteCampaign,

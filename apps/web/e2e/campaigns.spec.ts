@@ -1,4 +1,8 @@
+import { createDb, createJob, listCampaigns, listCustomers } from '@click-bot/db';
 import { expect, test, type Page } from '@playwright/test';
+
+const url =
+  process.env.DATABASE_URL_TEST ?? 'postgres://clickbot:clickbot@localhost:5443/clickbot_test';
 
 const switcher = (page: Page) => page.getByRole('button', { name: /^Projekt: / });
 
@@ -114,7 +118,7 @@ test.describe('Projekte und Kampagnen', () => {
     await expect(page.getByText(/Das Projekt hat noch \d+ Jobs/)).toBeVisible();
   });
 
-  test('changes a campaign and deletes an empty one, but not one that has jobs', async ({
+  test('changes a campaign and deletes an empty one, one with jobs only after typing', async ({
     page,
   }) => {
     await page.goto('/kampagnen/neu');
@@ -123,6 +127,20 @@ test.describe('Projekte und Kampagnen', () => {
 
     await page.getByRole('link', { name: 'E2E Sommer' }).click();
     await expect(page.getByRole('heading', { level: 1, name: 'E2E Sommer' })).toBeVisible();
+    // The settings wait behind the button next to the name; Escape closes them again.
+    await expect(page.getByRole('form', { name: 'Kampagne bearbeiten' })).toHaveCount(0);
+    const settings = page.getByRole('button', { name: 'Kampagne bearbeiten' });
+    await settings.click();
+    const dialog = page.getByRole('dialog', { name: 'Kampagne bearbeiten' });
+    await expect(dialog.getByRole('textbox', { name: 'Name' })).toBeFocused();
+    await page.keyboard.press('Escape');
+    await expect(dialog).toBeHidden();
+    await expect(settings).toBeFocused();
+    await settings.click();
+    await dialog.getByRole('button', { name: 'Abbrechen' }).click();
+    await expect(dialog).toBeHidden();
+
+    await settings.click();
     await page.getByRole('textbox', { name: 'Name' }).fill('E2E Spätsommer');
     await page.getByLabel('Start (optional)').fill('01.09.2026');
     await page.getByRole('button', { name: 'Speichern' }).click();
@@ -130,14 +148,82 @@ test.describe('Projekte und Kampagnen', () => {
     await expect(page.getByRole('row', { name: /E2E Spätsommer/ })).toContainText('ab 01.09.2026');
 
     await page.getByRole('link', { name: 'E2E Spätsommer' }).click();
+    await page.getByRole('button', { name: 'Kampagne bearbeiten' }).click();
     await page.getByRole('button', { name: 'Kampagne löschen' }).click();
     await page.getByRole('button', { name: 'Endgültig löschen' }).click();
     await expect(page).toHaveURL('/kampagnen');
     await expect(page.getByRole('row', { name: /E2E Spätsommer/ })).toHaveCount(0);
 
+    // With jobs, the final button waits for "<name> löschen"; here it is called off.
     await page.getByRole('link', { name: 'Allgemein', exact: true }).click();
     await expect(page.getByRole('row', { name: /Login & Bestellstatus/ })).toBeVisible();
-    await expect(page.getByRole('button', { name: 'Kampagne löschen' })).toBeDisabled();
+    await page.getByRole('button', { name: 'Kampagne bearbeiten' }).click();
+    await page.getByRole('button', { name: 'Kampagne löschen' }).click();
+    const typed = page.getByRole('textbox', {
+      name: 'Zum Bestätigen „Allgemein löschen“ eintippen',
+    });
+    await typed.fill('allgemein löschen');
+    await expect(page.getByRole('button', { name: 'Endgültig löschen' })).toBeDisabled();
+    await page.getByRole('button', { name: 'Abbrechen' }).last().click();
+    await expect(typed).toHaveCount(0);
+  });
+
+  test('deletes a campaign together with its jobs', async ({ page }) => {
+    const connection = createDb(url);
+    try {
+      const [project] = await listCustomers(connection.db);
+      if (!project) throw new Error('Die Demo-Daten haben kein Projekt.');
+      await page.goto('/kampagnen/neu');
+      await page.getByRole('textbox', { name: 'Name' }).fill('E2E Ausverkauf');
+      await page.getByRole('button', { name: 'Kampagne anlegen' }).click();
+      await expect(page).toHaveURL('/kampagnen');
+      const campaign = (await listCampaigns(connection.db, project.id)).find(
+        (option) => option.name === 'E2E Ausverkauf',
+      );
+      if (!campaign) throw new Error('Die Kampagne fehlt.');
+      await createJob(connection.db, {
+        campaignId: campaign.id,
+        name: 'E2E Ausverkauf-Job',
+        startUrl: 'http://127.0.0.1:4100',
+        flow: { version: 1, steps: [{ id: 'open', type: 'open', url: 'http://127.0.0.1:4100' }] },
+        schedule: {
+          type: 'interval',
+          everyMinutes: 60,
+          maxRuns: 1,
+          startAt: '2030-01-01T10:00:00Z',
+        },
+      });
+    } finally {
+      await connection.close();
+    }
+
+    await page.getByRole('link', { name: 'E2E Ausverkauf' }).click();
+    await page.getByRole('button', { name: 'Kampagne bearbeiten' }).click();
+    await expect(page.getByRole('dialog')).toContainText('mit ihrem Job und allen Läufen');
+    await page.getByRole('button', { name: 'Kampagne löschen' }).click();
+    await page
+      .getByRole('textbox', { name: 'Zum Bestätigen „E2E Ausverkauf löschen“ eintippen' })
+      .fill('E2E Ausverkauf löschen');
+    await page.getByRole('button', { name: 'Endgültig löschen' }).click();
+    await expect(page).toHaveURL('/kampagnen');
+    await expect(page.getByRole('row', { name: /E2E Ausverkauf/ })).toHaveCount(0);
+    await page.goto('/');
+    await expect(page.getByText('E2E Ausverkauf-Job')).toHaveCount(0);
+  });
+
+  test('opens the settings of a campaign as a dialog that fits a phone', async ({ page }) => {
+    await page.setViewportSize({ width: 360, height: 800 });
+    await page.goto('/kampagnen');
+    await page.getByRole('link', { name: 'Allgemein', exact: true }).click();
+    await page.getByRole('button', { name: 'Kampagne bearbeiten' }).click();
+    const dialog = page.getByRole('dialog', { name: 'Kampagne bearbeiten' });
+    const box = await dialog.boundingBox();
+    expect(box && box.x > 0 && box.x + box.width < 360).toBe(true);
+    // The calendar of a date field opens inside the dialog.
+    await dialog.getByRole('button', { name: 'Kalender für Start' }).click();
+    await expect(page.getByRole('dialog', { name: 'Start wählen' })).toBeVisible();
+    await page.keyboard.press('Escape');
+    await expect(page.getByRole('dialog', { name: 'Start wählen' })).toBeHidden();
   });
 
   test('chooses the period in the calendar, also on a phone', async ({ page }) => {

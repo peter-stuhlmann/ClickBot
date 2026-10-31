@@ -72,6 +72,9 @@ test.describe('Läufe', () => {
         const broken: string[] = [];
         for (let node = walker.nextNode(); node; node = walker.nextNode()) {
           if (!node.textContent?.trim()) continue;
+          // Shortened with "…" on purpose (a long job name next to "Testlauf"): one line too.
+          const parent = node.parentElement;
+          if (parent && getComputedStyle(parent).textOverflow === 'ellipsis') continue;
           const range = document.createRange();
           range.selectNodeContents(node);
           if (range.getClientRects().length > 1) broken.push(node.textContent.trim());

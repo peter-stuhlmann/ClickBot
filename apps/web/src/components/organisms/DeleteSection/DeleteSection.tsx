@@ -1,9 +1,11 @@
 'use client';
 
-import { useActionState, useState } from 'react';
+import { useActionState, useId, useState } from 'react';
 import { Button } from '@/components/atoms/Button';
 import { Card } from '@/components/atoms/Card';
 import { Icon } from '@/components/atoms/Icon';
+import { Input } from '@/components/atoms/Input';
+import { Field } from '@/components/molecules/Field';
 import type { FormState } from '@/lib/views';
 
 export type DeleteSectionProps = {
@@ -16,6 +18,11 @@ export type DeleteSectionProps = {
   action: (state: FormState, formData: FormData) => Promise<FormState>;
   /** Why deleting is not possible right now; the button is disabled then. */
   blocked?: string;
+  /**
+   * When more goes with it (the jobs of a campaign): the phrase to type before the final button
+   * works, sent as `confirm`. The action checks it again.
+   */
+  confirmPhrase?: string;
 };
 
 /** Deleting something, at the end of its page: first the button, then one confirmation. */
@@ -26,9 +33,13 @@ export function DeleteSection({
   fields,
   action,
   blocked,
+  confirmPhrase,
 }: DeleteSectionProps) {
   const [state, formAction, pending] = useActionState(action, {});
   const [confirming, setConfirming] = useState(false);
+  const [typed, setTyped] = useState('');
+  const typedId = useId();
+  const typedEnough = confirmPhrase === undefined || typed.trim() === confirmPhrase;
 
   return (
     <Card title={title} description={description}>
@@ -41,7 +52,7 @@ export function DeleteSection({
       {confirming ? (
         <form
           action={formAction}
-          className="flex flex-col gap-3 rounded-input bg-danger-soft p-3 sm:flex-row sm:items-center"
+          className="flex flex-col gap-3 rounded-input bg-danger-soft p-3 sm:flex-row sm:flex-wrap sm:items-center"
         >
           {Object.entries(fields).map(([name, value]) => (
             <input key={name} type="hidden" name={name} value={value} />
@@ -49,11 +60,34 @@ export function DeleteSection({
           <p className="flex-1 text-body text-text">
             Wirklich löschen? Das lässt sich nicht rückgängig machen.
           </p>
-          <div className="flex gap-2">
-            <Button variant="secondary" onClick={() => setConfirming(false)}>
+          {confirmPhrase !== undefined && (
+            <div className="sm:basis-full">
+              <Field id={typedId} label={`Zum Bestätigen „${confirmPhrase}“ eintippen`}>
+                {(control) => (
+                  <Input
+                    {...control}
+                    name="confirm"
+                    autoComplete="off"
+                    spellCheck={false}
+                    autoFocus
+                    value={typed}
+                    onChange={(event) => setTyped(event.target.value)}
+                  />
+                )}
+              </Field>
+            </div>
+          )}
+          <div className="flex gap-2 sm:ml-auto">
+            <Button
+              variant="secondary"
+              onClick={() => {
+                setConfirming(false);
+                setTyped('');
+              }}
+            >
               Abbrechen
             </Button>
-            <Button type="submit" variant="danger" loading={pending}>
+            <Button type="submit" variant="danger" loading={pending} disabled={!typedEnough}>
               Endgültig löschen
             </Button>
           </div>

@@ -2,6 +2,7 @@ import { eq } from 'drizzle-orm';
 import { describe, expect, it } from 'vitest';
 import { db, insertCampaign } from '../test/db';
 import {
+  campaignDeletePhrase,
   createCampaign,
   deleteCampaign,
   getCampaign,
@@ -13,7 +14,7 @@ import { NotFoundError, ValidationError } from './errors';
 import { createJob, deleteJob, getJob, updateJob } from './jobs';
 import { createSecret } from './secrets';
 import { createCipher } from './crypto';
-import { campaigns, customers, runs, secrets } from './schema';
+import { campaigns, customers, jobs, runs, secrets } from './schema';
 
 const flow = { version: 1, steps: [{ id: 'open', type: 'open', url: '/' }] };
 const schedule = {
@@ -134,23 +135,53 @@ describe('updateCampaign', () => {
 });
 
 describe('deleteCampaign', () => {
-  it('deletes a campaign without jobs', async () => {
+  it('deletes a campaign without jobs, without typing anything', async () => {
     const { customerId, campaignId } = await insertCampaign('Sommer');
-    await deleteCampaign(db, campaignId);
+    expect(await deleteCampaign(db, campaignId)).toEqual({ runIds: [] });
     expect(await getCampaign(db, campaignId)).toBeNull();
     expect(await listCampaigns(db, customerId)).toEqual([]);
   });
 
-  it('keeps a campaign that still has jobs, and says what to do', async () => {
+  it('deletes a campaign with its jobs and their runs once "<name> löschen" is typed', async () => {
+    const { customerId, campaignId } = await insertCampaign('Sommer');
+    const other = await createCampaign(db, { customerId, name: 'Winter' });
+    const job = await jobIn(campaignId);
+    await jobIn(campaignId, 'Newsletter');
+    const kept = await jobIn(other.id, 'Bleibt');
+    const [run] = await db
+      .insert(runs)
+      .values({ jobId: job.id, runNr: 1, device: 'desktop', scheduledAt: new Date() })
+      .returning({ id: runs.id });
+
+    expect(campaignDeletePhrase('Sommer')).toBe('Sommer löschen');
+    expect(await deleteCampaign(db, campaignId, '  Sommer löschen ')).toEqual({
+      runIds: [run?.id],
+    });
+    expect(await getCampaign(db, campaignId)).toBeNull();
+    expect(await db.select({ id: jobs.id }).from(jobs)).toEqual([{ id: kept.id }]);
+    expect(await db.select().from(runs)).toEqual([]);
+  });
+
+  it('keeps a campaign with jobs while the phrase is missing or wrong', async () => {
     const { campaignId } = await insertCampaign('Sommer');
     await jobIn(campaignId);
+    for (const typed of [undefined, '', 'sommer löschen', 'Sommer']) {
+      expect(await issuesOf(deleteCampaign(db, campaignId, typed))).toEqual([
+        {
+          path: 'confirm',
+          message: 'Die Kampagne hat noch 1 Job. Zum Löschen „Sommer löschen“ eintippen.',
+        },
+      ]);
+    }
+    await jobIn(campaignId, 'Zweiter');
     expect(await issuesOf(deleteCampaign(db, campaignId))).toEqual([
       {
-        path: 'form',
-        message:
-          'Die Kampagne hat noch 1 Job. Verschiebe ihn im Editor in eine andere Kampagne oder lösche ihn.',
+        path: 'confirm',
+        message: 'Die Kampagne hat noch 2 Jobs. Zum Löschen „Sommer löschen“ eintippen.',
       },
     ]);
+    expect(await getCampaign(db, campaignId)).not.toBeNull();
+    expect(await db.select().from(jobs)).toHaveLength(2);
   });
 
   it('says when the campaign does not exist', async () => {

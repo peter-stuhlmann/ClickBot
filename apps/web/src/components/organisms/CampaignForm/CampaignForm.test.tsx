@@ -1,6 +1,7 @@
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import { Dialog } from '@/components/molecules/Dialog';
 import type { FormState } from '@/lib/views';
 import { CampaignForm } from './CampaignForm';
 
@@ -136,5 +137,21 @@ describe('CampaignForm', () => {
       await user.click(screen.getByRole('button', { name: 'Kampagne anlegen' }));
       expect(action).not.toHaveBeenCalled();
     });
+  });
+
+  it('goes back to the campaigns on "Abbrechen", or closes the dialog it is in', async () => {
+    const user = userEvent.setup();
+    const { unmount } = render(<CampaignForm projectName="Müller" action={vi.fn()} />);
+    expect(screen.getByRole('link', { name: 'Abbrechen' })).toHaveAttribute('href', '/kampagnen');
+    unmount();
+
+    render(
+      <Dialog label="Kampagne bearbeiten" title="Kampagne bearbeiten">
+        <CampaignForm projectName="Müller" action={vi.fn()} />
+      </Dialog>,
+    );
+    await user.click(screen.getByRole('button', { name: 'Kampagne bearbeiten' }));
+    await user.click(screen.getByRole('button', { name: 'Abbrechen' }));
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
   });
 });

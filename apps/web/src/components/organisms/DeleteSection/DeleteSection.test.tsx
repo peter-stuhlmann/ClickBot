@@ -49,6 +49,30 @@ describe('DeleteSection', () => {
     expect(await screen.findByRole('alert')).toHaveTextContent('Die Kampagne hat noch 1 Job.');
   });
 
+  it('asks to type a phrase first when more goes with it, e.g. the jobs of a campaign', async () => {
+    const user = userEvent.setup();
+    const action = vi.fn(async (_state: FormState, _data: FormData): Promise<FormState> => ({}));
+    render(<DeleteSection {...props({ action, confirmPhrase: 'Sommer löschen' })} />);
+    await user.click(screen.getByRole('button', { name: 'Kampagne löschen' }));
+
+    const typed = screen.getByRole('textbox', {
+      name: 'Zum Bestätigen „Sommer löschen“ eintippen',
+    });
+    const confirm = screen.getByRole('button', { name: 'Endgültig löschen' });
+    expect(typed).toHaveFocus();
+    expect(confirm).toBeDisabled();
+    await user.type(typed, 'sommer löschen');
+    expect(confirm).toBeDisabled();
+
+    await user.clear(typed);
+    await user.type(typed, 'Sommer löschen');
+    await user.click(confirm);
+    expect(Object.fromEntries((action.mock.calls[0]?.[1] as FormData).entries())).toEqual({
+      id: 'k1',
+      confirm: 'Sommer löschen',
+    });
+  });
+
   it('explains why deleting is not possible right now', () => {
     render(<DeleteSection {...props({ blocked: 'Die Kampagne hat noch 2 Jobs.' })} />);
     expect(screen.getByRole('button', { name: 'Kampagne löschen' })).toBeDisabled();

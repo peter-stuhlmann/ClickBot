@@ -120,23 +120,48 @@ export async function updateCampaign(
   return campaign as Campaign;
 }
 
-/** Deletes a campaign that has no jobs (any more): every job needs its campaign. */
-export async function deleteCampaign(db: Database, id: string): Promise<void> {
-  if (!(await getCampaign(db, id))) throw new NotFoundError('Kampagne', id);
-  await db.transaction(async (tx) => {
-    await tx.select({ id: campaigns.id }).from(campaigns).where(eq(campaigns.id, id)).for('update');
-    const [{ count } = { count: 0 }] = await tx
-      .select({ count: sql<number>`count(*)`.mapWith(Number) })
-      .from(jobs)
-      .where(eq(jobs.campaignId, id));
-    if (count > 0) {
-      const message =
-        count === 1
-          ? 'Die Kampagne hat noch 1 Job. Verschiebe ihn im Editor in eine andere Kampagne oder lösche ihn.'
-          : `Die Kampagne hat noch ${count} Jobs. Verschiebe sie im Editor in eine andere Kampagne oder lösche sie.`;
-      throw new ValidationError([{ path: 'form', message }]);
+/** What has to be typed to delete a campaign together with its jobs. */
+export function campaignDeletePhrase(name: string): string {
+  return `${name} löschen`;
+}
+
+/**
+ * Deletes a campaign. With jobs only once `confirmation` is "<name> löschen" (campaignDeletePhrase):
+ * the jobs go with it, with their runs. Returns the ids of those runs, for their screenshots.
+ */
+export async function deleteCampaign(
+  db: Database,
+  id: string,
+  confirmation = '',
+): Promise<{ runIds: string[] }> {
+  if (!isUuid(id)) throw new NotFoundError('Kampagne', id);
+  return db.transaction(async (tx) => {
+    const [campaign] = await tx
+      .select({ name: campaigns.name })
+      .from(campaigns)
+      .where(eq(campaigns.id, id))
+      .for('update');
+    if (!campaign) throw new NotFoundError('Kampagne', id);
+    const owned = await tx.select({ id: jobs.id }).from(jobs).where(eq(jobs.campaignId, id));
+    const phrase = campaignDeletePhrase(campaign.name);
+    if (owned.length > 0 && confirmation.trim() !== phrase) {
+      const count = owned.length === 1 ? '1 Job' : `${owned.length} Jobs`;
+      throw new ValidationError([
+        {
+          path: 'confirm',
+          message: `Die Kampagne hat noch ${count}. Zum Löschen „${phrase}“ eintippen.`,
+        },
+      ]);
     }
+    const jobIds = owned.map((job) => job.id);
+    const ran =
+      jobIds.length === 0
+        ? []
+        : await tx.select({ id: runs.id }).from(runs).where(inArray(runs.jobId, jobIds));
+    // Runs and their steps go with their jobs (foreign keys with ON DELETE CASCADE).
+    await tx.delete(jobs).where(eq(jobs.campaignId, id));
     await tx.delete(campaigns).where(eq(campaigns.id, id));
+    return { runIds: ran.map((run) => run.id) };
   });
 }
 

@@ -10,11 +10,20 @@ export type PageHeaderProps = {
   actions?: ReactNode;
   /** Way back above the title, e.g. Jobs / Kontaktformular-Test / Lauf #7. */
   breadcrumb?: BreadcrumbItem[];
+  /** Right next to the title, e.g. the settings button of a campaign. */
+  titleAside?: ReactNode;
   /** Badge next to the title, e.g. the verdict of a run. */
   status?: { tone: Tone; label: string };
 };
 
-export function PageHeader({ title, description, actions, breadcrumb, status }: PageHeaderProps) {
+export function PageHeader({
+  title,
+  description,
+  actions,
+  breadcrumb,
+  titleAside,
+  status,
+}: PageHeaderProps) {
   return (
     // Below `sm` the buttons go under the title, so a long title keeps its width.
     <header className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between sm:gap-6">
@@ -22,6 +31,7 @@ export function PageHeader({ title, description, actions, breadcrumb, status }: 
         {breadcrumb && <Breadcrumb items={breadcrumb} />}
         <div className="flex flex-wrap items-center gap-3">
           <h1 className="text-h1 font-semibold break-words text-text">{title}</h1>
+          {titleAside}
           {status && <Badge tone={status.tone}>{status.label}</Badge>}
         </div>
         {description && <p className="text-body text-text-muted">{description}</p>}

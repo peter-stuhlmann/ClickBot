@@ -30,4 +30,17 @@ describe('PageHeader', () => {
     expect(screen.getByRole('navigation', { name: 'Pfad' })).toHaveTextContent('Jobs/Lauf #7');
     expect(screen.getByText('Fehlgeschlagen')).toHaveClass('text-danger');
   });
+
+  it('puts a button right next to the title, e.g. the settings of a campaign', () => {
+    render(
+      <PageHeader
+        title="Black Friday"
+        titleAside={<button type="button">Kampagne bearbeiten</button>}
+      />,
+    );
+    const heading = screen.getByRole('heading', { level: 1, name: 'Black Friday' });
+    expect(heading.nextElementSibling).toBe(
+      screen.getByRole('button', { name: 'Kampagne bearbeiten' }),
+    );
+  });
 });

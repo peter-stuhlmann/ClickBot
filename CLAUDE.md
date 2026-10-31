@@ -157,8 +157,9 @@ Die Pakete unter `packages/` liefern TypeScript-Quelltext aus, ohne eigenen Buil
   - `createJob` bekommt die Kampagne; das Projekt des Jobs ergibt sich daraus. Im Editor kann
     ein Job in eine andere Kampagne desselben Projekts wechseln (`updateJob`, `campaignId`),
     nie in ein anderes Projekt: Läufe, Zugangsdaten und Reports gehören zum Projekt.
-  - Bearbeiten: `/projekte/<id>` (Name) und `/kampagnen/<id>` (Name, Zeitraum, Notiz und die
-    Jobs der Kampagne). Löschen jeweils unten mit Rückfrage (`DeleteSection`).
+  - Bearbeiten: `/projekte/<id>` (Name, Löschen unten mit Rückfrage, `DeleteSection`).
+    `/kampagnen/<id>` zeigt die Jobs der Kampagne; Name, Zeitraum, Notiz und Löschen liegen im
+    Modal hinter dem Zahnrad neben dem Namen („Kampagne bearbeiten“).
 - **Jobs** legt `createJob` als Entwurf an. Mit `status: 'active'` (Assistent) plant der
   Worker sie sofort ein.
 - **Jobs ändern** (`updateJob`, Editor):
@@ -234,7 +235,10 @@ Die Pakete unter `packages/` liefern TypeScript-Quelltext aus, ohne eigenen Buil
 - **Löschregeln:**
   - Ein Projekt lässt sich erst löschen, wenn es keine Jobs mehr hat (`deleteCustomer`). Seine
     leeren Kampagnen und seine Zugangsdaten gehen mit.
-  - Eine Kampagne lässt sich erst löschen, wenn sie keine Jobs mehr hat (`deleteCampaign`).
+  - Eine Kampagne mit Jobs nimmt ihre Jobs samt Läufen mit (`deleteCampaign`), aber nur, wenn
+    „<Name> löschen“ eingetippt wurde (`campaignDeletePhrase`, `confirmPhrase` an
+    `DeleteSection`). Die Datenbank-Schicht prüft das selbst noch einmal. Die Web-App entfernt
+    danach die Bildschirmfotos.
   - Ein Job nimmt seine Läufe und Schritte mit (`deleteJob`, „Job löschen“ im Editor). Die
     Web-App entfernt danach die Bildschirmfotos dieser Läufe (`removeRunArtifacts`).
 - **Tests:**
@@ -592,6 +596,10 @@ Regeln:
   gewählten Eintrag, Tastatur wie die „Select-Only Combobox“ aus WAI-ARIA (Pfeile, Pos1/Ende,
   Enter, Escape, Anfangsbuchstaben). Fokus bleibt auf dem Feld; `name` legt ein verstecktes Feld
   für schlichte Formulare an. In Tests wählt `chooseOption` (`test/select.ts`, `e2e/select.ts`).
+- **Modale** nur über `Dialog` (Molekül): Icon-Knopf und natives `<dialog>` (Fokus bleibt drin,
+  Escape und Klick auf den Hintergrund schließen). Der Inhalt entsteht erst beim Öffnen, der
+  Fokus geht auf sein erstes Feld. `useDialog()` gibt Inhalten `close`, z. B. für „Abbrechen“.
+  jsdom kann `showModal` nicht; `test/setup.ts` ergänzt es, das echte Verhalten prüft Playwright.
 - **Datumsfelder** nur über `DatePicker` (Molekül), nie `type="date"`: Eingabe als „20.11.2026“
   oder im Kalender (Tastatur wie im WAI-ARIA-Muster), weitergegeben als „2026-11-20“, ein
   Tippfehler unverändert, damit die Prüfung ihn meldet. In schlichten Formularen trägt ein

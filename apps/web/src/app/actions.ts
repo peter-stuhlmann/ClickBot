@@ -317,8 +317,19 @@ export async function deleteCampaignAction(
   formData: FormData,
 ): Promise<FormState> {
   await requireUser();
-  const refused = await refusalOf(() => deleteCampaign(getDb(), field(formData, 'id')));
+  // With jobs only after typing "<name> löschen"; deleteCampaign checks the phrase itself.
+  let runIds: string[] = [];
+  const refused = await refusalOf(async () => {
+    const deleted = await deleteCampaign(
+      getDb(),
+      field(formData, 'id'),
+      field(formData, 'confirm'),
+    );
+    runIds = deleted.runIds;
+  });
   if (refused) return refused;
+  // Screenshots live outside the database; a leftover file is no reason to fail.
+  await removeRunArtifacts(artifactsDir(), runIds).catch(() => undefined);
   revalidatePath('/kampagnen');
   redirect('/kampagnen');
 }

@@ -1,8 +1,9 @@
-import { getCampaign, getCustomer, listJobOverview } from '@click-bot/db';
+import { campaignDeletePhrase, getCampaign, getCustomer, listJobOverview } from '@click-bot/db';
 import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 import { Button } from '@/components/atoms/Button';
 import { Icon } from '@/components/atoms/Icon';
+import { Dialog } from '@/components/molecules/Dialog';
 import { CampaignForm } from '@/components/organisms/CampaignForm';
 import { DeleteSection } from '@/components/organisms/DeleteSection';
 import { JobsTable } from '@/components/organisms/JobsTable';
@@ -25,7 +26,10 @@ export const metadata: Metadata = { title: 'Kampagne · Click-Bot' };
 
 type Props = { params: Promise<{ id: string }> };
 
-/** One campaign: its jobs, changing it, and deleting it once it has no jobs. */
+/**
+ * One campaign: its jobs. Changing it, and deleting it once it has no jobs, sit behind the
+ * settings button next to its name.
+ */
 export default async function CampaignPage({ params }: Props) {
   const db = getDb();
   const now = new Date();
@@ -43,6 +47,28 @@ export default async function CampaignPage({ params }: Props) {
     <AppShell active="kampagnen" {...shell} selectProject={selectProjectAction}>
       <PageHeader
         title={campaign.name}
+        titleAside={
+          <Dialog label="Kampagne bearbeiten" title="Kampagne bearbeiten">
+            <CampaignForm
+              key={campaign.id}
+              projectName={project?.name ?? ''}
+              campaign={campaign}
+              action={updateCampaignAction}
+            />
+            <DeleteSection
+              title="Kampagne löschen"
+              description={
+                rows.length === 0
+                  ? 'Die Kampagne verschwindet aus dem Projekt.'
+                  : `Die Kampagne verschwindet aus dem Projekt, mit ${rows.length === 1 ? 'ihrem Job' : `ihren ${rows.length} Jobs`} und allen Läufen und Reports. Jobs, die bleiben sollen, vorher im Editor in eine andere Kampagne verschieben.`
+              }
+              buttonLabel="Kampagne löschen"
+              fields={{ id: campaign.id }}
+              action={deleteCampaignAction}
+              confirmPhrase={rows.length > 0 ? campaignDeletePhrase(campaign.name) : undefined}
+            />
+          </Dialog>
+        }
         description={[project?.name, period].filter(Boolean).join(' · ')}
         breadcrumb={[{ label: 'Kampagnen', href: '/kampagnen' }, { label: campaign.name }]}
         actions={
@@ -52,26 +78,6 @@ export default async function CampaignPage({ params }: Props) {
         }
       />
       <JobsTable rows={rows.map((row) => toJobRow(row, now))} toggleAction={toggleJobAction} />
-      <CampaignForm
-        key={campaign.id}
-        projectName={project?.name ?? ''}
-        campaign={campaign}
-        action={updateCampaignAction}
-      />
-      <div className="max-w-xl">
-        <DeleteSection
-          title="Kampagne löschen"
-          description="Die Kampagne verschwindet aus dem Projekt."
-          buttonLabel="Kampagne löschen"
-          fields={{ id: campaign.id }}
-          action={deleteCampaignAction}
-          blocked={
-            rows.length > 0
-              ? `Die Kampagne hat noch ${rows.length === 1 ? '1 Job' : `${rows.length} Jobs`}. Verschiebe sie im Editor in eine andere Kampagne oder lösche sie.`
-              : undefined
-          }
-        />
-      </div>
     </AppShell>
   );
 }

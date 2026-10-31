@@ -7,6 +7,7 @@ import { Icon } from '@/components/atoms/Icon';
 import { Input } from '@/components/atoms/Input';
 import { Textarea } from '@/components/atoms/Textarea';
 import { DatePicker, type DatePickerHandle } from '@/components/molecules/DatePicker';
+import { useDialog } from '@/components/molecules/Dialog';
 import { Field } from '@/components/molecules/Field';
 import { earliestEnd, endAfterNewStart } from '@/lib/calendar';
 import type { FormState } from '@/lib/views';
@@ -29,6 +30,8 @@ export type CampaignFormProps = {
 /** "Kampagne anlegen" or changing one: works without JavaScript, it is a plain form. */
 export function CampaignForm({ projectName, action, campaign }: CampaignFormProps) {
   const [state, formAction, pending] = useActionState(action, {});
+  // In the settings dialog of a campaign, "Abbrechen" closes it instead of leaving the page.
+  const dialog = useDialog();
   const errors = state.fieldErrors ?? {};
   // What was typed wins over what is stored, so a rejected change is not lost.
   const values = state.values ?? {
@@ -119,9 +122,15 @@ export function CampaignForm({ projectName, action, campaign }: CampaignFormProp
           )}
         </Field>
         <div className="flex justify-end gap-3">
-          <Button variant="secondary" href="/kampagnen">
-            Abbrechen
-          </Button>
+          {dialog ? (
+            <Button variant="secondary" onClick={dialog.close}>
+              Abbrechen
+            </Button>
+          ) : (
+            <Button variant="secondary" href="/kampagnen">
+              Abbrechen
+            </Button>
+          )}
           <Button type="submit" loading={pending} icon={<Icon name="check" size={16} />}>
             {campaign ? 'Speichern' : 'Kampagne anlegen'}
           </Button>

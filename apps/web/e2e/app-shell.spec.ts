@@ -32,9 +32,10 @@ test.describe('App shell', () => {
       .poll(() => cursor(page.getByRole('link', { name: 'Läufe', exact: true })))
       .toBe('pointer');
 
+    // The demo project has jobs: it cannot be deleted.
     await page.goto('/kampagnen');
-    await page.getByRole('link', { name: 'Allgemein', exact: true }).click();
-    const blocked = page.getByRole('button', { name: 'Kampagne löschen' });
+    await page.getByRole('link', { name: 'Projekt bearbeiten' }).click();
+    const blocked = page.getByRole('button', { name: 'Projekt löschen' });
     await expect(blocked).toBeDisabled();
     await expect.poll(() => cursor(blocked)).toBe('not-allowed');
 
