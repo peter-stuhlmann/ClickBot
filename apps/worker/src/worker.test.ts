@@ -130,7 +130,10 @@ describe('worker', () => {
     const configs: string[] = [];
     const replies = [
       '{"type":"click","target":{"by":"role","role":"button","name":"Alle akzeptieren"}}',
-      '{"type":"done","summary":"Cookies akzeptiert."}',
+      JSON.stringify({
+        type: 'verdict',
+        criteria: [{ goal: 'Cookies lassen sich akzeptieren.', status: 'met', evidence: 'Weg.' }],
+      }),
     ];
     await dueJob([
       { id: 'open', type: 'open', url: '/kontakt.html' },
@@ -140,7 +143,7 @@ describe('worker', () => {
       createAiClient: (config) => {
         configs.push(`${config.kind}/${config.model}`);
         return {
-          complete: async () => replies.shift() ?? '{"type":"fail","reason":"Nichts mehr."}',
+          complete: async () => replies.shift() ?? '',
           listModels: async () => null,
         };
       },
@@ -152,10 +155,11 @@ describe('worker', () => {
     expect(run?.status).toBe('passed');
     expect(configs).toEqual(['custom/test-modell']);
     const steps = await db.select().from(schema.runSteps).orderBy(schema.runSteps.stepIndex);
-    expect(steps[1]?.aiActions).toEqual([
-      'Klick auf Rolle „button“ mit Name „Alle akzeptieren“: ok',
-      'Fertig: Cookies akzeptiert.',
-    ]);
+    expect(steps[1]).toMatchObject({
+      status: 'passed',
+      aiActions: ['Klick auf Rolle „button“ mit Name „Alle akzeptieren“: ok'],
+      aiVerdict: [{ goal: 'Cookies lassen sich akzeptieren.', status: 'met', evidence: 'Weg.' }],
+    });
   });
 
   it('fails an AI step clearly while no AI provider is set up', async () => {

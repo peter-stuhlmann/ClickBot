@@ -8,5 +8,6 @@ export * from './password';
 export * from './analytics-marking';
 export * from './ai-providers';
 export * from './browsers';
+export * from './ai-verdict';
 export * from './css-selector';
 export * from './page-facts';

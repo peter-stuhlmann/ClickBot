@@ -33,6 +33,78 @@ const request = {
   maxTokens: 300,
 };
 
+describe('screenshots with a message', () => {
+  const PNG = 'iVBORw0KGgo=';
+  const withImage = {
+    messages: [
+      {
+        role: 'user' as const,
+        content: 'Ist der Knopf blau?',
+        images: [{ mediaType: 'image/jpeg' as const, data: PNG }],
+      },
+    ],
+  };
+  const answer = {
+    anthropic: { content: [{ type: 'text', text: 'Ja.' }] },
+    gemini: { candidates: [{ content: { parts: [{ text: 'Ja.' }] } }] },
+    openai: { choices: [{ message: { content: 'Ja.' } }] },
+  };
+
+  it('sends them to Claude as image blocks before the text', async () => {
+    const api = fakeApi(() => json(answer.anthropic));
+    await createAiClient(
+      { kind: 'anthropic', apiKey: KEY, model: 'm' },
+      { fetch: api.fetch },
+    ).complete(withImage);
+    expect((api.calls[0]?.body as { messages: unknown }).messages).toEqual([
+      {
+        role: 'user',
+        content: [
+          { type: 'image', source: { type: 'base64', media_type: 'image/jpeg', data: PNG } },
+          { type: 'text', text: 'Ist der Knopf blau?' },
+        ],
+      },
+    ]);
+  });
+
+  it('sends them to Gemini as inline data', async () => {
+    const api = fakeApi(() => json(answer.gemini));
+    await createAiClient(
+      { kind: 'gemini', apiKey: KEY, model: 'm' },
+      { fetch: api.fetch },
+    ).complete(withImage);
+    expect((api.calls[0]?.body as { contents: unknown }).contents).toEqual([
+      {
+        role: 'user',
+        parts: [
+          { inline_data: { mime_type: 'image/jpeg', data: PNG } },
+          { text: 'Ist der Knopf blau?' },
+        ],
+      },
+    ]);
+  });
+
+  it.each(['openai', 'perplexity', 'custom'] as const)(
+    'sends them to %s as image_url data addresses',
+    async (kind) => {
+      const api = fakeApi(() => json(answer.openai));
+      await createAiClient(
+        { kind, apiKey: KEY, model: 'm', baseUrl: 'http://127.0.0.1:1/v1' },
+        { fetch: api.fetch },
+      ).complete(withImage);
+      expect((api.calls[0]?.body as { messages: unknown }).messages).toEqual([
+        {
+          role: 'user',
+          content: [
+            { type: 'text', text: 'Ist der Knopf blau?' },
+            { type: 'image_url', image_url: { url: `data:image/jpeg;base64,${PNG}` } },
+          ],
+        },
+      ]);
+    },
+  );
+});
+
 describe('Claude (Anthropic Messages API)', () => {
   const config: AiConfig = { kind: 'anthropic', apiKey: KEY, model: 'claude-sonnet-5-5' };
 

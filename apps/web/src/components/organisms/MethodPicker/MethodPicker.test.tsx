@@ -7,31 +7,19 @@ const pressed = (name: string) =>
   screen.getByRole('button', { name: new RegExp(name) }).getAttribute('aria-pressed');
 
 describe('MethodPicker', () => {
-  it('shows which way is chosen', () => {
-    render(<MethodPicker method="ai" onChoose={vi.fn()} />);
-    expect(pressed('Mit KI beschreiben')).toBe('true');
-    expect(pressed('Schritte zusammenklicken')).toBe('false');
-  });
-
-  it('switches between describing with AI and the step builder', async () => {
-    const user = userEvent.setup();
-    const onChoose = vi.fn();
-    render(<MethodPicker method="editor" onChoose={onChoose} />);
-    await user.click(screen.getByRole('button', { name: /Mit KI beschreiben/ }));
-    expect(onChoose).toHaveBeenCalledWith('ai');
-  });
-
-  it('offers four ways, all available, and no code', async () => {
-    const user = userEvent.setup();
-    const onChoose = vi.fn();
-    render(<MethodPicker method="editor" onChoose={onChoose} />);
-    expect(screen.getAllByRole('button')).toHaveLength(4);
-    expect(screen.queryByText('geplant')).not.toBeInTheDocument();
+  it('offers two ways to test, a fixed flow and a free test, and no code', () => {
+    render(<MethodPicker method="fixed" onChoose={vi.fn()} />);
+    expect(screen.getAllByRole('button')).toHaveLength(2);
+    expect(pressed('Fester Ablauf')).toBe('true');
+    expect(pressed('Frei mit KI')).toBe('false');
     expect(screen.queryByRole('button', { name: /Code schreiben/ })).not.toBeInTheDocument();
+  });
 
-    await user.click(screen.getByRole('button', { name: /Im Browser aufnehmen/ }));
-    expect(onChoose).toHaveBeenCalledWith('record');
-    await user.click(screen.getByRole('button', { name: /Aus Vorlage/ }));
-    expect(onChoose).toHaveBeenCalledWith('template');
+  it('switches to the free test', async () => {
+    const user = userEvent.setup();
+    const onChoose = vi.fn();
+    render(<MethodPicker method="fixed" onChoose={onChoose} />);
+    await user.click(screen.getByRole('button', { name: /Frei mit KI/ }));
+    expect(onChoose).toHaveBeenCalledWith('free');
   });
 });

@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react';
 import { Button } from '@/components/atoms/Button';
 import { Card } from '@/components/atoms/Card';
 import { Icon } from '@/components/atoms/Icon';
@@ -11,7 +12,10 @@ export type StepListProps = {
   /** Problem with the list as a whole, e.g. "mindestens einen Schritt". */
   error?: string;
   onSelect: (index: number) => void;
-  onAdd: () => void;
+  /** Without it there is no "Schritt hinzufügen", e.g. for a recorded flow. */
+  onAdd?: () => void;
+  /** Buttons below the list, e.g. "Neu aufnehmen". */
+  actions?: ReactNode;
   /** Moves a step one place up (-1) or down (+1). */
   onMove: (index: number, delta: -1 | 1) => void;
   onRemove: (index: number) => void;
@@ -26,6 +30,7 @@ export function StepList({
   onAdd,
   onMove,
   onRemove,
+  actions,
 }: StepListProps) {
   return (
     <Card
@@ -51,15 +56,18 @@ export function StepList({
         </ol>
       )}
       {error && <p className="text-small text-danger">{error}</p>}
-      <Button
-        variant="secondary"
-        fullWidth
-        className="border-dashed text-text-muted"
-        icon={<Icon name="plus" size={16} />}
-        onClick={onAdd}
-      >
-        Schritt hinzufügen
-      </Button>
+      {onAdd && (
+        <Button
+          variant="secondary"
+          fullWidth
+          className="border-dashed text-text-muted"
+          icon={<Icon name="plus" size={16} />}
+          onClick={onAdd}
+        >
+          Schritt hinzufügen
+        </Button>
+      )}
+      {actions && <div className="flex flex-wrap gap-3">{actions}</div>}
     </Card>
   );
 }

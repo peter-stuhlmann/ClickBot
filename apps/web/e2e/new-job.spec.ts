@@ -17,11 +17,11 @@ test.describe('Neuer Job', () => {
       .getByRole('textbox', { name: 'Website (Start-URL)' })
       .fill('http://127.0.0.1:4100/kontakt.html');
 
-    // 2 · Ablauf: the open step is there, add a check.
-    await expect(page.getByRole('button', { name: /^Schritt 1: Öffne/ })).toBeVisible();
-    await page.getByRole('button', { name: 'Schritt hinzufügen' }).click();
-    await chooseOption(page.getByRole('combobox', { name: 'Aktion' }), 'Prüfen');
-    await page.getByRole('textbox', { name: 'Text' }).fill('Kontakt');
+    // 2 · Ablauf: a free test, only its goal.
+    await page.getByRole('button', { name: /Frei mit KI/ }).click();
+    await page
+      .getByRole('textbox', { name: 'Was soll auf der Website gelten?' })
+      .fill('Es gibt ein Kontaktformular mit Feldern für Name und E-Mail.');
     await page.getByRole('button', { name: 'Weiter' }).click();
 
     // 3 · Zeitplan

@@ -393,16 +393,13 @@ describe('StepForm – keys and scrolling', () => {
     );
   });
 
-  it('asks an AI step only for its task, in plain words', async () => {
+  it('asks an AI step only for the goal of the test, in plain words', async () => {
     const user = userEvent.setup();
     const onChange = vi.fn();
     render(<Harness initial={step('ai')} onChange={onChange} />);
     // Each action of the AI has its own time limit; the step has no timeout of its own.
-    expect(labels()).toEqual(['Aktion', 'Was soll der Bot tun?']);
-    await user.type(
-      screen.getByRole('textbox', { name: 'Was soll der Bot tun?' }),
-      'Geh zum Impressum',
-    );
+    expect(labels()).toEqual(['Aktion', 'Ziel des Tests']);
+    await user.type(screen.getByRole('textbox', { name: 'Ziel des Tests' }), 'Geh zum Impressum');
     expect(onChange).toHaveBeenLastCalledWith(
       expect.objectContaining({ value: 'Geh zum Impressum' }),
     );

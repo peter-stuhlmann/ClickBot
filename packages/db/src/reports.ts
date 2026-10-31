@@ -10,7 +10,14 @@ import { runSteps, runs } from './schema';
 
 export type RunStepRow = Pick<
   typeof runSteps.$inferSelect,
-  'stepIndex' | 'stepId' | 'status' | 'durationMs' | 'message' | 'screenshotPath' | 'aiActions'
+  | 'stepIndex'
+  | 'stepId'
+  | 'status'
+  | 'durationMs'
+  | 'message'
+  | 'screenshotPath'
+  | 'aiActions'
+  | 'aiVerdict'
 >;
 
 export type RunReport = {
@@ -38,6 +45,7 @@ export async function getRunReport(db: Database, runId: string): Promise<RunRepo
         message: runSteps.message,
         screenshotPath: runSteps.screenshotPath,
         aiActions: runSteps.aiActions,
+        aiVerdict: runSteps.aiVerdict,
       })
       .from(runSteps)
       .where(eq(runSteps.runId, run.id))

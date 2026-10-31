@@ -66,6 +66,30 @@ describe('RunStepItem', () => {
     ]);
   });
 
+  it('shows each sub-goal of a free test with its verdict and what the AI saw', () => {
+    render(
+      <RunStepItem
+        {...step({
+          status: 'unclear',
+          title: 'Newsletter-Anmeldung funktioniert.',
+          detail: 'Nicht prüfbar: Die Anmeldung kommt an. Captcha.',
+          aiVerdict: [
+            { goal: 'Es gibt einen blauen Button.', status: 'met', evidence: 'Oben rechts.' },
+            { goal: 'Ungültige Adressen werden abgelehnt.', status: 'failed', evidence: 'Nein.' },
+            { goal: 'Die Anmeldung kommt an.', status: 'unknown', evidence: 'Captcha.' },
+          ],
+        })}
+      />,
+    );
+    expect(screen.getByText('Schritt 2 nicht ganz prüfbar')).toBeInTheDocument();
+    const list = screen.getByRole('list', { name: 'Ergebnis der KI' });
+    expect([...list.querySelectorAll('li')].map((item) => item.textContent)).toEqual([
+      'ErfülltEs gibt einen blauen Button.Oben rechts.',
+      'Nicht erfülltUngültige Adressen werden abgelehnt.Nein.',
+      'Nicht prüfbarDie Anmeldung kommt an.Captcha.',
+    ]);
+  });
+
   it('leaves out an empty detail line', () => {
     const { container } = render(<RunStepItem {...step({ detail: '' })} />);
     expect(container.querySelectorAll('.truncate')).toHaveLength(0);

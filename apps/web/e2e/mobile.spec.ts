@@ -108,11 +108,14 @@ test.describe('Auf dem Handy', () => {
       .getByRole('textbox', { name: 'Website (Start-URL)' })
       .fill('http://127.0.0.1:4100/kontakt.html');
 
-    await expect(page.getByRole('button', { name: /^Schritt 1: Öffne/ })).toBeVisible();
-    await page.getByRole('button', { name: 'Schritt hinzufügen' }).click();
+    // A fixed flow starts with the live browser; a free one asks for the goal.
+    await expect(page.getByRole('button', { name: 'Aufnahme starten' })).toBeVisible();
     await expectFits(page);
-    await chooseOption(page.getByRole('combobox', { name: 'Aktion' }), 'Prüfen');
-    await page.getByRole('textbox', { name: 'Text' }).fill('Kontakt');
+    await page.getByRole('button', { name: /Frei mit KI/ }).click();
+    await page
+      .getByRole('textbox', { name: 'Was soll auf der Website gelten?' })
+      .fill('Es gibt ein Kontaktformular.');
+    await expectFits(page);
     await page.getByRole('button', { name: 'Weiter' }).click();
 
     await expect(page.getByRole('textbox', { name: 'Alle (Minuten)' })).toBeVisible();

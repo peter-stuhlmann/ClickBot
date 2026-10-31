@@ -2,34 +2,23 @@ import { Card } from '@/components/atoms/Card';
 import type { IconName } from '@/components/atoms/Icon';
 import { ChoiceCard } from '@/components/molecules/ChoiceCard';
 
-/** The ways to a flow. */
-export type FlowMethod = 'ai' | 'record' | 'editor' | 'template';
+/** fixed: recorded steps, the same in every run · free: a goal the AI checks in every run. */
+export type FlowMethod = 'fixed' | 'free';
 
 const METHODS: { key: FlowMethod; icon: IconName; title: string; description: string }[] = [
   {
-    key: 'ai',
-    icon: 'sparkles',
-    title: 'Mit KI beschreiben',
-    description:
-      'Beschreibe in normaler Sprache, was passieren soll. Die KI schlägt die Schritte vor.',
-  },
-  {
-    key: 'record',
+    key: 'fixed',
     icon: 'record',
-    title: 'Im Browser aufnehmen',
-    description: 'Du klickst dich live durch die Seite, jeder Klick wird ein Schritt.',
+    title: 'Fester Ablauf',
+    description:
+      'Du klickst dich einmal im Browser durch die Seite. Jeder Lauf wiederholt genau diese Schritte.',
   },
   {
-    key: 'editor',
-    icon: 'list',
-    title: 'Schritte zusammenklicken',
-    description: 'Schritt für Schritt aus Bausteinen wie Klicken, Ausfüllen, Prüfen.',
-  },
-  {
-    key: 'template',
-    icon: 'copy',
-    title: 'Aus Vorlage',
-    description: 'Einen gespeicherten Ablauf übernehmen, z. B. „Kontaktformular absenden“.',
+    key: 'free',
+    icon: 'sparkles',
+    title: 'Frei mit KI',
+    description:
+      'Du beschreibst das Ziel. Die KI sucht den Weg in jedem Lauf selbst und bewertet jedes Teilziel.',
   },
 ];
 
@@ -39,16 +28,13 @@ export type MethodPickerProps = {
 };
 
 /**
- * The ways to a flow (screen 05), all leading to the same steps. Writing code is
- * deliberately not offered: own code would run on the server next to keys and database.
+ * How a job tests (screen 05). Writing code is deliberately not offered: own code would run on
+ * the server next to keys and database.
  */
 export function MethodPicker({ method, onChoose }: MethodPickerProps) {
   return (
-    <Card
-      title="Wie soll der Ablauf entstehen?"
-      description="Alle Wege erzeugen dieselben Schritte, die du danach einzeln ändern kannst."
-    >
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 2xl:grid-cols-4">
+    <Card title="Wie soll getestet werden?">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
         {METHODS.map(({ key, ...card }) => (
           <ChoiceCard
             key={card.title}

@@ -160,7 +160,7 @@ describe('describeStep for AI steps', () => {
       typeLabel: 'KI',
       tone: 'primary',
       title: 'Schick das Kontaktformular ab.',
-      detail: 'Die KI findet die Elemente während des Laufs.',
+      detail: 'Frei: Die KI sucht den Weg und bewertet das Ziel.',
     });
   });
 });

@@ -304,12 +304,13 @@ export function newStep(
 }
 
 /**
- * "Als KI-Schritt übernehmen": the start page, then the description as one AI step, which finds
- * its elements during the run.
+ * A free test: the start page, then the goal as one AI step, which finds its way and judges the
+ * goal in every run.
  */
-export function stepsForAiTask(startUrl: string, task: string): StepDraft[] {
+export function stepsForAiTask(startUrl: string, goal: string): StepDraft[] {
   const open = newStep('open', [], startUrl);
-  return [open, { ...newStep('ai', [open], startUrl), value: task.trim() }];
+  // As typed; toStep trims it when the job is saved.
+  return [open, { ...newStep('ai', [open], startUrl), value: goal }];
 }
 
 /** "2,5" → 2.5; empty or garbage → NaN, which the schemas report. */

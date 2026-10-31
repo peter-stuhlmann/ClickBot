@@ -4,11 +4,11 @@ import type { Flow } from '@click-bot/shared';
 import { useMemo, useState, useTransition, type ReactNode } from 'react';
 import { Button } from '@/components/atoms/Button';
 import { Icon } from '@/components/atoms/Icon';
-import { AiFlowPanel } from '@/components/organisms/AiFlowPanel';
 import { AdBlockingForm } from '@/components/organisms/AdBlockingForm';
 import { AnalyticsMarkingForm } from '@/components/organisms/AnalyticsMarkingForm';
 import { ApprovalCard } from '@/components/organisms/ApprovalCard';
 import { DevicePicker } from '@/components/organisms/DevicePicker';
+import { GoalCard } from '@/components/organisms/GoalCard';
 import { JobBasicsForm } from '@/components/organisms/JobBasicsForm';
 import { JobSummary } from '@/components/organisms/JobSummary';
 import { LiveBrowser } from '@/components/organisms/LiveBrowser';
@@ -22,7 +22,6 @@ import { WizardStepper } from '@/components/organisms/WizardStepper';
 import { WizardLayout } from '@/components/templates/WizardLayout';
 import { toggleDevice, toggleDeviceBrowser } from '@/lib/devices';
 import {
-  appendStep,
   describeRunTotal,
   stepsForAiTask,
   emptyDraft,
@@ -42,14 +41,9 @@ import {
   type StepListState,
   type WizardDraft,
 } from '@/lib/job-draft';
-import { describeStep } from '@/lib/step-view';
+import { describeStep, FIXED_STEP_TYPES } from '@/lib/step-view';
 import { stepsFromTemplate } from '@/lib/template-draft';
-import type {
-  FlowSuggestionResult,
-  StartRecordingAction,
-  SuggestFlowAction,
-  TemplateView,
-} from '@/lib/views';
+import type { StartRecordingAction, TemplateView } from '@/lib/views';
 import { useLiveRecording } from './use-live-recording';
 
 export type NewJobWizardProps = {
@@ -58,8 +52,6 @@ export type NewJobWizardProps = {
   /** Server time of the request, so the defaults are the same on server and client. */
   now: string;
   createAction: (draft: WizardDraft) => Promise<{ issues: Issue[] }>;
-  /** "Mit KI beschreiben": suggested steps for a description. */
-  suggestAction: SuggestFlowAction;
   /** "Im Browser aufnehmen": a one-time address of the live browser. */
   startRecording: StartRecordingAction;
   /** "Aus Vorlage": the templates with their steps. */
@@ -74,7 +66,6 @@ export function NewJobWizard({
   campaigns,
   now,
   createAction,
-  suggestAction,
   startRecording,
   templates,
 }: NewJobWizardProps) {
@@ -87,11 +78,12 @@ export function NewJobWizard({
   const [issues, setIssues] = useState<Issue[]>([]);
   const [selected, setSelected] = useState<number | null>(null);
   const [saving, startSaving] = useTransition();
-  const [method, setMethod] = useState<FlowMethod>('editor');
-  const [aiDescription, setAiDescription] = useState('');
-  const [aiAnswers, setAiAnswers] = useState<Record<string, string>>({});
-  const [aiResult, setAiResult] = useState<FlowSuggestionResult | null>(null);
-  const [generating, startGenerating] = useTransition();
+  const [method, setMethod] = useState<FlowMethod>('fixed');
+  // Fixed flow: recording, choosing a template, or the steps to correct.
+  const [fixedView, setFixedView] = useState<'record' | 'template' | 'list'>('record');
+  // Each mode keeps its state while the other one is shown.
+  const [goal, setGoal] = useState('');
+  const [fixedSteps, setFixedSteps] = useState<StepDraft[]>([]);
   const recording = useLiveRecording(startRecording);
 
   const step = WIZARD_STEPS[current] ?? WIZARD_STEPS[0];
@@ -132,31 +124,38 @@ export function NewJobWizard({
 
   const setSteps = (steps: StepDraft[]) => update({ steps });
 
-  function generate() {
-    startGenerating(async () => {
-      const answers = Object.entries(aiAnswers).map(([question, answer]) => ({ question, answer }));
-      setAiResult(
-        await suggestAction({ startUrl: draft.startUrl, description: aiDescription, answers }),
-      );
-    });
-  }
-
-  /** Suggested or recorded steps replace the flow; the step builder shows them for changes. */
+  /** Recorded steps or those of a template replace the flow; the list shows them to correct. */
   function takeOver(steps: StepDraft[]) {
     setSteps(steps);
     setSelected(null);
     setIssues([]);
-    setMethod('editor');
+    setFixedView('list');
   }
 
-  function acceptSuggestion() {
-    if (aiResult?.ok) takeOver(aiResult.steps);
+  /** Back from recording or a template: to the steps, if there are any yet. */
+  function leaveFixedView() {
+    recording.stop();
+    setFixedView(draft.steps.length > 0 ? 'list' : 'record');
   }
 
   function chooseMethod(next: FlowMethod) {
-    // Leaving the recording closes the live browser on the server.
-    if (method === 'record' && next !== 'record') recording.stop();
+    if (next === method) return;
+    if (next === 'free') {
+      // Leaving the recording closes the live browser on the server.
+      recording.stop();
+      setFixedSteps(draft.steps);
+      setSteps(stepsForAiTask(draft.startUrl, goal));
+    } else {
+      setSteps(fixedSteps);
+    }
+    setSelected(null);
+    setIssues([]);
     setMethod(next);
+  }
+
+  function changeGoal(next: string) {
+    setGoal(next);
+    setSteps(stepsForAiTask(draft.startUrl, next));
   }
 
   function applySteps(next: StepListState, clearIssues = true) {
@@ -184,56 +183,58 @@ export function NewJobWizard({
             onChange={(startUrl) => update(withStartUrl(draft, startUrl))}
           />
           <MethodPicker method={method} onChoose={chooseMethod} />
-          {method === 'record' ? (
-            <LiveBrowser
-              status={recording.status}
-              frame={recording.frame}
-              url={recording.url}
-              viewport={recording.viewport}
-              mode={recording.mode}
-              error={recording.error}
-              steps={recording.steps.map(describeStep)}
-              onStart={() => recording.start(draft.startUrl, recording.status === 'ended')}
-              onInput={recording.send}
-              onRemoveStep={recording.removeStep}
-              onFinish={() => {
-                recording.stop();
-                takeOver(recording.steps);
-              }}
-              onCancel={() => chooseMethod('editor')}
+          {method === 'free' ? (
+            <GoalCard
+              goal={goal}
+              error={stepErrors(issues, 1).value ?? errors['flow.steps']}
+              onChange={changeGoal}
             />
-          ) : method === 'template' ? (
-            <TemplatePicker
-              templates={templates.map((template) => template.view)}
-              onApply={(templateId) => {
-                const chosen = templates.find((template) => template.view.id === templateId);
-                if (chosen) takeOver(stepsFromTemplate(chosen.flow, draft.startUrl));
-              }}
-            />
-          ) : method === 'ai' ? (
-            <AiFlowPanel
-              description={aiDescription}
-              onDescriptionChange={setAiDescription}
-              onGenerate={generate}
-              generating={generating}
-              error={aiResult && !aiResult.ok ? aiResult.message : undefined}
-              suggestion={
-                aiResult?.ok
-                  ? {
-                      steps: aiResult.steps.map(describeStep),
-                      questions: aiResult.questions,
-                      facts: aiResult.facts,
-                      notice: aiResult.notice,
-                    }
-                  : undefined
-              }
-              answers={aiAnswers}
-              onAnswer={(question, answer) =>
-                setAiAnswers((old) => ({ ...old, [question]: answer }))
-              }
-              onAccept={acceptSuggestion}
-              onAcceptAsAiStep={() => takeOver(stepsForAiTask(draft.startUrl, aiDescription))}
-            />
+          ) : fixedView === 'record' ? (
+            <>
+              <LiveBrowser
+                status={recording.status}
+                frame={recording.frame}
+                url={recording.url}
+                viewport={recording.viewport}
+                mode={recording.mode}
+                error={recording.error}
+                steps={recording.steps.map(describeStep)}
+                onStart={() => recording.start(draft.startUrl, recording.status === 'ended')}
+                onInput={recording.send}
+                onRemoveStep={recording.removeStep}
+                onFinish={() => {
+                  recording.stop();
+                  takeOver(recording.steps);
+                }}
+                onCancel={leaveFixedView}
+              />
+              {recording.status !== 'live' && (
+                <div>
+                  <Button
+                    variant="secondary"
+                    icon={<Icon name="copy" size={16} />}
+                    onClick={() => setFixedView('template')}
+                  >
+                    Aus Vorlage übernehmen
+                  </Button>
+                </div>
+              )}
+            </>
+          ) : fixedView === 'template' ? (
+            <>
+              <TemplatePicker
+                templates={templates.map((template) => template.view)}
+                onApply={(templateId) => {
+                  const chosen = templates.find((template) => template.view.id === templateId);
+                  if (chosen) takeOver(stepsFromTemplate(chosen.flow, draft.startUrl));
+                }}
+              />
+              <div>
+                <Button variant="secondary" onClick={leaveFixedView}>
+                  Zurück
+                </Button>
+              </div>
+            </>
           ) : (
             <>
               <StepList
@@ -245,15 +246,33 @@ export function NewJobWizard({
                 selectedIndex={selected}
                 error={errors['flow.steps']}
                 onSelect={setSelected}
-                onAdd={() => applySteps(appendStep(draft.steps, draft.startUrl), false)}
                 onMove={(index, delta) => applySteps(moveStep(draft.steps, index, delta))}
                 onRemove={(index) => applySteps(removeStep(draft.steps, index, selected))}
+                actions={
+                  <>
+                    <Button
+                      variant="secondary"
+                      icon={<Icon name="record" size={16} />}
+                      onClick={() => setFixedView('record')}
+                    >
+                      Neu aufnehmen
+                    </Button>
+                    <Button
+                      variant="secondary"
+                      icon={<Icon name="copy" size={16} />}
+                      onClick={() => setFixedView('template')}
+                    >
+                      Aus Vorlage übernehmen
+                    </Button>
+                  </>
+                }
               />
               {selected !== null && selectedStep && (
                 <StepForm
                   index={selected}
                   step={selectedStep}
                   errors={stepErrors(issues, selected)}
+                  types={FIXED_STEP_TYPES}
                   onChange={(changed) =>
                     setSteps(
                       draft.steps.map((other, index) => (index === selected ? changed : other)),

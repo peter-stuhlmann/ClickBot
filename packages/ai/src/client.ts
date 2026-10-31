@@ -9,7 +9,15 @@ export type AiConfig = {
   baseUrl?: string | null;
 };
 
-export type AiMessage = { role: 'user' | 'assistant'; content: string };
+/** A screenshot sent with a message, base64 without the data: prefix. */
+export type AiImage = { mediaType: 'image/jpeg' | 'image/png'; data: string };
+
+export type AiMessage = {
+  role: 'user' | 'assistant';
+  content: string;
+  /** Needs a model that understands images. */
+  images?: AiImage[];
+};
 
 export type AiRequest = {
   system?: string;
@@ -106,9 +114,48 @@ function textOf(kind: AiProviderKind, data: Json): string {
   return typeof content === 'string' ? content : '';
 }
 
+/** A message in the provider's own format: images first for Claude and Gemini, after for OpenAI. */
+function messageFor(kind: AiProviderKind, { role, content, images = [] }: AiMessage): Json {
+  if (kind === 'gemini') {
+    return {
+      role: role === 'assistant' ? 'model' : 'user',
+      parts: [
+        ...images.map((image) => ({
+          inline_data: { mime_type: image.mediaType, data: image.data },
+        })),
+        { text: content },
+      ],
+    };
+  }
+  if (images.length === 0) return { role, content };
+  if (kind === 'anthropic') {
+    return {
+      role,
+      content: [
+        ...images.map((image) => ({
+          type: 'image',
+          source: { type: 'base64', media_type: image.mediaType, data: image.data },
+        })),
+        { type: 'text', text: content },
+      ],
+    };
+  }
+  return {
+    role,
+    content: [
+      { type: 'text', text: content },
+      ...images.map((image) => ({
+        type: 'image_url',
+        image_url: { url: `data:${image.mediaType};base64,${image.data}` },
+      })),
+    ],
+  };
+}
+
 function bodyFor(config: AiConfig, request: AiRequest): HttpRequest {
   const maxTokens = request.maxTokens ?? DEFAULT_MAX_TOKENS;
-  const { system, messages } = request;
+  const { system } = request;
+  const messages = request.messages.map((message) => messageFor(config.kind, message));
   switch (config.kind) {
     case 'anthropic':
       return {
@@ -125,10 +172,7 @@ function bodyFor(config: AiConfig, request: AiRequest): HttpRequest {
         path: `/models/${encodeURIComponent(config.model.replace(/^models\//, ''))}:generateContent`,
         body: {
           ...(system ? { systemInstruction: { parts: [{ text: system }] } } : {}),
-          contents: messages.map((message) => ({
-            role: message.role === 'assistant' ? 'model' : 'user',
-            parts: [{ text: message.content }],
-          })),
+          contents: messages,
           generationConfig: { maxOutputTokens: maxTokens },
         },
       };

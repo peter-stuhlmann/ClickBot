@@ -5,6 +5,7 @@ export {
   type AiClient,
   type AiConfig,
   type AiDeps,
+  type AiImage,
   type AiMessage,
   type AiRequest,
   type ConnectionResult,

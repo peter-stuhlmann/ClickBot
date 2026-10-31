@@ -14,6 +14,7 @@ import {
 } from '@/lib/job-draft';
 import {
   ASSERT_OPTIONS,
+  GOAL_HINT,
   ROLE_OPTIONS,
   SCROLL_DIRECTION_OPTIONS,
   SCROLL_OPTIONS,
@@ -366,12 +367,7 @@ export function StepForm({ index, step, errors, onChange, types }: StepFormProps
       )}
 
       {step.type === 'ai' && (
-        <Field
-          id="step-instruction"
-          label="Was soll der Bot tun?"
-          hint="In normalen Worten, wie für einen Kollegen, z. B. „Geh zum Impressum und prüfe, ob die Telefonnummer dasteht.“ Die KI sucht die Elemente während des Laufs selbst; der Report zeigt jede ihrer Aktionen."
-          error={errors.value}
-        >
+        <Field id="step-instruction" label="Ziel des Tests" hint={GOAL_HINT} error={errors.value}>
           {(control) => (
             <Textarea
               {...control}

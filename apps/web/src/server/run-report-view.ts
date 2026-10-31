@@ -50,12 +50,15 @@ function stepViews(report: RunReport): RunStepView[] {
       duration: row.status === 'skipped' ? DASH : formatDuration(row.durationMs),
       screenshotUrl: row.screenshotPath ? artifactUrl(row.screenshotPath) : null,
       ...(row.aiActions ? { aiActions: row.aiActions } : {}),
+      ...(row.aiVerdict ? { aiVerdict: row.aiVerdict } : {}),
     };
   });
 }
 
 function stepsHint(report: RunReport, failed: RunStepRow | undefined): string {
   if (failed) return `Abbruch bei Schritt ${failed.stepIndex + 1}`;
+  const unclear = report.steps.filter((step) => step.status === 'unclear').length;
+  if (unclear > 0) return `${unclear} nicht ganz prüfbar`;
   if (report.steps.length > 0) return 'alle bestanden';
   if (report.run.status === 'queued') return 'noch nicht gestartet';
   if (report.run.status === 'running') return 'läuft gerade';

@@ -4,7 +4,6 @@ import { AppShell } from '@/components/templates/AppShell';
 import { getDb } from '@/server/db';
 import { getShell, projectScope } from '@/server/shell';
 import { toTemplateView } from '@/server/templates-view';
-import { suggestFlowAction } from '../../ai-actions';
 import { createJobAction, selectProjectAction, startRecordingAction } from '../../actions';
 import { NewJobWizard } from './new-job-wizard';
 
@@ -30,7 +29,6 @@ export default async function NewJobPage() {
         campaigns={campaigns}
         now={now.toISOString()}
         createAction={createJobAction}
-        suggestAction={suggestFlowAction}
         startRecording={startRecordingAction}
         templates={templates.map((template) => ({
           view: toTemplateView(template, now),

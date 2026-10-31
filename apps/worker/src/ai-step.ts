@@ -1,22 +1,24 @@
 import type { AgentAction, AgentInput } from '@click-bot/ai';
-import type { Step } from '@click-bot/shared';
+import { verdictOutcome, type Criterion, type Step, type VerdictOutcome } from '@click-bot/shared';
+import type { Page } from 'playwright';
 import { StepError, toStepMessage } from './errors';
 import { readStructure } from './page-analysis';
 import { executeStep, type StepContext } from './steps';
 import { describeTarget, pageOf, type PageSource } from './targets';
 
-/** Asks the AI for the next action; the worker builds it from the default provider. */
+/** Asks the AI for the next action or its verdict; the worker builds it from the default provider. */
 export type AgentDriver = (input: AgentInput) => Promise<AgentAction>;
 
-/** Enough for a form over a few pages; a loop beyond it costs money and proves nothing. */
-export const MAX_AI_ACTIONS = 20;
+/** Enough to find a way over a few pages; a loop beyond it costs money and proves nothing. */
+export const MAX_AI_ACTIONS = 25;
 /** An action of the AI waits at most this long for its element. */
 const ACTION_TIMEOUT_MS = 10_000;
+const SCREENSHOT_TIMEOUT_MS = 5_000;
 const NOT_ON_SITE = 'nicht erlaubt: nur Seiten der getesteten Website';
 
 type AiStep = Extract<Step, { type: 'ai' }>;
 
-/** Fails an AI step and keeps what the AI did, for the report. */
+/** Fails an AI step that could not be judged, and keeps what the AI did, for the report. */
 export class AiStepError extends StepError {
   constructor(
     message: string,
@@ -30,6 +32,14 @@ export type AiStepContext = StepContext & {
   drive?: AgentDriver;
   /** Replaces secret values in everything the AI or the report sees. */
   mask: (text: string) => string;
+};
+
+export type AiStepResult = {
+  outcome: VerdictOutcome;
+  criteria: Criterion[];
+  actions: string[];
+  /** The page as the AI judged it, for the report; none while a secret is on the page. */
+  screenshot: Buffer | null;
 };
 
 const DIRECTIONS = { down: 'unten', up: 'oben', right: 'rechts', left: 'links' } as const;
@@ -84,16 +94,49 @@ function onSite(target: string, baseUrl: string): boolean {
   }
 }
 
+/** Whether a secret value is anywhere on the page: in its address, its text or a field. */
+async function showsSecret(page: Page, secrets: string[]): Promise<boolean> {
+  const values = secrets.filter(Boolean);
+  if (values.length === 0) return false;
+  if (values.some((value) => page.url().includes(value))) return true;
+  for (const frame of page.frames()) {
+    const found = await frame
+      .evaluate((list) => {
+        const fields = [...document.querySelectorAll('input, textarea')].map(
+          (field) => (field as HTMLInputElement).value,
+        );
+        const text = [document.body?.innerText ?? '', ...fields].join('\n');
+        return list.some((value) => text.includes(value));
+      }, values)
+      // A frame that cannot be read might show anything: no screenshot then.
+      .catch(() => true);
+    if (found) return true;
+  }
+  return false;
+}
+
+/** A screenshot of the visible part, or null while it could show a secret or does not come. */
+async function safeScreenshot(page: Page, secrets: string[], type: 'jpeg' | 'png') {
+  if (await showsSecret(page, secrets)) return null;
+  return page
+    .screenshot({
+      type,
+      ...(type === 'jpeg' ? { quality: 60 } : {}),
+      timeout: SCREENSHOT_TIMEOUT_MS,
+    })
+    .catch(() => null);
+}
+
 /**
- * Runs an AI step: looks at the page, asks the AI for one action, carries it out like a step of
- * the flow and tells the AI how it went, until the AI says it is done or gives up. Returns one
- * line per action for the report; throws AiStepError with those lines when the step fails.
+ * Runs an AI step: the AI gets the goal of the test, looks at the page (structure and screenshot),
+ * and either sends one action, which runs like a step of the flow, or its verdict per sub-goal.
+ * After MAX_AI_ACTIONS actions it has to judge. Throws AiStepError when no verdict comes.
  */
 export async function runAiStep(
   current: PageSource,
   step: AiStep,
   ctx: AiStepContext,
-): Promise<{ actions: string[] }> {
+): Promise<AiStepResult> {
   const { drive, mask } = ctx;
   if (!drive) {
     throw new AiStepError(
@@ -101,11 +144,13 @@ export async function runAiStep(
       [],
     );
   }
+  const secrets = Object.values(ctx.vars.secrets);
   const actions: string[] = [];
   const history: AgentInput['history'] = [];
 
-  for (let count = 0; count < MAX_AI_ACTIONS; count += 1) {
+  for (let count = 0; ; count += 1) {
     const page = pageOf(current);
+    const image = await safeScreenshot(page, secrets, 'jpeg');
     let action: AgentAction;
     try {
       action = await drive({
@@ -117,22 +162,37 @@ export async function runAiStep(
           url: mask(page.url()),
           title: mask(await page.title().catch(() => '')),
           snapshot: mask(await readStructure(page)),
+          ...(image
+            ? { screenshot: { mediaType: 'image/jpeg', data: image.toString('base64') } }
+            : {}),
         },
         history,
+        final: count >= MAX_AI_ACTIONS,
       });
     } catch (error) {
       throw new AiStepError(`KI-Anbieter: ${mask(toStepMessage(error))}`, actions);
     }
 
-    if (action.kind === 'done') {
-      actions.push(`Fertig: ${mask(action.summary)}`);
-      return { actions };
-    }
-    if (action.kind === 'fail') {
-      actions.push(`Abgebrochen: ${mask(action.reason)}`);
-      throw new AiStepError(`KI: ${mask(action.reason)}`, actions);
+    if (action.kind === 'verdict') {
+      const criteria = action.criteria.map((criterion) => ({
+        goal: mask(criterion.goal),
+        status: criterion.status,
+        evidence: mask(criterion.evidence),
+      }));
+      return {
+        outcome: verdictOutcome(criteria),
+        criteria,
+        actions,
+        screenshot: await safeScreenshot(pageOf(current), secrets, 'png'),
+      };
     }
 
+    if (count >= MAX_AI_ACTIONS) {
+      throw new AiStepError(
+        `Die KI hat nach ${MAX_AI_ACTIONS} Aktionen keine Bewertung geliefert.`,
+        actions,
+      );
+    }
     const { id: _id, timeoutMs, aiFallback: _fallback, ...shown } = action.step;
     let result = 'ok';
     if (action.step.type === 'open' && !onSite(action.step.url, ctx.baseUrl)) {
@@ -148,5 +208,4 @@ export async function runAiStep(
     history.push({ action: shown, result });
     actions.push(`${mask(describeAction(action.step))}: ${result}`);
   }
-  throw new AiStepError(`KI-Schritt nicht fertig nach ${MAX_AI_ACTIONS} Aktionen.`, actions);
 }

@@ -77,4 +77,18 @@ describe('StepList', () => {
     await user.click(screen.getByRole('button', { name: 'Schritt hinzufügen' }));
     expect(props.onAdd).toHaveBeenCalledOnce();
   });
+
+  it('offers own buttons instead of adding steps, e.g. for a recorded flow', () => {
+    const { onAdd: _onAdd, ...props } = handlers();
+    render(
+      <StepList
+        steps={steps}
+        selectedIndex={null}
+        {...props}
+        actions={<button type="button">Neu aufnehmen</button>}
+      />,
+    );
+    expect(screen.queryByRole('button', { name: 'Schritt hinzufügen' })).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Neu aufnehmen' })).toBeVisible();
+  });
 });

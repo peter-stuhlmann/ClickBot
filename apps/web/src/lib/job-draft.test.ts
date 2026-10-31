@@ -97,11 +97,11 @@ describe('newStep', () => {
     expect(newStep('fill', [], '')).toMatchObject({ targetBy: 'label' });
   });
 
-  it('turns a description into one AI step after opening the start page', () => {
+  it('turns the goal of a free test into one AI step after opening the start page', () => {
     const steps = stepsForAiTask('beispiel.de/blog', '  Hinterlasse einen Test-Kommentar. ');
     expect(steps.map((s) => [s.id, s.type, s.url, s.value])).toEqual([
       ['open-1', 'open', 'https://beispiel.de/blog', ''],
-      ['ai-1', 'ai', '', 'Hinterlasse einen Test-Kommentar.'],
+      ['ai-1', 'ai', '', '  Hinterlasse einen Test-Kommentar. '],
     ]);
     expect(toStep(steps[1] as StepDraft)).toMatchObject({
       type: 'ai',

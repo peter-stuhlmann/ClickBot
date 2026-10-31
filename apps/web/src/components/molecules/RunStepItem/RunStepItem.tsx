@@ -1,11 +1,13 @@
 import { cva } from 'class-variance-authority';
 import { Icon, type IconName } from '@/components/atoms/Icon';
 import { cn } from '@/lib/cn';
+import type { CriterionStatus } from '@click-bot/shared';
 import type { RunStepStatus, RunStepView } from '@/lib/views';
 
 const STATUS: Record<RunStepStatus, { icon: IconName; label: string }> = {
   passed: { icon: 'check', label: 'bestanden' },
   healed: { icon: 'check', label: 'mit KI-Hilfe bestanden' },
+  unclear: { icon: 'alert', label: 'nicht ganz prüfbar' },
   failed: { icon: 'close', label: 'fehlgeschlagen' },
   skipped: { icon: 'minus', label: 'übersprungen' },
   pending: { icon: 'clock', label: 'noch offen' },
@@ -16,9 +18,26 @@ const badge = cva('flex size-7 shrink-0 items-center justify-center rounded-full
     status: {
       passed: 'bg-success-soft text-success',
       healed: 'bg-warning-soft text-warning',
+      unclear: 'bg-warning-soft text-warning',
       failed: 'bg-danger-soft text-danger',
       skipped: 'bg-neutral-soft text-text-subtle',
       pending: 'bg-neutral-soft text-text-subtle',
+    },
+  },
+});
+
+const VERDICT: Record<CriterionStatus, string> = {
+  met: 'Erfüllt',
+  failed: 'Nicht erfüllt',
+  unknown: 'Nicht prüfbar',
+};
+
+const verdictChip = cva('w-fit shrink-0 rounded-chip px-1.5 py-0.5 text-small font-medium', {
+  variants: {
+    status: {
+      met: 'bg-success-soft text-success',
+      failed: 'bg-danger-soft text-danger',
+      unknown: 'bg-warning-soft text-warning',
     },
   },
 });
@@ -34,6 +53,7 @@ export function RunStepItem({
   duration,
   screenshotUrl,
   aiActions = [],
+  aiVerdict = [],
 }: RunStepItemProps) {
   const { icon, label } = STATUS[status];
   const muted = status === 'skipped' || status === 'pending';
@@ -54,12 +74,27 @@ export function RunStepItem({
             className={cn(
               'truncate text-meta',
               status === 'failed' && 'text-danger',
-              status === 'healed' && 'text-warning',
+              (status === 'healed' || status === 'unclear') && 'text-warning',
               (status === 'passed' || muted) && 'font-mono text-small text-text-muted',
             )}
           >
             {detail}
           </span>
+        )}
+        {aiVerdict.length > 0 && (
+          <ul aria-label="Ergebnis der KI" className="mt-2 flex flex-col gap-2">
+            {aiVerdict.map((criterion, index) => (
+              <li key={index} className="flex flex-col gap-1 sm:flex-row sm:items-start sm:gap-2">
+                <span className={verdictChip({ status: criterion.status })}>
+                  {VERDICT[criterion.status]}
+                </span>
+                <span className="flex min-w-0 flex-col">
+                  <span className="text-meta text-text">{criterion.goal}</span>
+                  <span className="text-small text-text-muted">{criterion.evidence}</span>
+                </span>
+              </li>
+            ))}
+          </ul>
         )}
         {aiActions.length > 0 && (
           <ol

@@ -123,7 +123,12 @@ export const stepSchema = z.discriminatedUnion('type', [
   }),
   // HTTP Basic Auth (.htaccess): sent to the job's own domain only, before its pages open.
   z.object({ ...stepBase, type: z.literal('basicAuth'), username: filled(), password: filled() }),
-  z.object({ ...stepBase, type: z.literal('ai'), instruction: z.string().min(1).max(2000) }),
+  // The goal of a free test: the AI finds the way and judges every sub-goal (ai-step.ts).
+  z.object({
+    ...stepBase,
+    type: z.literal('ai'),
+    instruction: filled().max(2000, 'Höchstens 2000 Zeichen.'),
+  }),
   // Deliberately no step with own code: it would run on the server next to keys and database.
 ]);
 

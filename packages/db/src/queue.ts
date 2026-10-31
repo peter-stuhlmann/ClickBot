@@ -1,4 +1,10 @@
-import { expandSchedule, runTargets, type BotStart, type RunTarget } from '@click-bot/shared';
+import {
+  expandSchedule,
+  runTargets,
+  type BotStart,
+  type Criterion,
+  type RunTarget,
+} from '@click-bot/shared';
 import { and, asc, count, eq, inArray, isNotNull, isNull, lt, lte, max, or } from 'drizzle-orm';
 import type { Database } from './client';
 import type { Job } from './jobs';
@@ -182,13 +188,15 @@ export async function claimNextRun(db: Database, now: Date): Promise<ClaimedRun 
 export type StepRecord = {
   stepId: string;
   index: number;
-  status: 'passed' | 'healed' | 'failed' | 'skipped';
+  status: 'passed' | 'healed' | 'unclear' | 'failed' | 'skipped';
   durationMs: number;
   /** Must already be masked (no secret values). */
   message: string | null;
   screenshotPath: string | null;
   /** AI step: what the AI did, one line per action. Must already be masked. */
   aiActions?: string[] | null;
+  /** AI step: the verdict per sub-goal. Must already be masked. */
+  aiVerdict?: Criterion[] | null;
 };
 
 export type RunOutcome = {
@@ -226,6 +234,7 @@ export async function completeRun(db: Database, runId: string, outcome: RunOutco
           message: step.message,
           screenshotPath: step.screenshotPath,
           aiActions: step.aiActions ?? null,
+          aiVerdict: step.aiVerdict ?? null,
         })),
       );
     }

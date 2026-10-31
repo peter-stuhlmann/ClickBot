@@ -105,6 +105,7 @@ async function executeRun(deps: WorkerDeps, { run, job }: ClaimedRun): Promise<v
         message: step.message ?? null,
         screenshotPath: screenshots.get(step.stepId) ?? null,
         aiActions: step.aiActions ?? null,
+        aiVerdict: step.aiVerdict ?? null,
       })),
       blockedAdRequests: result.blockedAdRequests,
     });

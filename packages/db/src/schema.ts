@@ -3,6 +3,7 @@ import {
   BROWSER_KINDS,
   DEVICE_KINDS,
   type AnalyticsMarking,
+  type Criterion,
   type DeviceBrowsers,
   type PageFacts,
   type Flow,
@@ -45,7 +46,14 @@ export const runStatus = pgEnum('run_status', [
   'failed',
   'cancelled',
 ]);
-export const stepStatus = pgEnum('step_status', ['passed', 'healed', 'failed', 'skipped']);
+// unclear: an AI step could not check every sub-goal of its test ("Mit Hinweis").
+export const stepStatus = pgEnum('step_status', [
+  'passed',
+  'healed',
+  'unclear',
+  'failed',
+  'skipped',
+]);
 export const proxyKind = pgEnum('proxy_kind', ['datacenter', 'residential']);
 export const device = pgEnum('device', DEVICE_KINDS);
 export const browser = pgEnum('browser', BROWSER_KINDS);
@@ -349,6 +357,8 @@ export const runSteps = pgTable(
     screenshotPath: text('screenshot_path'),
     /** AI step: what the AI did, one German line per action. Already masked. */
     aiActions: jsonb('ai_actions').$type<string[]>(),
+    /** AI step: every sub-goal of the test with the verdict of the AI. Already masked. */
+    aiVerdict: jsonb('ai_verdict').$type<Criterion[]>(),
     createdAt: createdAt(),
   },
   (t) => [

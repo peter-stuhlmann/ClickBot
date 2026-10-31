@@ -44,6 +44,7 @@ function stepRow(
     message: null,
     screenshotPath: null,
     aiActions: null,
+    aiVerdict: null,
     ...extra,
   };
 }
@@ -353,6 +354,48 @@ describe('toRunReportView', () => {
     expect(view.steps[0]).toMatchObject({
       title: 'Prüf die Telefonnummer im Impressum.',
       aiActions: actions,
+    });
+  });
+
+  it('shows the verdict of the AI per sub-goal, and counts an unclear step as not passed', () => {
+    const verdict = [
+      { goal: 'Es gibt einen blauen Button.', status: 'met' as const, evidence: 'Oben rechts.' },
+      { goal: 'Die Anmeldung kommt an.', status: 'unknown' as const, evidence: 'Captcha.' },
+    ];
+    const view = toRunReportView(
+      report({
+        run: { status: 'warning' },
+        job: {
+          flow: {
+            version: 1,
+            steps: [
+              {
+                id: 'ziel',
+                type: 'ai',
+                instruction: 'Newsletter-Anmeldung funktioniert.',
+                timeoutMs: 10_000,
+                aiFallback: true,
+              },
+            ],
+          },
+        },
+        steps: [
+          stepRow(0, 'ziel', 'unclear', 20_000, {
+            message: 'Nicht prüfbar: Die Anmeldung kommt an. Captcha.',
+            aiVerdict: verdict,
+          }),
+        ],
+      }),
+    );
+    expect(view.steps[0]).toMatchObject({
+      status: 'unclear',
+      detail: 'Nicht prüfbar: Die Anmeldung kommt an. Captcha.',
+      aiVerdict: verdict,
+    });
+    expect(view.stats[0]).toEqual({
+      label: 'Schritte',
+      value: '0 / 1',
+      hint: '1 nicht ganz prüfbar',
     });
   });
 

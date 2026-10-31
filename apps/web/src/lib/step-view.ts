@@ -24,7 +24,7 @@ export const STEP_TYPE_OPTIONS: readonly Option<EditableStepType>[] = [
   { value: 'screenshot', label: 'Bildschirmfoto' },
   { value: 'analytics', label: 'Analytics-Event prüfen' },
   { value: 'basicAuth', label: 'Passwortschutz (.htaccess)' },
-  { value: 'ai', label: 'KI-Schritt' },
+  { value: 'ai', label: 'Ziel prüfen (KI)' },
 ];
 
 export const TARGET_OPTIONS: readonly Option<TargetBy>[] = [
@@ -53,6 +53,15 @@ export const ASSERT_OPTIONS: readonly Option<AssertKind>[] = [
   { value: 'urlContains', label: 'Adresse enthält' },
   { value: 'titleContains', label: 'Seitentitel enthält' },
 ];
+
+/** Steps of a fixed flow: everything but the AI step, which is the free test. */
+export const FIXED_STEP_TYPES: readonly EditableStepType[] = STEP_TYPE_OPTIONS.map(
+  (option) => option.value,
+).filter((type) => type !== 'ai');
+
+/** Hint for the goal of a free test (AI step), in the step form and in the wizard. */
+export const GOAL_HINT =
+  'Was auf der Website gelten soll, in normalen Worten, z. B. „Auf der Startseite gibt es einen blauen Button „Newsletter abonnieren“. Ein Klick öffnet ein Feld für die E-Mail. Ungültige Adressen werden abgelehnt.“ Den Weg sucht die KI im Lauf selbst und bewertet jedes Teilziel.';
 
 export const SCROLL_OPTIONS: readonly Option<ScrollKind>[] = [
   { value: 'by', label: 'Von der aktuellen Position aus' },
@@ -220,7 +229,7 @@ function describeContent(step: StepDraft): Content {
     case 'analytics':
       return { title: `GA4-Event „${or(value)}“`, detail: `ga4 event = "${value}"` };
     case 'ai':
-      return { title: or(value), detail: 'Die KI findet die Elemente während des Laufs.' };
+      return { title: or(value), detail: 'Frei: Die KI sucht den Weg und bewertet das Ziel.' };
     case 'basicAuth': {
       // Never the password itself, not even its length.
       const user = step.username.trim();

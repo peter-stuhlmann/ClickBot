@@ -3,6 +3,7 @@
  * components never depend on the database shape.
  */
 
+import type { Criterion } from '@click-bot/shared';
 import type { StepDraft } from './job-draft';
 
 export type Tone = 'success' | 'warning' | 'danger' | 'neutral';
@@ -36,7 +37,7 @@ export type StepTone = 'neutral' | 'primary' | 'info' | 'success' | 'warning';
 /** One step in the step list of the editor and the job wizard. */
 export type StepItemView = { typeLabel: string; tone: StepTone; title: string; detail: string };
 
-export type RunStepStatus = 'passed' | 'healed' | 'failed' | 'skipped' | 'pending';
+export type RunStepStatus = 'passed' | 'healed' | 'unclear' | 'failed' | 'skipped' | 'pending';
 
 /** One step in the run report: what it did and how it went. */
 export type RunStepView = {
@@ -49,6 +50,8 @@ export type RunStepView = {
   screenshotUrl: string | null;
   /** AI step: what the AI did, one line per action. */
   aiActions?: string[];
+  /** AI step: every sub-goal of the test with the verdict of the AI. */
+  aiVerdict?: Criterion[];
 };
 
 /** Screen 03 "Lauf-Report". */

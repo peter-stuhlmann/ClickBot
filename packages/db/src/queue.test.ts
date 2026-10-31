@@ -339,10 +339,23 @@ describe('completeRun', () => {
           screenshotPath: null,
           aiActions: actions,
         },
+        {
+          stepId: 'ziel',
+          index: 1,
+          status: 'unclear',
+          durationMs: 9_000,
+          message: null,
+          screenshotPath: null,
+          aiVerdict: [{ goal: 'Captcha-frei', status: 'unknown', evidence: 'Captcha.' }],
+        },
       ],
     });
-    const [step] = await db.select().from(runSteps);
+    const [step, goal] = await db.select().from(runSteps).orderBy(runSteps.stepIndex);
     expect(step?.aiActions).toEqual(actions);
+    expect(goal).toMatchObject({
+      status: 'unclear',
+      aiVerdict: [{ goal: 'Captcha-frei', status: 'unknown', evidence: 'Captcha.' }],
+    });
   });
 
   it('refuses to complete a run that is not running', async () => {

@@ -1,4 +1,10 @@
-import { ALL_MARKINGS_ON, maskSecrets, type AnalyticsMarking, type Flow } from '@click-bot/shared';
+import {
+  ALL_MARKINGS_ON,
+  maskSecrets,
+  type AnalyticsMarking,
+  type Criterion,
+  type Flow,
+} from '@click-bot/shared';
 import type { BrowserContext } from 'playwright';
 import { blockAds } from './ad-blocking';
 import { AiStepError, runAiStep, type AgentDriver } from './ai-step';
@@ -29,15 +35,19 @@ export type RunOptions = {
 export type StepResult = {
   stepId: string;
   index: number;
-  status: 'passed' | 'failed' | 'skipped';
+  /** unclear: an AI step could not check every sub-goal; the run goes on with a warning. */
+  status: 'passed' | 'unclear' | 'failed' | 'skipped';
   durationMs: number;
   message?: string;
   /** AI step: what the AI did, one line per action, masked. */
   aiActions?: string[];
+  /** AI step: the verdict per sub-goal, masked. */
+  aiVerdict?: Criterion[];
 };
 
 export type RunResult = {
-  status: 'passed' | 'failed';
+  /** warning: every step passed, but an AI step could not check everything. */
+  status: 'passed' | 'warning' | 'failed';
   steps: StepResult[];
   extracted: Record<string, string>;
   screenshots: { stepId: string; image: Buffer }[];
@@ -93,14 +103,28 @@ export async function runFlow(
     const ctx = { vars, baseUrl: options.baseUrl, analytics };
     try {
       if (step.type === 'ai') {
-        const { actions } = await runAiStep(() => page, step, { ...ctx, drive: options.ai, mask });
+        const judged = await runAiStep(() => page, step, { ...ctx, drive: options.ai, mask });
+        const first = (status: Criterion['status']) =>
+          judged.criteria.find((criterion) => criterion.status === status);
+        const failed = first('failed');
+        const unknown = first('unknown');
         result.steps.push({
           stepId: step.id,
           index,
-          status: 'passed',
+          status: judged.outcome,
           durationMs: duration(),
-          aiActions: actions,
+          ...(failed
+            ? { message: `Nicht erfüllt: ${failed.goal} ${failed.evidence}` }
+            : unknown
+              ? { message: `Nicht prüfbar: ${unknown.goal} ${unknown.evidence}` }
+              : {}),
+          aiActions: judged.actions,
+          aiVerdict: judged.criteria,
         });
+        if (judged.screenshot)
+          result.screenshots.push({ stepId: step.id, image: judged.screenshot });
+        if (judged.outcome === 'failed') result.status = 'failed';
+        if (judged.outcome === 'unclear' && result.status === 'passed') result.status = 'warning';
         continue;
       }
       const outcome = await executeStep(() => page, step, ctx);
