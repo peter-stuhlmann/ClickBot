@@ -53,6 +53,7 @@ function draftOf(schedule: Schedule = interval): WizardDraft {
       devices: ['desktop'],
       deviceBrowsers: { desktop: ['chromium'] },
       analyticsMarking: { debugMode: true, internalTraffic: true, botFlag: true, runNumber: true },
+      blockAds: true,
     },
     new Date(NOW),
   );
@@ -179,6 +180,16 @@ describe('JobEditor', () => {
       botFlag: true,
       runNumber: true,
     });
+  });
+
+  it('saves allowed ads with the job, after a clear warning', async () => {
+    const user = userEvent.setup();
+    const { saveAction } = renderEditor();
+
+    await user.click(screen.getByRole('switch', { name: /Werbung blockieren/ }));
+    expect(screen.getByText('Anzeigen zählen als Impressionen')).toBeVisible();
+    await user.click(saveButton());
+    expect(saveAction.mock.calls[0]?.[1].blockAds).toBe(false);
   });
 
   it('keeps a stored start in the past, but checks everything else before saving', async () => {

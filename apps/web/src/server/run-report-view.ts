@@ -96,6 +96,22 @@ function markingNote(marking: AnalyticsMarking | null): RunReportView['marking']
   };
 }
 
+/** Report note when the run loaded ads (product rule: no fake ad impressions). */
+function adsNote(adsBlocked: boolean | null): RunReportView['ads'] {
+  if (adsBlocked !== false) return null;
+  return {
+    title: 'Werbung nicht blockiert',
+    message:
+      'Dieser Lauf hat Anzeigen geladen wie ein echter Besucher. Sie zählen beim Werbenetzwerk als Impressionen.',
+  };
+}
+
+/** "Werbung blockiert (12 Anfragen)", or null when there was nothing to block. */
+function blockedAds(adsBlocked: boolean | null, requests: number | null): string | null {
+  if (!adsBlocked || !requests) return null;
+  return `Werbung blockiert (${plural(requests, 'Anfrage', 'Anfragen')})`;
+}
+
 function liveHint(status: RunReport['run']['status'], workerOnline: boolean): string | null {
   if (status === 'running') return 'Läuft gerade. Der Report aktualisiert sich selbst.';
   if (status !== 'queued') return null;
@@ -153,7 +169,10 @@ export function toRunReportView(
       formatDateLong(startedOrPlanned),
       `${formatClock(startedOrPlanned)} Uhr`,
       run.slotIndex === null ? 'manuell gestartet' : 'ausgelöst durch Zeitplan',
-    ].join(' · '),
+      blockedAds(run.adsBlocked, run.blockedAdRequests),
+    ]
+      .filter(Boolean)
+      .join(' · '),
     stats,
     stepsSummary: [plural(steps.length, 'Schritt', 'Schritte'), duration]
       .filter(Boolean)
@@ -170,6 +189,7 @@ export function toRunReportView(
         : null,
     live: liveHint(run.status, workerOnline),
     marking: markingNote(run.analyticsMarking),
+    ads: adsNote(run.adsBlocked),
     screenshot: lastScreenshot?.screenshotPath
       ? {
           url: artifactUrl(lastScreenshot.screenshotPath),

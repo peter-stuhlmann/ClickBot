@@ -56,6 +56,7 @@ const job = (overrides: Partial<Parameters<typeof jobToDraft>[0]> = {}) => ({
   devices: ['desktop', 'iphone'] as const,
   deviceBrowsers: { desktop: ['firefox' as const], iphone: ['webkit' as const] },
   analyticsMarking: { debugMode: false, internalTraffic: true, botFlag: true, runNumber: true },
+  blockAds: false,
   ...overrides,
 });
 
@@ -148,8 +149,9 @@ describe('toJobUpdateInput', () => {
       schedule: { type: 'interval', everyMinutes: 15, maxRuns: 20, startAt: interval.startAt },
       devices: ['desktop', 'iphone'],
       deviceBrowsers: { desktop: ['firefox'], iphone: ['webkit'] },
-      // The job's own GA4 marking, not the default.
+      // The job's own GA4 marking and ad choice, not the defaults.
       analyticsMarking: { debugMode: false, internalTraffic: true, botFlag: true, runNumber: true },
+      blockAds: false,
     });
 
     expect(toJobUpdateInput(draftOf(job({ schedule: times })), now).schedule).toEqual(times);

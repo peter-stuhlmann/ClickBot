@@ -201,6 +201,8 @@ export const jobs = pgTable(
       .$type<AnalyticsMarking>()
       .notNull()
       .default({ debugMode: true, internalTraffic: true, botFlag: true, runNumber: true }),
+    /** Whether bot runs block requests to ad networks (product rule: no fake ad impressions). */
+    blockAds: boolean('block_ads').notNull().default(true),
     /** Last handed-out run number; increased atomically, see allocateRunNumber. */
     runCounter: integer('run_counter').notNull().default(0),
     createdAt: createdAt(),
@@ -305,9 +307,17 @@ export const runs = pgTable(
     error: text('error'),
     /** The GA4 marking the run ran with (copied from the job when it starts). */
     analyticsMarking: jsonb('analytics_marking').$type<AnalyticsMarking>(),
+    /** Whether the run blocked ads (copied from the job when it starts); null before that. */
+    adsBlocked: boolean('ads_blocked'),
+    /** How many requests to ad networks the run blocked. */
+    blockedAdRequests: integer('blocked_ad_requests'),
     createdAt: createdAt(),
   },
   (t) => [
+    check(
+      'runs_blocked_ad_requests_not_negative',
+      sql`${t.blockedAdRequests} is null or ${t.blockedAdRequests} >= 0`,
+    ),
     uniqueIndex('runs_job_run_nr_unique').on(t.jobId, t.runNr),
     // A scheduled start (slot × bot × device × browser) becomes exactly one run, even if two
     // schedulers plan at the same time. Manual test runs have no slot and are not affected.

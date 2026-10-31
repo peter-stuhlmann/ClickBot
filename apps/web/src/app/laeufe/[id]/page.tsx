@@ -35,11 +35,16 @@ export default async function RunReportPage({ params }: Props) {
   const view = toRunReportView(report, { workerOnline: shell.worker.online });
 
   const aside =
-    view.failure || view.screenshot || view.marking ? (
+    view.failure || view.screenshot || view.marking || view.ads ? (
       <>
         {view.marking && (
           <Notice tone="warning" title={view.marking.title}>
             {view.marking.message}
+          </Notice>
+        )}
+        {view.ads && (
+          <Notice tone="warning" title={view.ads.title}>
+            {view.ads.message}
           </Notice>
         )}
         {view.failure && (

@@ -536,6 +536,7 @@ describe('summarise', () => {
       { label: 'Zeitplan', value: 'alle 60 Min. · max. 24 Läufe' },
       { label: 'Geräte', value: 'Desktop (Chrome)' },
       { label: 'GA4-Markierung', value: 'alle an' },
+      { label: 'Werbung', value: 'blockiert' },
     ]);
   });
 
@@ -566,6 +567,7 @@ describe('summarise', () => {
       { label: 'Zeitplan', value: '2 Termine · 10 Bots' },
       { label: 'Geräte', value: 'Desktop (Chrome), iPhone 15 (Safari)' },
       { label: 'GA4-Markierung', value: 'alle an' },
+      { label: 'Werbung', value: 'blockiert' },
     ]);
   });
 
@@ -676,7 +678,25 @@ describe('GA4 marking in the wizard', () => {
       [],
       now,
     );
-    expect(rows.at(-1)).toEqual({ label: 'GA4-Markierung', value: 'Aus: Debug-Modus' });
+    expect(rows.find((row) => row.label === 'GA4-Markierung')).toEqual({
+      label: 'GA4-Markierung',
+      value: 'Aus: Debug-Modus',
+    });
+  });
+});
+
+describe('ads in the wizard', () => {
+  it('blocks ads by default and sends the choice to createJob', () => {
+    expect(emptyDraft(now).blockAds).toBe(true);
+    expect(toNewJobInput(draft(), now).blockAds).toBe(true);
+    expect(toNewJobInput(draft({ blockAds: false }), now).blockAds).toBe(false);
+  });
+
+  it('says in the summary whether ads are blocked', () => {
+    const value = (blockAds: boolean) =>
+      summarise(draft({ blockAds }), [], now).find((row) => row.label === 'Werbung')?.value;
+    expect(value(true)).toBe('blockiert');
+    expect(value(false)).toBe('erlaubt');
   });
 });
 

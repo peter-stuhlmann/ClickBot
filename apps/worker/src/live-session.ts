@@ -1,5 +1,6 @@
 import { ALL_MARKINGS_ON, KEY_PATTERN } from '@click-bot/shared';
 import type { BrowserContext, Page } from 'playwright';
+import { blockAds } from './ad-blocking';
 import { markBotTraffic } from './bot-marking';
 import { refusedCredentials, toStepMessage } from './errors';
 import { openPage } from './navigate';
@@ -128,6 +129,8 @@ export async function startLiveSession(
   send: (message: ServerMessage) => void,
 ): Promise<LiveSession> {
   await markBotTraffic(context, NO_RUN, ALL_MARKINGS_ON);
+  // Recorded before the job exists: no ads, like a run by default.
+  await blockAds(context);
   const recorder = await startRecorder(context, (step) => {
     send({ type: 'step', step });
     if (step.type === 'assert') send({ type: 'mode', mode: recorder.mode() });

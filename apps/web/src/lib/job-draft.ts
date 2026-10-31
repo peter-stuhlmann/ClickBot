@@ -149,6 +149,8 @@ export type WizardDraft = {
   deviceBrowsers: DeviceBrowsers;
   /** Which GA4 markers the bot runs set (all on by default). */
   analyticsMarking: AnalyticsMarking;
+  /** Whether the bot runs stop requests to ad networks (on by default). */
+  blockAds: boolean;
 };
 
 export type Issue = { path: string; message: string };
@@ -162,6 +164,7 @@ export type NewJobDraftInput = {
   devices: DeviceKey[];
   deviceBrowsers: DeviceBrowsers;
   analyticsMarking: AnalyticsMarking;
+  blockAds: boolean;
   status: 'active';
 };
 
@@ -224,6 +227,7 @@ export function emptyDraft(now: Date): WizardDraft {
     devices: ['desktop'],
     deviceBrowsers: { desktop: ['chromium'] },
     analyticsMarking: ALL_MARKINGS_ON,
+    blockAds: true,
   };
 }
 
@@ -571,6 +575,7 @@ export function toNewJobInput(draft: WizardDraft, now: Date): NewJobDraftInput {
     devices: draft.devices,
     deviceBrowsers: normalizeDeviceBrowsers(draft.devices, draft.deviceBrowsers),
     analyticsMarking: draft.analyticsMarking,
+    blockAds: draft.blockAds,
     status: 'active',
   };
 }
@@ -699,6 +704,7 @@ export type StoredJob = {
   devices: readonly DeviceKey[];
   deviceBrowsers: DeviceBrowsers;
   analyticsMarking: AnalyticsMarking;
+  blockAds: boolean;
 };
 
 /**
@@ -766,6 +772,7 @@ export function jobToDraft(
       devices: [...job.devices],
       deviceBrowsers: { ...job.deviceBrowsers },
       analyticsMarking: job.analyticsMarking,
+      blockAds: job.blockAds,
     },
   };
 }
@@ -940,6 +947,7 @@ export function summarise(
     { label: 'Zeitplan', value: scheduleText },
     { label: 'Geräte', value: describeTargets(draft.devices, draft.deviceBrowsers) || DASH },
     { label: 'GA4-Markierung', value: describeMarking(draft.analyticsMarking) ?? 'alle an' },
+    { label: 'Werbung', value: draft.blockAds ? 'blockiert' : 'erlaubt' },
   ];
 }
 

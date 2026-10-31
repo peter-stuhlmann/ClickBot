@@ -104,6 +104,10 @@ Was als „geplant“ markiert ist, existiert noch nicht.
     den normalen GA4-Berichten zu testen. Die Oberfläche warnt dann deutlich.
   - Jeder Lauf speichert die Markierung, mit der er lief (`runs.analytics_marking`). Sein Report
     vermerkt, wenn sie eingeschränkt oder aus war.
+- Bot-Läufe blockieren standardmäßig Werbung (Anzeigen lassen sich nicht als Bot markieren und
+  zählen sonst als ungültige Impressionen). Pro Job abschaltbar (`jobs.block_ads`, Karte
+  „Werbung“ mit Warnung). Jeder Lauf speichert, ob er blockiert hat und wie viele Anfragen
+  (`runs.ads_blocked`, `runs.blocked_ad_requests`); der Report vermerkt beides.
 - Proxies und Standort-Profile dienen nur Geo-Tests: Ländersperren, standortabhängige Inhalte
   und die GA-Zuordnung.
 - Zugangsdaten (Secrets) sind verschlüsselt gespeichert und erscheinen nie in Reports,
@@ -362,6 +366,12 @@ time, bots }]`, `stagger`) bilden die Bots eines Termins eine Welle.
   ausgeschaltete lassen sie unverändert; sind alle aus, bleibt die Anfrage ganz unverändert
   (`jobs.analytics_marking`, Schema `analyticsMarkingSchema` in `packages/shared`). Erkannt werden
   Googles Adressen und server-seitiges Tagging auf eigener Domain (`/g/collect` mit `tid=G-…`).
+- **Werbung** (`ad-blocking.ts`): `blockAds` bricht Anfragen an Werbenetzwerke ab
+  (`AD_DOMAINS`, z. B. doubleclick.net, googlesyndication.com, amazon-adsystem.com, Criteo,
+  Taboola), wie ein Werbeblocker, und zählt sie. Nie blockiert: GA4-Anfragen (`isGa4CollectUrl`,
+  die werden markiert), der Tag Manager und Googles Einwilligungs-Banner
+  (fundingchoicesmessages.google.com), damit Tests die Seite wie Besucher sehen. Die Analyse für
+  die KI und der Live-Browser blockieren immer; es gibt dort noch keinen Job.
 - **Noch nicht verfügbar:** KI-Schritte schlagen mit klarer Meldung fehl, bis sie gebaut sind.
 - **Warteschlange** (`packages/db/src/queue.ts`), pro Takt (1 s) in `createWorker`:
   1. `planDueRuns` legt für aktive Jobs die fälligen Starts als `queued`-Läufe an.

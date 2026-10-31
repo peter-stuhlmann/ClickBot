@@ -71,6 +71,8 @@ export type RunReportView = {
   live: string | null;
   /** Set when the run marked its GA4 requests only partly or not at all. */
   marking: { title: string; message: string } | null;
+  /** Set when the run loaded ads instead of blocking them. */
+  ads: { title: string; message: string } | null;
 };
 
 /** Title line of the editor: name, status badge, schedule and devices. */

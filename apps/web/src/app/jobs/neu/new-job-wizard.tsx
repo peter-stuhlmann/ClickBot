@@ -5,6 +5,7 @@ import { useMemo, useState, useTransition, type ReactNode } from 'react';
 import { Button } from '@/components/atoms/Button';
 import { Icon } from '@/components/atoms/Icon';
 import { AiFlowPanel } from '@/components/organisms/AiFlowPanel';
+import { AdBlockingForm } from '@/components/organisms/AdBlockingForm';
 import { AnalyticsMarkingForm } from '@/components/organisms/AnalyticsMarkingForm';
 import { ApprovalCard } from '@/components/organisms/ApprovalCard';
 import { DevicePicker } from '@/components/organisms/DevicePicker';
@@ -292,6 +293,7 @@ export function NewJobWizard({
             marking={draft.analyticsMarking}
             onChange={(analyticsMarking) => update({ analyticsMarking })}
           />
+          <AdBlockingForm blockAds={draft.blockAds} onChange={(blockAds) => update({ blockAds })} />
           <ApprovalCard
             confirmed={draft.confirmed}
             error={errors.confirmed}

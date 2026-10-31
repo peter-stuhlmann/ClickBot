@@ -213,6 +213,45 @@ describe('claimNextRun', () => {
     expect(stored?.analyticsMarking).toEqual(marking);
   });
 
+  it('records on the run whether it blocks ads, and how many requests it blocked', async () => {
+    const job = await activeJob(wave(), { blockAds: false });
+    await planDueRuns(db, { now, lookaheadMs: 2 * MIN });
+    const claimed = await claimNextRun(db, at(2 * MIN));
+    expect(claimed?.job.blockAds).toBe(false);
+    expect(claimed?.run.adsBlocked).toBe(false);
+
+    await db.update(jobs).set({ blockAds: true }).where(eq(jobs.id, job.id));
+    await completeRun(db, claimed?.run.id as string, {
+      status: 'passed',
+      finishedAt: at(3 * MIN),
+      steps: [],
+      blockedAdRequests: 0,
+    });
+    const [stored] = await db
+      .select()
+      .from(runs)
+      .where(eq(runs.id, claimed?.run.id as string));
+    expect(stored).toMatchObject({ adsBlocked: false, blockedAdRequests: 0 });
+  });
+
+  it('stores the number of blocked ad requests of a run that blocked ads', async () => {
+    await activeJob(wave());
+    await planDueRuns(db, { now, lookaheadMs: 2 * MIN });
+    const claimed = await claimNextRun(db, at(2 * MIN));
+    expect(claimed?.run.adsBlocked).toBe(true);
+    await completeRun(db, claimed?.run.id as string, {
+      status: 'passed',
+      finishedAt: at(3 * MIN),
+      steps: [],
+      blockedAdRequests: 7,
+    });
+    const [stored] = await db
+      .select()
+      .from(runs)
+      .where(eq(runs.id, claimed?.run.id as string));
+    expect(stored?.blockedAdRequests).toBe(7);
+  });
+
   it('does not hand out runs before their time', async () => {
     await activeJob(wave());
     await planDueRuns(db, { now, lookaheadMs: 2 * MIN });

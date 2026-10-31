@@ -211,6 +211,21 @@ describe('deleting', () => {
   });
 });
 
+describe('ads in the runs of a job', () => {
+  it('blocks ads unless the job says otherwise', async () => {
+    expect((await newJob()).blockAds).toBe(true);
+  });
+
+  it('allows ads when the job says so', async () => {
+    expect((await newJob({ blockAds: false })).blockAds).toBe(false);
+  });
+
+  it('rejects anything but a switch', async () => {
+    const error = await newJob({ blockAds: 'aus' }).catch((e: unknown) => e);
+    expect(issuePaths(error)).toEqual(['blockAds']);
+  });
+});
+
 describe('GA4 marking of a job', () => {
   it('marks everything unless the job says otherwise', async () => {
     expect((await newJob()).analyticsMarking).toEqual({

@@ -78,6 +78,8 @@ function report(
       finishedAt: seconds(9.4),
       error: null,
       analyticsMarking: { debugMode: true, internalTraffic: true, botFlag: true, runNumber: true },
+      adsBlocked: true,
+      blockedAdRequests: 0,
       createdAt: scheduled,
       ...overrides.run,
     },
@@ -302,6 +304,35 @@ describe('toRunReportView', () => {
 
     it('says nothing for runs from before the marking was recorded', () => {
       expect(toRunReportView(report({ run: { analyticsMarking: null } })).marking).toBeNull();
+    });
+  });
+
+  describe('ads of the run', () => {
+    it('says how many ad requests the run blocked, next to when it ran', () => {
+      const view = toRunReportView(report({ run: { blockedAdRequests: 12 } }));
+      expect(view.meta).toMatch(/ · Werbung blockiert \(12 Anfragen\)$/);
+      expect(view.ads).toBeNull();
+      expect(toRunReportView(report({ run: { blockedAdRequests: 1 } })).meta).toMatch(
+        /\(1 Anfrage\)$/,
+      );
+    });
+
+    it('says nothing when there was no ad to block, or for runs from before', () => {
+      expect(toRunReportView(report()).meta).not.toMatch(/Werbung/);
+      const before = toRunReportView(
+        report({ run: { adsBlocked: null, blockedAdRequests: null } }),
+      );
+      expect(before.meta).not.toMatch(/Werbung/);
+      expect(before.ads).toBeNull();
+    });
+
+    it('warns when the run loaded ads', () => {
+      const view = toRunReportView(report({ run: { adsBlocked: false, blockedAdRequests: 0 } }));
+      expect(view.ads).toEqual({
+        title: 'Werbung nicht blockiert',
+        message:
+          'Dieser Lauf hat Anzeigen geladen wie ein echter Besucher. Sie zählen beim Werbenetzwerk als Impressionen.',
+      });
     });
   });
 });

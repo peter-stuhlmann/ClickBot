@@ -41,6 +41,8 @@ export type NewJobInput = {
   deviceBrowsers?: unknown;
   /** Untrusted input, validated with analyticsMarkingSchema. Default: everything marked. */
   analyticsMarking?: unknown;
+  /** Untrusted input: whether runs block ads. Default: yes. */
+  blockAds?: unknown;
   /** "active" lets the planner pick the job up right away. Default: draft. */
   status?: 'draft' | 'active';
 };
@@ -82,6 +84,7 @@ type JobFields = {
   devices: Device[];
   deviceBrowsers: DeviceBrowsers;
   analyticsMarking: AnalyticsMarking;
+  blockAds: boolean;
 };
 
 /** Checks the editable fields of a job; adds problems to `issues`, returns null if any. */
@@ -94,6 +97,7 @@ function validateFields(
     devices?: Device[];
     deviceBrowsers?: unknown;
     analyticsMarking?: unknown;
+    blockAds?: unknown;
   },
   issues: ValidationIssue[],
 ): JobFields | null {
@@ -130,6 +134,11 @@ function validateFields(
   const marking = analyticsMarkingSchema.safeParse(input.analyticsMarking);
   if (!marking.success) issues.push(...issuesFromZod('analyticsMarking', marking.error));
 
+  const blockAds = input.blockAds ?? true;
+  if (typeof blockAds !== 'boolean') {
+    issues.push({ path: 'blockAds', message: 'Bitte an oder aus wählen.' });
+  }
+
   if (
     !name ||
     !startUrl.success ||
@@ -138,7 +147,8 @@ function validateFields(
     browserIssues.length > 0 ||
     !flow.success ||
     !schedule.success ||
-    !marking.success
+    !marking.success ||
+    typeof blockAds !== 'boolean'
   ) {
     return null;
   }
@@ -150,6 +160,7 @@ function validateFields(
     devices: devices.data,
     deviceBrowsers: normalizeDeviceBrowsers(devices.data, withDefaults),
     analyticsMarking: marking.data,
+    blockAds,
   };
 }
 
@@ -185,6 +196,8 @@ export type JobUpdateInput = {
   deviceBrowsers?: unknown;
   /** Omitted: the job keeps its marking. */
   analyticsMarking?: unknown;
+  /** Omitted: the job keeps its choice. */
+  blockAds?: unknown;
   /** Another campaign of the same project; omitted: the job stays where it is. */
   campaignId?: string;
   /** When the change happens; a random plan draws its open starts anew from then on. */
@@ -277,6 +290,7 @@ export async function updateJob(db: Database, jobId: string, input: JobUpdateInp
         ...input,
         deviceBrowsers: input.deviceBrowsers ?? current.deviceBrowsers,
         analyticsMarking: input.analyticsMarking ?? current.analyticsMarking,
+        blockAds: input.blockAds ?? current.blockAds,
       },
       issues,
     );

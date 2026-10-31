@@ -1,5 +1,6 @@
 import { ALL_MARKINGS_ON, maskSecrets, type AnalyticsMarking, type Flow } from '@click-bot/shared';
 import type { BrowserContext } from 'playwright';
+import { blockAds } from './ad-blocking';
 import { createGa4Recorder } from './analytics';
 import { markBotTraffic } from './bot-marking';
 import { toStepMessage } from './errors';
@@ -18,6 +19,8 @@ export type RunOptions = {
   secrets: Record<string, string>;
   /** How the GA4 requests of the run are marked; default: everything. */
   analyticsMarking?: AnalyticsMarking;
+  /** Whether requests to ad networks are stopped; default: yes. */
+  blockAds?: boolean;
 };
 
 export type StepResult = {
@@ -34,6 +37,8 @@ export type RunResult = {
   extracted: Record<string, string>;
   screenshots: { stepId: string; image: Buffer }[];
   analyticsEvents: string[];
+  /** Requests to ad networks the run stopped; 0 when ads were allowed. */
+  blockedAdRequests: number;
 };
 
 /**
@@ -47,6 +52,7 @@ export async function runFlow(
   options: RunOptions,
 ): Promise<RunResult> {
   await markBotTraffic(context, options.runNr, options.analyticsMarking ?? ALL_MARKINGS_ON);
+  const blockedAds = options.blockAds === false ? () => 0 : await blockAds(context);
   const analytics = createGa4Recorder();
   context.on('request', (request) => analytics.record(request.url(), request.postData()));
   let page = await context.newPage();
@@ -68,6 +74,7 @@ export async function runFlow(
     extracted: {},
     screenshots: [],
     analyticsEvents: [],
+    blockedAdRequests: 0,
   };
 
   for (const [index, step] of flow.steps.entries()) {
@@ -109,6 +116,7 @@ export async function runFlow(
   }
 
   result.analyticsEvents = analytics.events();
+  result.blockedAdRequests = blockedAds();
   await Promise.all(context.pages().map((open) => open.close()));
   return result;
 }

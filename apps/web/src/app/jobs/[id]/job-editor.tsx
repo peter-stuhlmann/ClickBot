@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { useMemo, useState, useTransition } from 'react';
 import { Button } from '@/components/atoms/Button';
 import { Icon } from '@/components/atoms/Icon';
+import { AdBlockingForm } from '@/components/organisms/AdBlockingForm';
 import { AnalyticsMarkingForm } from '@/components/organisms/AnalyticsMarkingForm';
 import { DevicePicker } from '@/components/organisms/DevicePicker';
 import { DeleteSection } from '@/components/organisms/DeleteSection';
@@ -224,6 +225,7 @@ export function JobEditor({
             marking={draft.analyticsMarking}
             onChange={(analyticsMarking) => update({ analyticsMarking })}
           />
+          <AdBlockingForm blockAds={draft.blockAds} onChange={(blockAds) => update({ blockAds })} />
           <SaveTemplateCard
             jobId={jobId}
             defaultName={saved.name}

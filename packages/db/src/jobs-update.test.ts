@@ -245,6 +245,13 @@ describe('updateJob and the GA4 marking', () => {
     expect(on.analyticsMarking).toMatchObject({ debugMode: true, internalTraffic: true });
   });
 
+  it('allows or blocks ads, and keeps the choice when the update does not mention it', async () => {
+    const job = await newJob();
+    expect((await update(job, { blockAds: false })).blockAds).toBe(false);
+    expect((await update(job, { name: 'Kontakt neu' })).blockAds).toBe(false);
+    expect((await update(job, { blockAds: true })).blockAds).toBe(true);
+  });
+
   it('keeps the marking when the update does not mention it', async () => {
     const job = await newJob();
     await update(job, { analyticsMarking: { botFlag: false } });

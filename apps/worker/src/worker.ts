@@ -60,6 +60,7 @@ async function executeRun(deps: WorkerDeps, { run, job }: ClaimedRun): Promise<v
       botNr: run.botNr,
       secrets,
       analyticsMarking: job.analyticsMarking,
+      blockAds: job.blockAds,
     });
 
     const screenshots = new Map<string, string>();
@@ -83,6 +84,7 @@ async function executeRun(deps: WorkerDeps, { run, job }: ClaimedRun): Promise<v
         message: step.message ?? null,
         screenshotPath: screenshots.get(step.stepId) ?? null,
       })),
+      blockedAdRequests: result.blockedAdRequests,
     });
   } catch (error) {
     // Anything outside the flow itself (secrets, browser, storage) still ends the run cleanly.

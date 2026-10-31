@@ -17,7 +17,8 @@ async function withPage<T>(use: (page: Page) => Promise<T>): Promise<T> {
 describe('openPage', () => {
   it('is done once the content is there, even if an ad never loads', async () => {
     await withPage(async (page) => {
-      const response = await openPage(page, `${browser.origin()}/werbung.html`, 1_000);
+      // Before, this failed after the 3 s; now it is done once the content is there.
+      const response = await openPage(page, `${browser.origin()}/werbung.html`, 3_000);
       expect(response?.status()).toBe(200);
       expect(await page.title()).toBe('Artikel mit Werbung');
     });

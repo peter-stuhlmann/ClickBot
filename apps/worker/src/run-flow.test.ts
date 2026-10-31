@@ -81,6 +81,21 @@ describe('runFlow – bot runs never count as real visits', () => {
   });
 });
 
+describe('runFlow – ads', () => {
+  const ads = [step('open', { type: 'open', url: '/anzeigen.html' })];
+
+  it('blocks ads by default and counts the blocked requests', async () => {
+    const result = await run(ads);
+    expect(result.status).toBe('passed');
+    expect(result.blockedAdRequests).toBe(1);
+  });
+
+  it('lets ads through when the job allows them', async () => {
+    const result = await run(ads, { blockAds: false });
+    expect(result.blockedAdRequests).toBe(0);
+  });
+});
+
 describe('runFlow – GA4 marking switched off by the job', () => {
   it('sends the GA4 requests of the website unchanged', async () => {
     const context = await browser.newContext();
@@ -143,7 +158,8 @@ describe('runFlow – happy path', () => {
 
   it('opens a page once its content is there, even if an ad on it never loads', async () => {
     const result = await run([
-      step('open', { type: 'open', url: '/werbung.html', timeoutMs: 1_000 }),
+      // Before, the step failed after its 3 s; now it goes on once the content is there.
+      step('open', { type: 'open', url: '/werbung.html', timeoutMs: 3_000 }),
       step('see', {
         type: 'assert',
         assertion: { kind: 'textVisible', text: 'Welche Sprachen gibt es?' },

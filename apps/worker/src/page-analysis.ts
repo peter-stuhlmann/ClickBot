@@ -1,5 +1,6 @@
 import { ALL_MARKINGS_ON, type PageFacts } from '@click-bot/shared';
 import type { BrowserContext, Frame } from 'playwright';
+import { blockAds } from './ad-blocking';
 import { markBotTraffic } from './bot-marking';
 import { StepError, refusedCredentials } from './errors';
 import { openPage } from './navigate';
@@ -47,6 +48,8 @@ async function frameSnapshot(frame: Frame): Promise<string> {
  */
 export async function analysePage(context: BrowserContext, url: string): Promise<PageFacts> {
   await markBotTraffic(context, ANALYSIS_RUN_NR, ALL_MARKINGS_ON);
+  // Before a job exists there is no choice yet: no ads, like a run by default.
+  await blockAds(context);
   const page = await context.newPage();
   try {
     const locked = new StepError('Seite ist passwortgeschützt (HTTP 401).');

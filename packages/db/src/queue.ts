@@ -12,7 +12,10 @@ import { jobs, runSteps, runs, workerHeartbeats } from './schema';
 export type Run = typeof runs.$inferSelect;
 export type ClaimedRun = {
   run: Run;
-  job: Pick<Job, 'id' | 'name' | 'customerId' | 'startUrl' | 'flow' | 'analyticsMarking'>;
+  job: Pick<
+    Job,
+    'id' | 'name' | 'customerId' | 'startUrl' | 'flow' | 'analyticsMarking' | 'blockAds'
+  >;
 };
 
 export type PlanOptions = {
@@ -133,7 +136,7 @@ export async function planDueRuns(
 export async function claimNextRun(db: Database, now: Date): Promise<ClaimedRun | null> {
   return db.transaction(async (tx) => {
     const [next] = await tx
-      .select({ id: runs.id, analyticsMarking: jobs.analyticsMarking })
+      .select({ id: runs.id, analyticsMarking: jobs.analyticsMarking, blockAds: jobs.blockAds })
       .from(runs)
       .innerJoin(jobs, eq(jobs.id, runs.jobId))
       .where(
@@ -152,7 +155,12 @@ export async function claimNextRun(db: Database, now: Date): Promise<ClaimedRun 
     const [run] = await tx
       .update(runs)
       // The run keeps the marking it ran with, even if the job changes later.
-      .set({ status: 'running', startedAt: now, analyticsMarking: next.analyticsMarking })
+      .set({
+        status: 'running',
+        startedAt: now,
+        analyticsMarking: next.analyticsMarking,
+        adsBlocked: next.blockAds,
+      })
       .where(eq(runs.id, next.id))
       .returning();
     const [job] = await tx
@@ -163,6 +171,7 @@ export async function claimNextRun(db: Database, now: Date): Promise<ClaimedRun 
         startUrl: jobs.startUrl,
         flow: jobs.flow,
         analyticsMarking: jobs.analyticsMarking,
+        blockAds: jobs.blockAds,
       })
       .from(jobs)
       .where(eq(jobs.id, (run as Run).jobId));
@@ -185,6 +194,8 @@ export type RunOutcome = {
   finishedAt: Date;
   error?: string | null;
   steps: StepRecord[];
+  /** How many requests to ad networks the run blocked. */
+  blockedAdRequests?: number;
 };
 
 /** Stores the verdict of a running run and its steps in one transaction. */
@@ -192,7 +203,12 @@ export async function completeRun(db: Database, runId: string, outcome: RunOutco
   await db.transaction(async (tx) => {
     const updated = await tx
       .update(runs)
-      .set({ status: outcome.status, finishedAt: outcome.finishedAt, error: outcome.error ?? null })
+      .set({
+        status: outcome.status,
+        finishedAt: outcome.finishedAt,
+        error: outcome.error ?? null,
+        blockedAdRequests: outcome.blockedAdRequests ?? null,
+      })
       .where(and(eq(runs.id, runId), eq(runs.status, 'running')))
       .returning({ id: runs.id });
     if (updated.length === 0) throw new Error(`Lauf ${runId} läuft nicht (mehr).`);
