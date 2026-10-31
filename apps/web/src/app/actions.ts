@@ -63,6 +63,15 @@ export async function toggleJobAction(formData: FormData): Promise<void> {
   revalidatePath('/');
 }
 
+/** "Jetzt ausführen" in the jobs table: one test run right away, then its report. */
+export async function runJobNowAction(formData: FormData): Promise<void> {
+  await requireUser();
+  const jobId = formData.get('jobId');
+  if (typeof jobId !== 'string' || jobId === '') throw new Error('jobId fehlt.');
+  const { runId } = await queueTestRun(getDb(), jobId, new Date());
+  redirect(`/laeufe/${runId}`);
+}
+
 export type CreateJobResult = { issues: Issue[] };
 
 /**

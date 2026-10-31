@@ -19,6 +19,18 @@ test.describe('Tests overview', () => {
     await expect(login).toContainText('87,1 %');
   });
 
+  test('runs a test once from its row and opens the report', async ({ page }) => {
+    await page.goto('/');
+    await page
+      .getByRole('row', { name: /Preis-Check Produktseite/ })
+      .getByRole('button', { name: 'Preis-Check Produktseite jetzt ausführen' })
+      .click();
+    await expect(page).toHaveURL(/\/laeufe\//);
+    await expect(
+      page.getByRole('heading', { level: 1, name: /^Durchlauf \d+ · manuell gestartet/ }),
+    ).toBeVisible();
+  });
+
   test('pauses a job and resumes it again', async ({ page }) => {
     await page.goto('/');
     const row = page.getByRole('row', { name: /Kontaktformular-Test/ });

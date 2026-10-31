@@ -84,6 +84,7 @@ describe('jobToDraft', () => {
     // 09:00:31 UTC is 10:00 in Berlin.
     expect(draft.schedule).toMatchObject({
       type: 'interval',
+      rhythm: 'custom',
       everyMinutes: '15',
       maxRuns: '20',
       startMode: 'at',

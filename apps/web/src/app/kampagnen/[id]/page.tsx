@@ -15,6 +15,7 @@ import { toJobRow } from '@/server/jobs-view';
 import { getShell } from '@/server/shell';
 import {
   deleteCampaignAction,
+  runJobNowAction,
   selectProjectAction,
   toggleJobAction,
   updateCampaignAction,
@@ -77,7 +78,11 @@ export default async function CampaignPage({ params }: Props) {
           </Button>
         }
       />
-      <JobsTable rows={rows.map((row) => toJobRow(row, now))} toggleAction={toggleJobAction} />
+      <JobsTable
+        rows={rows.map((row) => toJobRow(row, now))}
+        toggleAction={toggleJobAction}
+        runAction={runJobNowAction}
+      />
     </AppShell>
   );
 }

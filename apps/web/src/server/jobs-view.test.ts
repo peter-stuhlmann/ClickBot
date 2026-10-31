@@ -27,7 +27,7 @@ describe('toJobRow', () => {
       name: 'Kontaktformular-Test',
       campaign: 'Black Friday',
       url: 'beispiel.de/kontakt',
-      schedule: { primary: 'alle 15 Min.', secondary: 'max. 20 Durchläufe' },
+      schedule: { primary: 'alle 15 Min.', secondary: '20-mal' },
       progress: { label: '7 / 20 Durchläufe', value: 0.35 },
       lastRun: {
         tone: 'success',

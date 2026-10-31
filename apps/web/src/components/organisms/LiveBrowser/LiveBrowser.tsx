@@ -1,4 +1,4 @@
-import { useRef, useState, type MouseEvent } from 'react';
+import { useRef, useState, type MouseEvent, type ReactNode } from 'react';
 import { Button } from '@/components/atoms/Button';
 import { Card } from '@/components/atoms/Card';
 import { Icon } from '@/components/atoms/Icon';
@@ -28,6 +28,8 @@ export type LiveBrowserProps = {
   /** Ends the recording and takes the steps over. */
   onFinish: () => void;
   onCancel: () => void;
+  /** Another way in, shown beside "Aufnahme starten", e.g. "Aus Vorlage übernehmen". */
+  alternative?: ReactNode;
 };
 
 /** Hover menus need mouse moves; more than ten per second only cost bandwidth. */
@@ -54,6 +56,7 @@ export function LiveBrowser({
   onRemoveStep,
   onFinish,
   onCancel,
+  alternative,
 }: LiveBrowserProps) {
   const [address, setAddress] = useState(url);
   const [shownUrl, setShownUrl] = useState(url);
@@ -77,10 +80,11 @@ export function LiveBrowser({
           </Notice>
         )}
         {error && <p className="text-small text-danger">{error}</p>}
-        <div>
+        <div className="flex flex-wrap gap-3">
           <Button icon={<Icon name="record" size={16} />} disabled={offline} onClick={onStart}>
             Aufnahme starten
           </Button>
+          {alternative}
         </div>
       </Card>
     );

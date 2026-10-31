@@ -46,12 +46,17 @@ export function describeSchedule(schedule: Schedule): { primary: string; seconda
     };
   }
   if (schedule.type === 'interval') {
-    const { everyMinutes } = schedule;
+    const { everyMinutes, maxRuns } = schedule;
+    if (maxRuns === 1) return { primary: 'einmal', secondary: 'ein Durchlauf' };
     const primary =
-      everyMinutes >= 120 && everyMinutes % 60 === 0
-        ? `alle ${everyMinutes / 60} Std.`
-        : `alle ${everyMinutes} Min.`;
-    return { primary, secondary: `max. ${plural(schedule.maxRuns, 'Durchlauf', 'Durchläufe')}` };
+      everyMinutes === 60
+        ? 'jede Stunde'
+        : everyMinutes === 1440
+          ? 'jeden Tag'
+          : everyMinutes >= 120 && everyMinutes % 60 === 0
+            ? `alle ${everyMinutes / 60} Std.`
+            : `alle ${everyMinutes} Min.`;
+    return { primary, secondary: `${maxRuns}-mal` };
   }
   const bots = schedule.slots.reduce((sum, slot) => sum + slot.bots, 0);
   return {

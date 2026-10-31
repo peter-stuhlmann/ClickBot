@@ -86,7 +86,7 @@ test.describe('Test-Editor', () => {
   }) => {
     await page.goto('/');
     await page.getByRole('link', { name: 'Newsletter-Anmeldung', exact: true }).click();
-    await page.getByRole('button', { name: 'Jetzt ausführen' }).click();
+    await page.getByRole('button', { name: 'Jetzt ausführen', exact: true }).click();
 
     await expect(page).toHaveURL(/\/laeufe\//);
     const reportUrl = page.url();
@@ -102,7 +102,7 @@ test.describe('Test-Editor', () => {
       .getByRole('navigation', { name: 'Pfad' })
       .getByRole('link', { name: 'Newsletter-Anmeldung' })
       .click();
-    await page.getByRole('button', { name: 'Jetzt ausführen' }).click();
+    await page.getByRole('button', { name: 'Jetzt ausführen', exact: true }).click();
     await expect(page).toHaveURL(reportUrl);
   });
 

@@ -111,9 +111,15 @@ export type StepDraft = {
 
 export type SlotDraft = { key: string; date: string; time: string; bots: number };
 
+/** How often a regular test runs; "custom" shows the minutes field. */
+export type Rhythm = 'once' | 'hourly' | 'daily' | 'custom';
+
 export type ScheduleDraft = {
   type: 'interval' | 'times' | 'random';
+  rhythm: Rhythm;
+  /** interval with rhythm "custom" */
   everyMinutes: string;
+  /** interval, unless the rhythm is "once" */
   maxRuns: string;
   startMode: 'now' | 'at';
   startDate: string;
@@ -214,6 +220,7 @@ export function emptyDraft(now: Date): WizardDraft {
     steps: [],
     schedule: {
       type: 'interval',
+      rhythm: 'hourly',
       everyMinutes: '60',
       maxRuns: '24',
       startMode: 'now',
@@ -553,6 +560,17 @@ function startInstant(schedule: ScheduleDraft, now: Date): Date | null {
   return localToUtc(schedule.startDate, schedule.startTime, DEFAULT_TIMEZONE);
 }
 
+/** The minutes of the fixed rhythms; "once" runs a single time, the distance does not matter. */
+const RHYTHM_MINUTES: Partial<Record<Rhythm, number>> = { once: 60, hourly: 60, daily: 1440 };
+
+/** The rhythm a stored interval shows as in the form. */
+export function rhythmOf(everyMinutes: number, maxRuns: number): Rhythm {
+  if (maxRuns === 1) return 'once';
+  if (everyMinutes === 60) return 'hourly';
+  if (everyMinutes === 1440) return 'daily';
+  return 'custom';
+}
+
 function toSchedule(schedule: ScheduleDraft, now: Date): Record<string, unknown> {
   if (schedule.type === 'random') {
     return {
@@ -570,8 +588,8 @@ function toSchedule(schedule: ScheduleDraft, now: Date): Record<string, unknown>
   if (schedule.type === 'interval') {
     return {
       type: 'interval',
-      everyMinutes: toNumber(schedule.everyMinutes),
-      maxRuns: toNumber(schedule.maxRuns),
+      everyMinutes: RHYTHM_MINUTES[schedule.rhythm] ?? toNumber(schedule.everyMinutes),
+      maxRuns: schedule.rhythm === 'once' ? 1 : toNumber(schedule.maxRuns),
       startAt: startInstant(schedule, now)?.toISOString() ?? '',
     };
   }
@@ -807,6 +825,7 @@ export function jobToDraft(
         ? {
             ...defaults,
             type: 'interval',
+            rhythm: rhythmOf(schedule.everyMinutes, schedule.maxRuns),
             everyMinutes: String(schedule.everyMinutes),
             maxRuns: String(schedule.maxRuns),
             startMode: 'at',

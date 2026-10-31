@@ -7,6 +7,7 @@ import {
   errorsByPath,
   newStep,
   normaliseUrl,
+  rhythmOf,
   stepsForAiTask,
   scheduleErrors,
   stepErrors,
@@ -51,6 +52,7 @@ describe('emptyDraft', () => {
     expect(fresh.steps).toEqual([]);
     expect(fresh.schedule).toMatchObject({
       type: 'interval',
+      rhythm: 'hourly',
       everyMinutes: '60',
       maxRuns: '24',
       startMode: 'now',
@@ -384,11 +386,33 @@ describe('validateWizardStep', () => {
   it('reports numbers that are not numbers', () => {
     const fresh = emptyDraft(now);
     const issues = validateWizardStep(
-      draft({ schedule: { ...fresh.schedule, everyMinutes: '', maxRuns: 'viele' } }),
+      draft({
+        schedule: { ...fresh.schedule, rhythm: 'custom', everyMinutes: '', maxRuns: 'viele' },
+      }),
       'schedule',
       now,
     );
     expect(paths(issues)).toEqual(['schedule.everyMinutes', 'schedule.maxRuns']);
+  });
+
+  it('turns the rhythm into minutes, and "once" into a single run', () => {
+    const fresh = emptyDraft(now);
+    const scheduleOf = (patch: Partial<typeof fresh.schedule>) =>
+      toNewJobInput(draft({ schedule: { ...fresh.schedule, ...patch } }), now).schedule;
+    expect(scheduleOf({ rhythm: 'hourly', everyMinutes: '7' })).toMatchObject({
+      everyMinutes: 60,
+      maxRuns: 24,
+    });
+    expect(scheduleOf({ rhythm: 'daily' })).toMatchObject({ everyMinutes: 1440 });
+    expect(scheduleOf({ rhythm: 'once', maxRuns: '' })).toMatchObject({ maxRuns: 1 });
+    expect(scheduleOf({ rhythm: 'custom', everyMinutes: '7' })).toMatchObject({ everyMinutes: 7 });
+  });
+
+  it('shows a stored interval as the rhythm it matches', () => {
+    expect(rhythmOf(60, 24)).toBe('hourly');
+    expect(rhythmOf(1440, 3)).toBe('daily');
+    expect(rhythmOf(60, 1)).toBe('once');
+    expect(rhythmOf(15, 20)).toBe('custom');
   });
 
   it('needs at least one device', () => {
@@ -604,7 +628,7 @@ describe('summarise', () => {
     expect(summarise(emptyDraft(now), campaigns, now)).toEqual([
       { label: 'Website', value: '–' },
       { label: 'Test', value: '–' },
-      { label: 'Zeitplan', value: 'alle 60 Min. · max. 24 Durchläufe' },
+      { label: 'Zeitplan', value: 'jede Stunde · 24-mal' },
       { label: 'Geräte', value: 'Desktop (Chrome)' },
       { label: 'Name', value: '–' },
     ]);
@@ -665,7 +689,7 @@ describe('summarise', () => {
   it('shows a dash for a schedule that is not valid yet', () => {
     const fresh = emptyDraft(now);
     const rows = summarise(
-      draft({ schedule: { ...fresh.schedule, everyMinutes: '' } }),
+      draft({ schedule: { ...fresh.schedule, rhythm: 'custom', everyMinutes: '' } }),
       campaigns,
       now,
     );

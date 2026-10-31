@@ -327,13 +327,14 @@ describe('NewJobWizard', () => {
     await user.click(weiter());
 
     expect(subtitle()).toHaveTextContent('Schritt 2 von 3 · Wann soll der Test laufen?');
-    fireEvent.change(screen.getByRole('textbox', { name: 'Alle (Minuten)' }), {
+    await chooseOption(user, screen.getByRole('combobox', { name: 'Wie oft?' }), 'Eigener Abstand');
+    fireEvent.change(screen.getByRole('textbox', { name: 'Abstand in Minuten' }), {
       target: { value: '15' },
     });
-    fireEvent.change(screen.getByRole('textbox', { name: 'Max. Durchläufe' }), {
+    fireEvent.change(screen.getByRole('textbox', { name: 'Wie oft insgesamt?' }), {
       target: { value: '4' },
     });
-    expect(summary().getByText('alle 15 Min. · max. 4 Durchläufe')).toBeInTheDocument();
+    expect(summary().getByText('alle 15 Min. · 4-mal')).toBeInTheDocument();
     await user.click(weiter());
 
     expect(subtitle()).toHaveTextContent('Schritt 3 von 3');
@@ -454,7 +455,7 @@ describe('NewJobWizard', () => {
     );
     await describeFreeTest(user);
     await user.click(weiter());
-    await user.click(screen.getByRole('radio', { name: 'Termine' }));
+    await user.click(screen.getByRole('radio', { name: 'Feste Zeiten' }));
     await user.click(weiter());
     await confirmApproval(user);
     await user.click(screen.getByRole('button', { name: 'Test anlegen' }));

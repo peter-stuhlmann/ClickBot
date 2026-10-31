@@ -14,7 +14,7 @@ import { DatePicker, type DatePickerHandle } from '@/components/molecules/DatePi
 import { Field } from '@/components/molecules/Field';
 import { SlotRow } from '@/components/molecules/SlotRow';
 import { earliestEnd, endAfterNewStart } from '@/lib/calendar';
-import { addSlot, type ScheduleDraft, type ScheduleErrors } from '@/lib/job-draft';
+import { addSlot, type Rhythm, type ScheduleDraft, type ScheduleErrors } from '@/lib/job-draft';
 
 export type ScheduleFormProps = {
   schedule: ScheduleDraft;
@@ -29,10 +29,17 @@ export type ScheduleFormProps = {
 };
 
 const TYPE_OPTIONS = [
-  { value: 'interval', label: 'Intervall' },
-  { value: 'times', label: 'Termine' },
-  { value: 'random', label: 'Zufall' },
+  { value: 'interval', label: 'Regelmäßig' },
+  { value: 'times', label: 'Feste Zeiten' },
+  { value: 'random', label: 'Zufällig verteilt' },
 ] as const;
+
+const RHYTHM_OPTIONS: { value: Rhythm; label: string }[] = [
+  { value: 'once', label: 'Einmal' },
+  { value: 'hourly', label: 'Jede Stunde' },
+  { value: 'daily', label: 'Jeden Tag' },
+  { value: 'custom', label: 'Eigener Abstand' },
+];
 
 const DAYS: Record<Weekday, { short: string; long: string }> = {
   mon: { short: 'Mo', long: 'Montag' },
@@ -45,7 +52,7 @@ const DAYS: Record<Weekday, { short: string; long: string }> = {
 };
 
 const START_OPTIONS = [
-  { value: 'now', label: 'Sofort nach dem Anlegen' },
+  { value: 'now', label: 'Sofort' },
   { value: 'at', label: 'Zu einem Zeitpunkt' },
 ];
 
@@ -179,10 +186,7 @@ export function ScheduleForm({
   const lastLocked = Math.max(-1, ...lockedSlots);
 
   return (
-    <Card
-      title="Wann soll der Test laufen?"
-      description="Alle Zeiten in deutscher Zeit (Europe/Berlin)."
-    >
+    <Card title="Wann soll der Test laufen?" description="Alle Zeiten in deutscher Zeit.">
       <SegmentedControl
         label="Art des Zeitplans"
         options={TYPE_OPTIONS}
@@ -199,31 +203,54 @@ export function ScheduleForm({
 
       {schedule.type === 'interval' && (
         <>
-          <div className="grid grid-cols-2 gap-3">
-            <Field id="schedule-every" label="Alle (Minuten)" error={errors.fields.everyMinutes}>
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+            <Field id="schedule-rhythm" label="Wie oft?">
               {(control) => (
-                <Input
+                <Select
                   {...control}
-                  inputMode="numeric"
-                  value={schedule.everyMinutes}
-                  onChange={(event) => set({ everyMinutes: event.target.value })}
+                  options={RHYTHM_OPTIONS}
+                  value={schedule.rhythm}
+                  onChange={(rhythm) => set({ rhythm: rhythm as Rhythm })}
                 />
               )}
             </Field>
-            <Field id="schedule-max-runs" label="Max. Durchläufe" error={errors.fields.maxRuns}>
-              {(control) => (
-                <Input
-                  {...control}
-                  inputMode="numeric"
-                  value={schedule.maxRuns}
-                  onChange={(event) => set({ maxRuns: event.target.value })}
-                />
-              )}
-            </Field>
+            {schedule.rhythm === 'custom' && (
+              <Field
+                id="schedule-every"
+                label="Abstand in Minuten"
+                error={errors.fields.everyMinutes}
+              >
+                {(control) => (
+                  <Input
+                    {...control}
+                    inputMode="numeric"
+                    value={schedule.everyMinutes}
+                    onChange={(event) => set({ everyMinutes: event.target.value })}
+                  />
+                )}
+              </Field>
+            )}
+            {schedule.rhythm !== 'once' && (
+              <Field
+                id="schedule-max-runs"
+                label="Wie oft insgesamt?"
+                hint="Danach ist der Test beendet."
+                error={errors.fields.maxRuns}
+              >
+                {(control) => (
+                  <Input
+                    {...control}
+                    inputMode="numeric"
+                    value={schedule.maxRuns}
+                    onChange={(event) => set({ maxRuns: event.target.value })}
+                  />
+                )}
+              </Field>
+            )}
           </div>
           <Field
             id="schedule-start"
-            label="Start"
+            label="Ab wann?"
             error={schedule.startMode === 'now' ? startError : undefined}
           >
             {(control) => (

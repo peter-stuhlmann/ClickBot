@@ -79,7 +79,7 @@ function renderEditor({
       header={{
         title: 'Kontaktformular-Test',
         status: { tone: 'success', label: 'Aktiv' },
-        description: 'alle 15 Min. · max. 20 Durchläufe · Desktop',
+        description: 'alle 15 Min. · 20-mal · Desktop',
       }}
       initial={initial}
       now={NOW}
@@ -135,7 +135,7 @@ describe('JobEditor', () => {
     expect(screen.getByRole('textbox', { name: 'Name des Tests' })).toHaveValue(
       'Kontaktformular-Test',
     );
-    expect(screen.getByRole('textbox', { name: 'Alle (Minuten)' })).toHaveValue('15');
+    expect(screen.getByRole('textbox', { name: 'Abstand in Minuten' })).toHaveValue('15');
     expect(screen.getByRole('button', { name: /^Schritt 1: Öffne/ })).toHaveAttribute(
       'aria-pressed',
       'true',
@@ -275,7 +275,7 @@ describe('JobEditor', () => {
 
     expect(screen.getByLabelText('Uhrzeit Termin 1')).toBeDisabled();
     expect(screen.getByLabelText('Uhrzeit Termin 2')).toBeEnabled();
-    expect(screen.getByRole('radio', { name: 'Intervall' })).toBeDisabled();
+    expect(screen.getByRole('radio', { name: 'Regelmäßig' })).toBeDisabled();
 
     await user.click(screen.getByRole('button', { name: 'Termin hinzufügen' }));
     await user.click(screen.getByRole('button', { name: 'Termin 2 entfernen' }));

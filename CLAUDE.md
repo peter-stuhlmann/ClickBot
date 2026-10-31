@@ -17,18 +17,23 @@ Projekte, die Anmeldung, das Profil und die Einstellungen der KI-Anbieter stehen
     API (Custom), mit Verbindungstest
   - `apps/web`:
     - App-Rahmen mit Sidebar
-    - Screen 01 „Jobs“ mit echten Daten, inklusive Pausieren und Fortsetzen
+    - Screen 01 „Jobs“ (in der Oberfläche „Tests“) mit echten Daten, inklusive Pausieren und
+      Fortsetzen; je Zeile „Jetzt ausführen“ (`runJobNowAction`: ein Testlauf, dann sein Report)
     - Screen 05 „Neuer Job“ (`/jobs/neu`): Assistent in drei Schritten (`WIZARD_STEPS`), so
       dass die Website das Erste ist, was man eingibt:
       1. „Website & Test“: Start-URL (der erste Schritt „Seite öffnen“ folgt ihr, solange er
          nicht von Hand geändert wurde) und die Art zu testen (`MethodPicker`): „Fester Ablauf“
-         (aufnehmen im Live-Browser, Screen 04, oder „Aus Vorlage übernehmen“; danach eine Liste,
+         (aufnehmen im Live-Browser, Screen 04, mit „Aus Vorlage übernehmen“ daneben; danach eine Liste,
          in der jeder Schritt korrigierbar ist, ohne „Schritt hinzufügen“) oder „Frei mit KI“
          (nur das Ziel des Tests, `GoalCard`; siehe Worker → KI-Schritt). Jeder Modus behält
          seinen Stand, während der andere gezeigt wird. Ist der Worker offline, sagt die
          Aufnahme-Karte das vorab (`LiveBrowser offline`); fehlt ein KI-Anbieter, die Ziel-Karte
          (`GoalCard aiReady`).
-      2. „Wann“: der Zeitplan.
+      2. „Wann“: der Zeitplan. „Regelmäßig“ fragt „Wie oft?“ (`Rhythm`: Einmal, Jede Stunde,
+         Jeden Tag, Eigener Abstand; nur beim eigenen Abstand gibt es das Minutenfeld, nur außer
+         „Einmal“ das Feld „Wie oft insgesamt?“). Gespeichert wird weiter `everyMinutes` und
+         `maxRuns`; der Editor leitet den Rhythmus daraus ab (`rhythmOf`). Die anderen Arten
+         heißen „Feste Zeiten“ (Termine) und „Zufällig verteilt“ (Zufall).
       3. „Geräte & Freigabe“: Geräte, der Name (beim Ankommen aus Ziel oder Website
          vorgeschlagen, `suggestName`), die Kampagne nur bei mehreren im Projekt (sonst
          „Allgemein“, `defaultCampaignId` von der Seite), „Erweiterte Einstellungen“ (GA4-

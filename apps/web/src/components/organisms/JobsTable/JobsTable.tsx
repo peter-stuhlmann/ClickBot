@@ -1,5 +1,7 @@
 import Link from 'next/link';
 import { Badge } from '@/components/atoms/Badge';
+import { Button } from '@/components/atoms/Button';
+import { Icon } from '@/components/atoms/Icon';
 import { ProgressBar } from '@/components/atoms/ProgressBar';
 import { Toggle } from '@/components/atoms/Toggle';
 import type { JobRowView, Tone } from '@/lib/views';
@@ -38,6 +40,8 @@ export type JobsTableProps = {
   rows: JobRowView[];
   /** Server action; receives `jobId` and the requested state `active` ("true"/"false"). */
   toggleAction: (formData: FormData) => void | Promise<void>;
+  /** Server action; receives `jobId`, runs the test once and opens the report. */
+  runAction: (formData: FormData) => void | Promise<void>;
 };
 
 function StatusCell({
@@ -81,7 +85,7 @@ function StatusCell({
  * The job list. Below `xl` every row is a card with the columns in two columns; the roles are set
  * explicitly, because Safari drops the table semantics of a table shown as blocks.
  */
-export function JobsTable({ rows, toggleAction }: JobsTableProps) {
+export function JobsTable({ rows, toggleAction, runAction }: JobsTableProps) {
   return (
     <div className="overflow-hidden rounded-card border border-border bg-surface">
       <table
@@ -175,7 +179,20 @@ export function JobsTable({ rows, toggleAction }: JobsTableProps) {
               </td>
               <td role="cell" className="xl:py-3.5 xl:pr-5">
                 <CellLabel>Status</CellLabel>
-                <StatusCell row={row} toggleAction={toggleAction} />
+                <div className="flex items-center justify-between gap-2">
+                  <StatusCell row={row} toggleAction={toggleAction} />
+                  <form action={runAction}>
+                    <input type="hidden" name="jobId" value={row.id} />
+                    <Button
+                      type="submit"
+                      variant="ghost"
+                      size="sm"
+                      aria-label={`${row.name} jetzt ausführen`}
+                      title="Jetzt einmal ausführen und den Report öffnen"
+                      icon={<Icon name="play" size={16} />}
+                    />
+                  </form>
+                </div>
               </td>
             </tr>
           ))}

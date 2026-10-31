@@ -22,8 +22,9 @@ test.describe('Neuer Test', () => {
     await page.getByRole('button', { name: 'Weiter' }).click();
 
     // 2 · Wann
-    await page.getByRole('textbox', { name: 'Alle (Minuten)' }).fill('30');
-    await page.getByRole('textbox', { name: 'Max. Durchläufe' }).fill('2');
+    await chooseOption(page.getByRole('combobox', { name: 'Wie oft?' }), 'Eigener Abstand');
+    await page.getByRole('textbox', { name: 'Abstand in Minuten' }).fill('30');
+    await page.getByRole('textbox', { name: 'Wie oft insgesamt?' }).fill('2');
     await page.getByRole('button', { name: 'Weiter' }).click();
 
     // 3 · Geräte & Freigabe: beside the summary the card is narrow, so the devices take two
@@ -75,7 +76,7 @@ test.describe('Neuer Test', () => {
     await page.getByRole('button', { name: 'Weiter' }).click();
 
     // 2 · Wann: random, 40 runs in the week from today, no starts in the early morning.
-    await page.getByRole('radio', { name: 'Zufall' }).click();
+    await page.getByRole('radio', { name: 'Zufällig verteilt' }).click();
     await page.getByRole('textbox', { name: 'Durchläufe im Zeitraum' }).fill('40');
     const curve = page.getByRole('slider', { name: /^Verteilung am / });
     const box = await curve.boundingBox();

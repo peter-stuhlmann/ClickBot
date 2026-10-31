@@ -9,7 +9,7 @@ const row = (overrides: Partial<JobRowView> = {}): JobRowView => ({
   name: 'Kontaktformular-Test',
   campaign: 'Black Friday',
   url: 'beispiel.de/kontakt',
-  schedule: { primary: 'alle 15 Min.', secondary: 'max. 20 Durchläufe' },
+  schedule: { primary: 'alle 15 Min.', secondary: '20-mal' },
   progress: { label: '7 / 20 Durchläufe', value: 0.35 },
   lastRun: { tone: 'success', label: 'Erfolgreich', when: 'vor 3 Min.', href: '/laeufe/run-7' },
   successRate: { text: '100 %', tone: 'success' },
@@ -21,7 +21,7 @@ const noop = () => {};
 
 describe('JobsTable', () => {
   it('has the six columns of the design', () => {
-    render(<JobsTable rows={[row()]} toggleAction={noop} />);
+    render(<JobsTable rows={[row()]} toggleAction={noop} runAction={noop} />);
     expect(screen.getAllByRole('columnheader').map((header) => header.textContent)).toEqual([
       'Test',
       'Zeitplan',
@@ -33,7 +33,7 @@ describe('JobsTable', () => {
   });
 
   it('shows everything about a job in one row', () => {
-    render(<JobsTable rows={[row()]} toggleAction={noop} />);
+    render(<JobsTable rows={[row()]} toggleAction={noop} runAction={noop} />);
     const [, dataRow] = screen.getAllByRole('row');
     const cells = within(dataRow as HTMLElement);
 
@@ -51,7 +51,7 @@ describe('JobsTable', () => {
   });
 
   it('names the columns inside the row for small screens, but not twice for screen readers', () => {
-    render(<JobsTable rows={[row()]} toggleAction={noop} />);
+    render(<JobsTable rows={[row()]} toggleAction={noop} runAction={noop} />);
     const [, dataRow] = screen.getAllByRole('row');
     for (const column of [
       'Zeitplan',
@@ -72,13 +72,20 @@ describe('JobsTable', () => {
       <JobsTable
         rows={[row({ successRate: { text: '87 %', tone: 'danger' } })]}
         toggleAction={noop}
+        runAction={noop}
       />,
     );
     expect(screen.getByText('87 %')).toHaveClass('text-danger');
   });
 
   it('marks jobs that never ran', () => {
-    render(<JobsTable rows={[row({ lastRun: null, successRate: null })]} toggleAction={noop} />);
+    render(
+      <JobsTable
+        rows={[row({ lastRun: null, successRate: null })]}
+        toggleAction={noop}
+        runAction={noop}
+      />,
+    );
     expect(screen.getByText('noch kein Durchlauf')).toBeInTheDocument();
     expect(screen.getByText('–')).toBeInTheDocument();
   });
@@ -86,7 +93,7 @@ describe('JobsTable', () => {
   it('pauses an active job through the server action', async () => {
     const user = userEvent.setup();
     const toggleAction = vi.fn();
-    render(<JobsTable rows={[row()]} toggleAction={toggleAction} />);
+    render(<JobsTable rows={[row()]} toggleAction={toggleAction} runAction={noop} />);
 
     await user.click(screen.getByRole('switch', { name: 'Kontaktformular-Test pausieren' }));
 
@@ -101,6 +108,7 @@ describe('JobsTable', () => {
       <JobsTable
         rows={[row({ status: { label: 'Pausiert', active: false, toggleable: true } })]}
         toggleAction={noop}
+        runAction={noop}
       />,
     );
     const toggle = screen.getByRole('switch', { name: 'Kontaktformular-Test fortsetzen' });
@@ -112,6 +120,7 @@ describe('JobsTable', () => {
       <JobsTable
         rows={[row({ status: { label: 'Beendet', active: false, toggleable: false } })]}
         toggleAction={noop}
+        runAction={noop}
       />,
     );
     const toggle = screen.getByRole('switch', { name: 'Kontaktformular-Test: Beendet' });
@@ -120,13 +129,23 @@ describe('JobsTable', () => {
     expect(screen.getByText('Beendet')).toBeInTheDocument();
   });
 
+  it('runs a test once from its row, through the server action', async () => {
+    const user = userEvent.setup();
+    const runAction = vi.fn();
+    render(<JobsTable rows={[row()]} toggleAction={noop} runAction={runAction} />);
+    await user.click(screen.getByRole('button', { name: 'Kontaktformular-Test jetzt ausführen' }));
+    expect(runAction).toHaveBeenCalledOnce();
+    const data = runAction.mock.calls[0]?.[0] as FormData;
+    expect(data.get('jobId')).toBe('job-1');
+  });
+
   it('explains the empty state', () => {
-    render(<JobsTable rows={[]} toggleAction={noop} />);
+    render(<JobsTable rows={[]} toggleAction={noop} runAction={noop} />);
     expect(screen.getByText(/Noch keine Tests/)).toBeInTheDocument();
   });
 
   it('links the last run to its report', () => {
-    render(<JobsTable rows={[row()]} toggleAction={noop} />);
+    render(<JobsTable rows={[row()]} toggleAction={noop} runAction={noop} />);
     expect(
       screen.getByRole('link', {
         name: 'Letzter Durchlauf von Kontaktformular-Test: Erfolgreich, vor 3 Min.',
@@ -135,7 +154,7 @@ describe('JobsTable', () => {
   });
 
   it('opens the editor from the job name', () => {
-    render(<JobsTable rows={[row()]} toggleAction={noop} />);
+    render(<JobsTable rows={[row()]} toggleAction={noop} runAction={noop} />);
     expect(screen.getByRole('link', { name: 'Kontaktformular-Test' })).toHaveAttribute(
       'href',
       '/jobs/job-1',

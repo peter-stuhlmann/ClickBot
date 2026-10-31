@@ -8,7 +8,7 @@ import { AppShell } from '@/components/templates/AppShell';
 import { getDb } from '@/server/db';
 import { toJobRow, toStatCards } from '@/server/jobs-view';
 import { getShell, projectScope } from '@/server/shell';
-import { selectProjectAction, toggleJobAction } from './actions';
+import { runJobNowAction, selectProjectAction, toggleJobAction } from './actions';
 
 // Live data: never prerender at build time.
 export const dynamic = 'force-dynamic';
@@ -36,7 +36,11 @@ export default async function JobsPage() {
         }
       />
       <StatGrid cards={toStatCards(stats)} />
-      <JobsTable rows={rows.map((row) => toJobRow(row, now))} toggleAction={toggleJobAction} />
+      <JobsTable
+        rows={rows.map((row) => toJobRow(row, now))}
+        toggleAction={toggleJobAction}
+        runAction={runJobNowAction}
+      />
     </AppShell>
   );
 }

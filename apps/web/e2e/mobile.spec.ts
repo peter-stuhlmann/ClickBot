@@ -114,7 +114,7 @@ test.describe('Auf dem Handy', () => {
     await expectFits(page);
     await page.getByRole('button', { name: 'Weiter' }).click();
 
-    await expect(page.getByRole('textbox', { name: 'Alle (Minuten)' })).toBeVisible();
+    await expect(page.getByRole('combobox', { name: 'Wie oft?' })).toBeVisible();
     await expectFits(page);
     await page.getByRole('button', { name: 'Weiter' }).click();
 

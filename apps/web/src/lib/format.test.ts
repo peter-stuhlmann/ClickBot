@@ -62,10 +62,11 @@ describe('describeSchedule', () => {
   });
 
   it.each([
-    [15, 20, 'alle 15 Min.', 'max. 20 Durchläufe'],
-    [60, 24, 'alle 60 Min.', 'max. 24 Durchläufe'],
-    [120, 10, 'alle 2 Std.', 'max. 10 Durchläufe'],
-    [90, 1, 'alle 90 Min.', 'max. 1 Durchlauf'],
+    [15, 20, 'alle 15 Min.', '20-mal'],
+    [60, 24, 'jede Stunde', '24-mal'],
+    [1440, 7, 'jeden Tag', '7-mal'],
+    [120, 10, 'alle 2 Std.', '10-mal'],
+    [90, 1, 'einmal', 'ein Durchlauf'],
   ])('describes every %i min, %i runs', (every, max, primary, secondary) => {
     expect(describeSchedule(interval(every, max))).toEqual({ primary, secondary });
   });

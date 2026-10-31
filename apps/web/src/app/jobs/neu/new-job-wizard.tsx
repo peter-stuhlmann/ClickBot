@@ -224,9 +224,7 @@ export function NewJobWizard({
                   takeOver(recording.steps);
                 }}
                 onCancel={leaveFixedView}
-              />
-              {recording.status !== 'live' && (
-                <div>
+                alternative={
                   <Button
                     variant="secondary"
                     icon={<Icon name="copy" size={16} />}
@@ -234,8 +232,8 @@ export function NewJobWizard({
                   >
                     Aus Vorlage übernehmen
                   </Button>
-                </div>
-              )}
+                }
+              />
             </>
           ) : fixedView === 'template' ? (
             <>

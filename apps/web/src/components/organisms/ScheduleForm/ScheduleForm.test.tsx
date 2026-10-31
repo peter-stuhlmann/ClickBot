@@ -33,29 +33,34 @@ function Harness({
 }
 
 describe('ScheduleForm', () => {
-  it('starts with an interval: every n minutes, at most m runs, starting now', () => {
+  it('starts regular: every hour, 24 times, starting now, without a minutes field', () => {
     render(<Harness />);
-    expect(screen.getByRole('radio', { name: 'Intervall' })).toBeChecked();
-    expect(screen.getByRole('textbox', { name: 'Alle (Minuten)' })).toHaveValue('60');
-    expect(screen.getByRole('textbox', { name: 'Max. Durchläufe' })).toHaveValue('24');
-    expect(screen.getByRole('combobox', { name: 'Start' })).toHaveTextContent(
-      'Sofort nach dem Anlegen',
-    );
+    expect(screen.getByRole('radio', { name: 'Regelmäßig' })).toBeChecked();
+    expect(screen.getByRole('combobox', { name: 'Wie oft?' })).toHaveTextContent('Jede Stunde');
+    expect(screen.queryByRole('textbox', { name: 'Abstand in Minuten' })).not.toBeInTheDocument();
+    expect(screen.getByRole('textbox', { name: 'Wie oft insgesamt?' })).toHaveValue('24');
+    expect(screen.getByRole('combobox', { name: 'Ab wann?' })).toHaveTextContent('Sofort');
     expect(screen.getByText('24 Starts × 1 Gerät = 24 Durchläufe')).toBeVisible();
   });
 
-  it('reports changed interval values', () => {
+  it('asks for the minutes only with an own distance, and for the count unless once', async () => {
+    const user = userEvent.setup();
     const onChange = vi.fn();
     render(<Harness onChange={onChange} />);
-    fireEvent.change(screen.getByRole('textbox', { name: 'Alle (Minuten)' }), {
+    await chooseOption(user, screen.getByRole('combobox', { name: 'Wie oft?' }), 'Eigener Abstand');
+    fireEvent.change(screen.getByRole('textbox', { name: 'Abstand in Minuten' }), {
       target: { value: '15' },
     });
-    fireEvent.change(screen.getByRole('textbox', { name: 'Max. Durchläufe' }), {
+    fireEvent.change(screen.getByRole('textbox', { name: 'Wie oft insgesamt?' }), {
       target: { value: '20' },
     });
     expect(onChange).toHaveBeenLastCalledWith(
-      expect.objectContaining({ everyMinutes: '15', maxRuns: '20' }),
+      expect.objectContaining({ rhythm: 'custom', everyMinutes: '15', maxRuns: '20' }),
     );
+
+    await chooseOption(user, screen.getByRole('combobox', { name: 'Wie oft?' }), 'Einmal');
+    expect(screen.queryByRole('textbox', { name: 'Wie oft insgesamt?' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('textbox', { name: 'Abstand in Minuten' })).not.toBeInTheDocument();
   });
 
   it('asks for date and time when the interval starts later', async () => {
@@ -63,7 +68,11 @@ describe('ScheduleForm', () => {
     const onChange = vi.fn();
     render(<Harness onChange={onChange} />);
 
-    await chooseOption(user, screen.getByRole('combobox', { name: 'Start' }), 'Zu einem Zeitpunkt');
+    await chooseOption(
+      user,
+      screen.getByRole('combobox', { name: 'Ab wann?' }),
+      'Zu einem Zeitpunkt',
+    );
     fireEvent.change(screen.getByLabelText('Startdatum'), { target: { value: '2026-11-06' } });
     fireEvent.change(screen.getByLabelText('Startzeit'), { target: { value: '09:00' } });
 
@@ -75,14 +84,14 @@ describe('ScheduleForm', () => {
   it('shows interval errors at their fields', () => {
     render(
       <Harness
-        start={{ ...initial, startMode: 'at' }}
+        start={{ ...initial, rhythm: 'custom', startMode: 'at' }}
         errors={{
           fields: { everyMinutes: 'Abstand …', startAt: 'Der Start liegt in der Vergangenheit.' },
           slots: {},
         }}
       />,
     );
-    expect(screen.getByRole('textbox', { name: 'Alle (Minuten)' })).toBeInvalid();
+    expect(screen.getByRole('textbox', { name: 'Abstand in Minuten' })).toBeInvalid();
     expect(screen.getByLabelText('Startdatum')).toHaveAccessibleDescription(
       'Der Start liegt in der Vergangenheit.',
     );
@@ -93,7 +102,7 @@ describe('ScheduleForm', () => {
     const onChange = vi.fn();
     render(<Harness onChange={onChange} />);
 
-    await user.click(screen.getByRole('radio', { name: 'Termine' }));
+    await user.click(screen.getByRole('radio', { name: 'Feste Zeiten' }));
     expect(screen.getByLabelText('Uhrzeit Termin 1')).toHaveValue('14:00');
 
     await user.click(screen.getByRole('button', { name: 'Termin hinzufügen' }));
@@ -151,7 +160,7 @@ describe('ScheduleForm', () => {
         onChange={vi.fn()}
       />,
     );
-    expect(screen.getByRole('radio', { name: 'Intervall' })).toBeDisabled();
+    expect(screen.getByRole('radio', { name: 'Regelmäßig' })).toBeDisabled();
     expect(screen.getByText(/bleibt die Art des Zeitplans/)).toBeVisible();
     expect(screen.getByText('Die Art des Zeitplans lässt sich nicht mehr ändern.')).toBeVisible();
     expect(screen.getByLabelText('Uhrzeit Termin 1')).toBeDisabled();
@@ -196,7 +205,7 @@ describe('ScheduleForm – Zufall', () => {
     const user = userEvent.setup();
     const onChange = vi.fn();
     render(<Harness onChange={onChange} />);
-    await user.click(screen.getByRole('radio', { name: 'Zufall' }));
+    await user.click(screen.getByRole('radio', { name: 'Zufällig verteilt' }));
 
     expect(screen.getByRole('textbox', { name: 'Von' })).toHaveValue('05.11.2026');
     expect(screen.getByRole('textbox', { name: 'Bis' })).toHaveValue('11.11.2026');
