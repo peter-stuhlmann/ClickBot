@@ -61,6 +61,10 @@ describe('parseClientMessage', () => {
   });
 });
 
+// The first frame of the screencast comes once the page is drawn; under the load of the whole
+// test run that takes longer than the default second of expect.poll.
+const FIRST_FRAME = { timeout: 10_000 };
+
 describe('startLiveSession', () => {
   it('opens the start page, streams it and records opening it as the first step', async () => {
     const { session, messages, steps } = await open('/aufnahme.html');
@@ -70,7 +74,7 @@ describe('startLiveSession', () => {
       url: `${browser.origin()}/aufnahme.html`,
     });
     expect(steps()).toEqual([{ type: 'open', url: `${browser.origin()}/aufnahme.html` }]);
-    await expect.poll(() => messages.some((m) => m.type === 'frame')).toBe(true);
+    await expect.poll(() => messages.some((m) => m.type === 'frame'), FIRST_FRAME).toBe(true);
     await session.close();
   });
 

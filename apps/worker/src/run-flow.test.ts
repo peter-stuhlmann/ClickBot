@@ -363,6 +363,11 @@ describe('runFlow – scrolling and keys', () => {
     target: { by: 'testId', testId: 'position' },
     saveAs: 'y',
   });
+  // The page shows its position on "scroll", which the browser fires with the next frame.
+  const scrolled = step('scrolled', {
+    type: 'wait',
+    until: { kind: 'element', target: { by: 'testId', testId: 'gescrollt' } },
+  });
   const pressed = step('key', {
     type: 'extract',
     target: { by: 'testId', testId: 'taste' },
@@ -374,6 +379,7 @@ describe('runFlow – scrolling and keys', () => {
     const result = await run([
       start,
       step('scroll', { type: 'scroll', to: { kind: 'position', y: 1200 } }),
+      scrolled,
       position,
     ]);
     expect(result.extracted).toEqual({ y: '1200' });
@@ -386,6 +392,7 @@ describe('runFlow – scrolling and keys', () => {
         type: 'scroll',
         to: { kind: 'element', target: { by: 'role', role: 'heading', name: 'Kontakt' } },
       }),
+      scrolled,
       position,
     ]);
     expect(Number(result.extracted.y)).toBeGreaterThan(900);
@@ -395,6 +402,7 @@ describe('runFlow – scrolling and keys', () => {
     const result = await run([
       start,
       step('scroll', { type: 'scroll', to: { kind: 'bottom' } }),
+      scrolled,
       position,
     ]);
     expect(Number(result.extracted.y)).toBeGreaterThan(maxScroll - 900);

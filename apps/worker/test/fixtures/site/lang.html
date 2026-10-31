@@ -19,6 +19,7 @@
   <body>
     <p class="anzeige" style="top: 0">Position <span data-testid="position">0</span></p>
     <p class="anzeige" style="top: 24px">Taste <span data-testid="taste"></span></p>
+    <p class="anzeige" style="top: 48px" data-testid="gescrollt" hidden>gescrollt</p>
     <dialog open id="hinweis"><p>Neu: Newsletter</p></dialog>
     <p data-testid="dialog">Dialog offen</p>
     <label>Suche <input id="suche" /></label>
@@ -27,8 +28,10 @@
     <section><h2>Kontakt</h2></section>
     <script>
       const shown = (id) => document.querySelector(`[data-testid="${id}"]`);
+      // Browsers fire "scroll" with the next frame; tests wait for "gescrollt" before reading.
       addEventListener('scroll', () => {
         shown('position').textContent = String(Math.round(scrollY));
+        shown('gescrollt').hidden = false;
       });
       addEventListener('keydown', (event) => {
         shown('taste').textContent = [

@@ -224,13 +224,19 @@ export async function executeStep(
 
     case 'scroll': {
       const { to } = step;
+      // Instantly, also on pages with smooth scrolling: the next step must find the page there.
       if (to.kind === 'element') {
-        await onTarget(current, to.target, timeout, (l, left) =>
-          l.scrollIntoViewIfNeeded({ timeout: left }),
-        );
+        await onTarget(current, to.target, timeout, async (l, left) => {
+          await l.waitFor({ state: 'visible', timeout: left });
+          // Like scrollIntoViewIfNeeded: only if it is not in view yet, then to the middle.
+          await l.evaluate((element) => {
+            const box = element.getBoundingClientRect();
+            if (box.top >= 0 && box.bottom <= window.innerHeight) return;
+            element.scrollIntoView({ block: 'center', behavior: 'instant' });
+          });
+        });
         return {};
       }
-      // Instantly, also on pages with smooth scrolling: the next step must find the page there.
       await page.evaluate(
         (y) => {
           const top = y ?? (document.scrollingElement ?? document.documentElement).scrollHeight;

@@ -80,13 +80,17 @@ describe('originPolicy', () => {
   });
 });
 
+// Starting a session opens a browser context and a page; under the load of the whole test run
+// that takes longer than the default second of expect.poll.
+const SESSION_START = { timeout: 10_000 };
+
 describe('startLiveServer', () => {
   it('streams the live browser for a valid token and records what the user does', async () => {
     const session = await token();
     const { ws, messages, opened } = connect(`token=${session.token}`);
     await opened;
 
-    await expect.poll(() => messages.some((m) => m.type === 'frame')).toBe(true);
+    await expect.poll(() => messages.some((m) => m.type === 'frame'), SESSION_START).toBe(true);
     expect(messages.filter((m) => m.type === 'step')).toEqual([
       { type: 'step', step: { type: 'open', url: `${browser.origin()}/aufnahme.html` } },
     ]);
@@ -112,7 +116,7 @@ describe('startLiveServer', () => {
     const session = await token();
     const { ws, messages, opened } = connect(`token=${session.token}`);
     await opened;
-    await expect.poll(() => messages.some((m) => m.type === 'ready')).toBe(true);
+    await expect.poll(() => messages.some((m) => m.type === 'ready'), SESSION_START).toBe(true);
 
     ws.send('{"type":"evaluate","code":"document.cookie"}');
     ws.send(JSON.stringify({ type: 'navigate', url: `${browser.origin()}/kontakt.html` }));
