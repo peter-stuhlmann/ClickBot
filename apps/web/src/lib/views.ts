@@ -179,7 +179,7 @@ export type ConnectionCheckAction = (formData: FormData) => Promise<ConnectionCh
 
 /** "Im Browser aufnehmen": record turns actions into steps, browse only uses the page, assert checks the next element clicked. */
 /** Everything is recorded; assert: the next click becomes a check instead. */
-export type LiveMode = 'record' | 'assert';
+export type LiveMode = 'record' | 'assert' | 'wait';
 
 /** Input for the live browser on the worker (see parseClientMessage in the worker). */
 export type LiveInput =
@@ -193,7 +193,12 @@ export type LiveInput =
   | { type: 'forward' }
   | { type: 'reload' }
   | { type: 'screenshot' }
-  | { type: 'mode'; mode: LiveMode };
+  | { type: 'mode'; mode: LiveMode }
+  | {
+      type: 'wait';
+      until:
+        { kind: 'duration'; ms: number } | { kind: 'networkIdle' } | { kind: 'text'; text: string };
+    };
 
 export type StartRecordingAction = (
   startUrl: string,

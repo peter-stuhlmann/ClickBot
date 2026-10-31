@@ -20,9 +20,11 @@ Projekte, die Anmeldung, das Profil und die Einstellungen der KI-Anbieter stehen
     - Screen 01 „Jobs“ mit echten Daten, inklusive Pausieren und Fortsetzen
     - Screen 05 „Neuer Job“ (`/jobs/neu`): Assistent in vier Schritten: Job (Kampagne des
       aktuellen Projekts und Name; mit nur einer Kampagne ist sie vorausgewählt), Ablauf (Start-URL oben, der erste Schritt „Seite öffnen“ folgt ihr, solange er nicht
-      von Hand geändert wurde), Zeitplan, Geräte (mit der Freigabe am Ende). Am Ende wird der Job aktiv angelegt und läuft nach Zeitplan. Den
-      Ablauf gibt es zusammengeklickt, „Mit KI beschreiben“ (Screen 06, siehe Abschnitt KI),
-      „Im Browser aufnehmen“ (Screen 04, siehe Worker → Live-Browser) oder „Aus Vorlage“.
+      von Hand geändert wurde), Zeitplan, Geräte (mit der Freigabe am Ende). Am Ende wird der Job aktiv angelegt und läuft nach Zeitplan.
+      Zwei Arten zu testen (`MethodPicker`): „Fester Ablauf“ (aufnehmen im Live-Browser, Screen
+      04, oder „Aus Vorlage übernehmen“; danach eine Liste, in der jeder Schritt korrigierbar ist,
+      ohne „Schritt hinzufügen“) und „Frei mit KI“ (nur das Ziel des Tests, `GoalCard`; siehe
+      Worker → KI-Schritt). Jeder Modus behält seinen Stand, während der andere gezeigt wird.
     - „Vorlagen“ (`/vorlagen`, ohne Figma-Entwurf): Abläufe für jede Website, für alle Projekte.
       Anlegen unter `/vorlagen/neu` (gleicher Baukasten, ohne Passwortschutz) oder im Editor eines
       Jobs mit „Als Vorlage speichern“ (`toTemplateFlow`: ohne das Öffnen der Start-URL am Anfang,
@@ -268,12 +270,13 @@ Hochziehen erst, wenn beide Pakete die neue Version offiziell unterstützen.
     auch seitlich; bis zum Rand der Seite in jeder Richtung), prüfen,
     auslesen, warten, screenshot, analytics, Passwortschutz (.htaccess, `basicAuth`), KI-Schritt.
   - Variablen: `{{faker.*}}`, `{{run_nr}}`, `{{bot_nr}}`, `{{secret.name}}`.
-- **Vier Wege zum Ablauf:**
-  - KI: Beschreibung → Schrittvorschlag + Rückfragen.
-  - Aufnehmen: Live-Browser.
-  - Editor: Baukasten.
-  - Vorlage: ein gespeicherter Ablauf (`flow_templates`).
-  - Alle erzeugen dieselbe Schrittliste.
+- **Zwei Arten zu testen:**
+  - Fester Ablauf: aufgenommen (Live-Browser) oder aus einer Vorlage (`flow_templates`), in jedem
+    Lauf gleich.
+  - Frei: „Seite öffnen“ plus ein KI-Schritt mit dem Ziel des Tests (`stepsForAiTask`). Die KI
+    sucht den Weg in jedem Lauf selbst und bewertet jedes Teilziel. Ein Ziel lässt sich nicht in
+    feste Schritte übersetzen, deshalb gibt es keinen Vorschlag fester Schritte mehr.
+  - Den Baukasten gibt es zum Korrigieren (Assistent, Editor) und für Vorlagen.
   - **Kein eigener Code (bewusst entschieden):** Weder ein Weg „Code schreiben“ noch ein
     Schritt-Typ dafür. Nutzer-Code liefe auf dem Server neben Datenbank, `SECRETS_KEY` und
     Zugangsdaten. Screen 07 aus dem Design wird nicht gebaut.
@@ -332,7 +335,7 @@ time, bots }]`, `stagger`) bilden die Bots eines Termins eine Welle.
     darauf (`waitForPdf`, liest den internen Ladezustand `loadState_` des Viewers, wartet daher
     nur, scheitert nie). Text im PDF finden Schritte nicht, URL und Foto gehen. In Tests lässt
     `guardContext` dafür `chrome:`- und `chrome-extension:`-Adressen durch.
-- **Seiten öffnen** (`openPage`, für „Seite öffnen“, die Analyse für die KI und den Live-Browser):
+- **Seiten öffnen** (`openPage`, für „Seite öffnen“ und den Live-Browser):
   fertig, sobald der Inhalt da ist (DOMContentLoaded), danach höchstens 5 s Warten auf `load`.
   Werbung oder Tracker, die nie laden, lassen eine Seite mit Inhalt nicht scheitern.
 - **Variablen** werden vor der Aktion aufgelöst. Eine unbekannte Variable bricht den Schritt
@@ -370,23 +373,32 @@ time, bots }]`, `stagger`) bilden die Bots eines Termins eine Welle.
   (`AD_DOMAINS`, z. B. doubleclick.net, googlesyndication.com, amazon-adsystem.com, Criteo,
   Taboola), wie ein Werbeblocker, und zählt sie. Nie blockiert: GA4-Anfragen (`isGa4CollectUrl`,
   die werden markiert), der Tag Manager und Googles Einwilligungs-Banner
-  (fundingchoicesmessages.google.com), damit Tests die Seite wie Besucher sehen. Die Analyse für
-  die KI und der Live-Browser blockieren immer; es gibt dort noch keinen Job.
-- **KI-Schritt** (`ai-step.ts`, Typ `ai` mit `instruction`): Die KI findet ihren Weg während des
-  Laufs. `runFlow` führt ihn aus, nicht `executeStep`.
-  - Je Runde: Seitenaufbau lesen (`readStructure`, wie die Analyse), die KI um genau eine Aktion
-    bitten (`nextAgentAction` in `packages/ai`), sie wie einen Schritt ausführen (`executeStep`,
-    höchstens 10 s), das Ergebnis oder die Fehlermeldung zurückgeben. Bis „done“ oder „fail“,
-    höchstens `MAX_AI_ACTIONS` (20) Aktionen.
+  (fundingchoicesmessages.google.com), damit Tests die Seite wie Besucher sehen. Der
+  Live-Browser blockiert immer; es gibt dort noch keinen Job.
+- **KI-Schritt** (`ai-step.ts`, Typ `ai`, `instruction` ist das Ziel des Tests): ein freier Test.
+  `runFlow` führt ihn aus, nicht `executeStep`.
+  - Je Runde: Seitenaufbau (`readStructure` in `page-structure.ts`, Aria-Snapshot der Seite und
+    ihrer iframes) und Bildschirmfoto (JPEG) an die KI, sie antwortet mit genau einer Aktion
+    (`nextAgentAction` in `packages/ai`) oder ihrer Bewertung. Eine Aktion läuft wie ein Schritt
+    (`executeStep`, höchstens 10 s), das Ergebnis oder die Fehlermeldung geht in die nächste Runde.
+    Nach `MAX_AI_ACTIONS` (25) Aktionen muss sie bewerten (`final`); tut sie es nicht, scheitert
+    der Schritt.
+  - Bewertung (`Criterion[]` in `packages/shared/src/ai-verdict.ts`): das Ziel in Teilziele
+    zerlegt, je „met“, „failed“ oder „unknown“ mit dem, was sie gesehen hat. `verdictOutcome`:
+    alle erfüllt → bestanden; eines nicht erfüllt → fehlgeschlagen, der Lauf bricht ab; eines nicht
+    prüfbar → Schrittstatus `unclear`, der Lauf läuft weiter und endet „Mit Hinweis“ (`warning`).
   - Erlaubte Aktionen: klicken, ausfüllen, auswählen, Taste, scrollen, Seite öffnen, warten.
     „Seite öffnen“ nur auf der Website der Start-URL (`www.` egal). Erfundene echte E-Mail-Adressen
     werden `{{faker.email}}` (`safeMail`).
-  - Zugangsdaten sieht die KI nur als Namen (`{{secret.name}}`). Adresse, Titel und Seitenaufbau
-    gehen maskiert raus, auch Formularwerte in der Adresse.
+  - Zugangsdaten sieht die KI nur als Namen (`{{secret.name}}`). Adresse, Titel, Seitenaufbau und
+    Bewertung gehen maskiert raus, auch Formularwerte in der Adresse. Steht ein Wert aus den
+    Zugangsdaten auf der Seite (Adresse, Text, Feld, auch in iframes), gibt es in dieser Runde kein
+    Bildschirmfoto (`showsSecret`).
   - Der Standard-Anbieter wird je Lauf gelesen (`getAiConfig`), nur wenn der Ablauf einen
     KI-Schritt hat. Ohne Anbieter scheitert der Schritt mit Hinweis auf „Einstellungen → KI & API“.
-  - Jede Aktion steht als Zeile in `run_steps.ai_actions` und im Report unter dem Schritt, auch
-    wenn er scheitert.
+    Der Anbieter braucht ein Modell, das Bilder versteht.
+  - Gespeichert: jede Aktion (`run_steps.ai_actions`), die Bewertung (`run_steps.ai_verdict`) und
+    das Bildschirmfoto der Seite, wie sie bewertet wurde. Der Report zeigt alles unter dem Schritt.
 - **Warteschlange** (`packages/db/src/queue.ts`), pro Takt (1 s) in `createWorker`:
   1. `planDueRuns` legt für aktive Jobs die fälligen Starts als `queued`-Läufe an.
      - Ein Start ist Termin × Bot × Gerät × Browser (`runTargets`).
@@ -442,7 +454,9 @@ time, bots }]`, `stagger`) bilden die Bots eines Termins eine Welle.
   - Passwortfelder werden nie mitgeschnitten, der Schritt bekommt `{{secret.passwort}}`.
   - Aufgezeichnet wird immer, von Anfang bis Ende (kein „Nur bedienen“). Neben der Adresse fügt
     die Kamera ein Bildschirmfoto ein, der Haken macht den nächsten Klick zu einer Prüfung
-    „Element sichtbar“ (die Seite reagiert nicht darauf). Solche Schritte reihen sich nach allen
+    „Element sichtbar“ (die Seite reagiert nicht darauf). Die Uhr (`WaitMenu`) fügt Warten ein:
+    Sekunden (höchstens 60), bis die Seite nichts mehr lädt, bis ein Text erscheint, oder bis ein
+    Element erscheint (Modus `wait`: der nächste Klick wählt es, wie beim Haken). Solche Schritte reihen sich nach allen
     Aktionen davor ein (`recorder.insert`, ein Durchlauf durch alle Frames vorher). Eine neue
     Adresse in der Adressleiste wird ein Schritt „Seite öffnen“, Zurück und Vor auch (mit der
     Adresse, auf der man landet).
@@ -494,31 +508,20 @@ time, bots }]`, `stagger`) bilden die Bots eines Termins eine Welle.
 - **„Verbindung testen“** (`testAiConnection`) lädt die Modelle des Anbieters und sagt, ob das
   eingetragene dabei ist. Perplexity kann seine Modelle nicht auflisten, dort geht eine
   Anfrage mit 5 Tokens raus.
-- **„Mit KI beschreiben“** (`suggestFlowAction` in `src/app/ai-actions.ts`, `suggestFlow`):
-  1. Ist der Worker online, öffnet er die Start-URL einmal (`page_analyses`, `analysePage` im
-     Worker): Accessibility-Baum der Seite und ihrer iframes (Aria-Snapshot), Formulare,
-     Cookie-Tool, GA4-IDs. GA4-Anfragen sind dabei markiert wie bei Läufen (Laufnummer 0). Die
-     Web-App wartet höchstens 45 s, Analysen gehen vor geplanten Läufen.
-  2. Der Standard-Anbieter bekommt Beschreibung, Antworten auf frühere Rückfragen und den
-     Seitenaufbau. Der Prompt erklärt die Schritt-Typen an einem Beispiel, das ein Test gegen
-     `flowSchema` prüft, und behandelt den Seitenaufbau als Daten, nie als Anweisung.
-  3. `parseFlowSuggestion` prüft jeden Schritt mit `stepSchema`. Erlaubt sind nur Typen, die das
-     Formular kann (kein KI-, Auslese- oder Passwortschritt). Eine erfundene echte
-     E-Mail-Adresse wird zu `{{faker.email}}`. Fehlt „Seite öffnen“ am Anfang, kommt es dazu.
-     Eine ungültige Antwort bekommt eine zweite Chance mit der Fehlermeldung.
-  4. Nichts wird gespeichert oder ausgeführt, bis die Schritte übernommen werden. Ohne Worker
-     oder ohne lesbare Seite sagt der Vorschlag das („Seite nicht gelesen“).
-  5. „Als KI-Schritt übernehmen“ (`stepsForAiTask`) braucht keinen Vorschlag: „Seite öffnen“ mit
-     der Start-URL, dann die Beschreibung als ein KI-Schritt, der die Elemente erst im Lauf sucht.
-- **KI-Schritt im Lauf** (`agent-step.ts`): `agentPrompt` gibt Auftrag, Website, Namen der
-  Zugangsdaten, bisherige Aktionen mit Ergebnis und den Seitenaufbau (als Daten, nie als
-  Anweisung). Die Regeln im Prompt: keine Captchas, keine Umgehung von Bot-Schutz, keine
-  Werbeklicks, keine echten Daten, nichts Unumkehrbares über den Auftrag hinaus.
-  `parseAgentAction` prüft jede Aktion mit `stepSchema`; eine unbrauchbare Antwort bekommt einen
-  zweiten Versuch.
-- Tests ersetzen nur `fetch` bzw. den Client und prüfen Anfrage und Auswertung. Die E2E-Tests
-  sprechen nie mit einem echten Anbieter: `new-job-ai.spec.ts` startet eine eigene
-  OpenAI-kompatible Attrappe und richtet sie als „Custom“ ein.
+- **Bilder:** Eine Nachricht kann Bildschirmfotos mitbringen (`AiMessage.images`). Claude bekommt
+  sie als Bild-Blöcke, Gemini als `inline_data`, OpenAI, Perplexity und Custom als `image_url`
+  mit Data-Adresse.
+- **KI-Schritt im Lauf** (`agent-step.ts`): `agentPrompt` gibt Ziel, Website, Namen der
+  Zugangsdaten, bisherige Aktionen mit Ergebnis, den Seitenaufbau und das Bildschirmfoto (als
+  Daten, nie als Anweisung). Regeln für eine verlässliche Bewertung: nur nach dem urteilen, was
+  in diesem Lauf zu sehen war; Verhalten ausprobieren (z. B. ungültige Eingabe absenden); Farben,
+  Größen und Positionen am Bildschirmfoto; nicht Prüfbares als „unknown“, nie raten. Dazu: keine
+  Captchas, keine Umgehung von Bot-Schutz, keine Werbeklicks, keine echten Daten, nichts
+  Unumkehrbares. `parseAgentAction` prüft jede Aktion mit `stepSchema` und jede Bewertung auf
+  Ziel, Status und Begründung; eine unbrauchbare Antwort bekommt einen zweiten Versuch.
+- Tests ersetzen nur `fetch` bzw. den Client und prüfen Anfrage und Auswertung. Die
+  Worker-Tests spielen die KI mit einem festen Ablauf von Antworten (`script` in
+  `ai-step.test.ts`). Die E2E-Tests sprechen nie mit einem KI-Anbieter.
 
 ## Lokale Entwicklung
 

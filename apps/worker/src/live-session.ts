@@ -11,6 +11,8 @@ export const LIVE_VIEWPORT = { width: 1280, height: 800 } as const;
 
 const MAX_TEXT = 2_000;
 const MAX_WHEEL = 5_000;
+const MAX_WAIT_MS = 60_000;
+const MAX_WAIT_TEXT = 200;
 const OPEN_TIMEOUT_MS = 20_000;
 const SCREENCAST_QUALITY = 60;
 // Analyses and recordings are no runs: their GA4 requests carry run number 0.
@@ -30,7 +32,13 @@ export type ClientMessage =
   | { type: 'forward' }
   | { type: 'reload' }
   | { type: 'screenshot' }
-  | { type: 'mode'; mode: RecorderMode };
+  | { type: 'mode'; mode: RecorderMode }
+  // Inserted where the recording stands; a text becomes waiting for that text.
+  | {
+      type: 'wait';
+      until:
+        { kind: 'duration'; ms: number } | { kind: 'networkIdle' } | { kind: 'text'; text: string };
+    };
 
 export type ServerMessage =
   | { type: 'ready'; viewport: typeof LIVE_VIEWPORT; url: string }
@@ -99,12 +107,28 @@ export function parseClientMessage(raw: string): ClientMessage | null {
     case 'screenshot':
       return { type };
     case 'mode':
-      return message.mode === 'record' || message.mode === 'assert'
+      return message.mode === 'record' || message.mode === 'assert' || message.mode === 'wait'
         ? { type, mode: message.mode }
         : null;
+    case 'wait':
+      return parseWait(message.until);
     default:
       return null;
   }
+}
+
+/** Waiting the user inserts: at most a minute, like a wait step; a text up to 200 characters. */
+function parseWait(until: unknown): ClientMessage | null {
+  if (typeof until !== 'object' || until === null) return null;
+  const { kind, ms, text } = until as { kind?: unknown; ms?: unknown; text?: unknown };
+  if (kind === 'networkIdle') return { type: 'wait', until: { kind } };
+  if (kind === 'duration' && Number.isInteger(ms) && isNumber(ms, 1, MAX_WAIT_MS)) {
+    return { type: 'wait', until: { kind, ms: ms as number } };
+  }
+  if (kind === 'text' && typeof text === 'string' && text.trim() && text.length <= MAX_WAIT_TEXT) {
+    return { type: 'wait', until: { kind, text: text.trim() } };
+  }
+  return null;
 }
 
 async function open(page: Page, url: string): Promise<string | null> {
@@ -200,6 +224,16 @@ export async function startLiveSession(
           return;
         case 'screenshot':
           return recorder.insert({ type: 'screenshot' });
+        case 'wait': {
+          const { until } = message;
+          return recorder.insert({
+            type: 'wait',
+            until:
+              until.kind === 'text'
+                ? { kind: 'element', target: { by: 'text', text: until.text, exact: false } }
+                : until,
+          });
+        }
         case 'mode':
           await recorder.setMode(message.mode);
           send({ type: 'mode', mode: message.mode });

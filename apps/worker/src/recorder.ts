@@ -11,14 +11,25 @@ export type RecordedStep =
   | { type: 'assert'; assertion: { kind: 'elementVisible'; target: Target } }
   | { type: 'press'; key: string; target?: Target }
   | { type: 'scroll'; to: { kind: 'position'; y: number; x?: number } }
-  | { type: 'screenshot' };
+  | { type: 'screenshot' }
+  | {
+      type: 'wait';
+      until:
+        | { kind: 'duration'; ms: number }
+        | { kind: 'networkIdle' }
+        | { kind: 'element'; target: Target };
+    };
 
-/** Everything is recorded from start to end; assert: the next click becomes a check instead. */
-export type RecorderMode = 'record' | 'assert';
+/**
+ * Everything is recorded from start to end. assert: the next click becomes a check instead;
+ * wait: it becomes waiting for that element. The page does not react to that click.
+ */
+export type RecorderMode = 'record' | 'assert' | 'wait';
 
 type Action =
   | { kind: 'click'; candidates: Target[] }
   | { kind: 'assert'; candidates: Target[] }
+  | { kind: 'wait'; candidates: Target[] }
   | { kind: 'fill'; candidates: Target[]; value: string; secret: boolean }
   | { kind: 'select'; candidates: Target[]; option: string }
   // Without candidates the key goes to the page, not to an element.
@@ -171,10 +182,11 @@ const PAGE_SCRIPT = `(() => {
     return el;
   }
 
-  // While checking, the page must not react to the click.
+  // While choosing an element to check or to wait for, the page must not react to the click.
+  const choosing = () => window.__clickbotMode === 'assert' || window.__clickbotMode === 'wait';
   for (const type of ['pointerdown', 'mousedown', 'pointerup', 'mouseup']) {
     document.addEventListener(type, (event) => {
-      if (window.__clickbotMode === 'assert' && event.isTrusted) {
+      if (choosing() && event.isTrusted) {
         event.preventDefault();
         event.stopImmediatePropagation();
       }
@@ -183,11 +195,12 @@ const PAGE_SCRIPT = `(() => {
 
   document.addEventListener('click', (event) => {
     if (!event.isTrusted || !(event.target instanceof Element)) return;
-    if (window.__clickbotMode === 'assert') {
+    if (choosing()) {
       event.preventDefault();
       event.stopImmediatePropagation();
+      const kind = window.__clickbotMode;
       window.__clickbotMode = 'record';
-      send({ kind: 'assert', candidates: candidates(event.target.closest(CLICKABLE) || event.target, false) });
+      send({ kind, candidates: candidates(event.target.closest(CLICKABLE) || event.target, false) });
       return;
     }
     if (window.__clickbotMode !== 'record') return;
@@ -293,6 +306,8 @@ function toStep(action: Exclude<Action, { kind: 'scroll' }>, target: Target): Re
       return { type: 'click', target };
     case 'assert':
       return { type: 'assert', assertion: { kind: 'elementVisible', target } };
+    case 'wait':
+      return { type: 'wait', until: { kind: 'element', target } };
     case 'fill':
       return { type: 'fill', target, value: action.secret ? PASSWORD_PLACEHOLDER : action.value };
     case 'select':
@@ -317,7 +332,7 @@ export async function startRecorder(
 
   await context.exposeBinding(BINDING, ({ frame }, action: Action) => {
     queue = queue.then(async () => {
-      if (action.kind === 'assert') mode = 'record';
+      if (action.kind === 'assert' || action.kind === 'wait') mode = 'record';
       if (action.kind === 'scroll') {
         const { y, x } = action;
         return onStep({

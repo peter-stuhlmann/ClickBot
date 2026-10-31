@@ -4,6 +4,7 @@ import { Card } from '@/components/atoms/Card';
 import { Icon } from '@/components/atoms/Icon';
 import { Input } from '@/components/atoms/Input';
 import { StepItem } from '@/components/molecules/StepItem';
+import { WaitMenu } from '@/components/molecules/WaitMenu';
 import { cn } from '@/lib/cn';
 import { keyInput, toViewport, type LiveViewport } from '@/lib/live-recording';
 import type { LiveInput, LiveMode, StepItemView } from '@/lib/views';
@@ -123,7 +124,7 @@ export function LiveBrowser({
               onChange={(event) => setAddress(event.target.value)}
             />
           </form>
-          {/* Steps added in between: a photo here, or a check on the next click. */}
+          {/* Steps added in between: a photo, a check on the next click, or waiting. */}
           <div className="flex items-center">
             <Button
               variant="ghost"
@@ -145,6 +146,11 @@ export function LiveBrowser({
                 onInput({ type: 'mode', mode: mode === 'assert' ? 'record' : 'assert' })
               }
             />
+            <WaitMenu
+              picking={mode === 'wait'}
+              onInsert={(until) => onInput({ type: 'wait', until })}
+              onPickElement={() => onInput({ type: 'mode', mode: 'wait' })}
+            />
           </div>
         </div>
 
@@ -155,7 +161,7 @@ export function LiveBrowser({
           className={cn(
             'relative aspect-8/5 w-full cursor-pointer overflow-hidden overscroll-contain rounded-input border bg-subtle',
             'focus-visible:outline-2 focus-visible:outline-primary',
-            mode === 'assert' ? 'border-primary' : 'border-border',
+            mode === 'record' ? 'border-border' : 'border-primary',
           )}
           onClick={(event) => {
             event.currentTarget.focus();
@@ -210,7 +216,9 @@ export function LiveBrowser({
             <span>
               {mode === 'assert'
                 ? 'Der nächste Klick wird eine Prüfung.'
-                : 'Alles wird aufgezeichnet: Klicks, Eingaben, Tasten und Scrollen.'}
+                : mode === 'wait'
+                  ? 'Der nächste Klick wählt das Element, auf das gewartet wird.'
+                  : 'Alles wird aufgezeichnet: Klicks, Eingaben, Tasten und Scrollen.'}
             </span>
           )}
         </div>
@@ -243,7 +251,9 @@ export function LiveBrowser({
         </ol>
         <p className="text-small text-text-muted">
           Die Kamera neben der Adresse fügt ein Bildschirmfoto ein. Mit dem Haken wird der nächste
-          Klick eine Prüfung, ob das Element sichtbar ist; die Seite reagiert dann nicht darauf.
+          Klick eine Prüfung, ob das Element sichtbar ist; die Seite reagiert dann nicht darauf. Die
+          Uhr fügt Warten ein: Sekunden, bis die Seite nichts mehr lädt, bis ein Text oder ein
+          Element erscheint. Scrollen wird von selbst aufgezeichnet.
         </p>
         <div className="flex flex-wrap gap-2">
           <Button icon={<Icon name="check" size={16} />} disabled={count === 0} onClick={onFinish}>

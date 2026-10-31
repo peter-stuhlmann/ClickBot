@@ -23,6 +23,7 @@ const RECORDABLE = new Set([
   'press',
   'scroll',
   'screenshot',
+  'wait',
 ]);
 // Copy, cut and paste stay in the own browser; pasting sends the text (onPaste).
 const OWN_SHORTCUTS = new Set(['c', 'v', 'x']);

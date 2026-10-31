@@ -42,6 +42,19 @@ describe('parseClientMessage', () => {
     ['{"type":"key","key":"Control+a"}', { type: 'key', key: 'Control+a' }],
     ['{"type":"key","key":"Shift+Tab"}', { type: 'key', key: 'Shift+Tab' }],
     ['{"type":"screenshot"}', { type: 'screenshot' }],
+    ['{"type":"mode","mode":"wait"}', { type: 'mode', mode: 'wait' }],
+    [
+      '{"type":"wait","until":{"kind":"duration","ms":2000}}',
+      { type: 'wait', until: { kind: 'duration', ms: 2000 } },
+    ],
+    [
+      '{"type":"wait","until":{"kind":"networkIdle"}}',
+      { type: 'wait', until: { kind: 'networkIdle' } },
+    ],
+    [
+      '{"type":"wait","until":{"kind":"text","text":"Vielen Dank"}}',
+      { type: 'wait', until: { kind: 'text', text: 'Vielen Dank' } },
+    ],
   ])('accepts %s', (raw, message) => {
     expect(parseClientMessage(raw)).toEqual(message);
   });
@@ -56,6 +69,10 @@ describe('parseClientMessage', () => {
     ['text that is too long', JSON.stringify({ type: 'text', text: 'x'.repeat(2001) })],
     ['an address that is no web address', '{"type":"navigate","url":"file:///etc/passwd"}'],
     ['an unknown mode', '{"type":"mode","mode":"debug"}'],
+    ['waiting no time', '{"type":"wait","until":{"kind":"duration","ms":0}}'],
+    ['waiting longer than a minute', '{"type":"wait","until":{"kind":"duration","ms":60001}}'],
+    ['waiting for no text', '{"type":"wait","until":{"kind":"text","text":"  "}}'],
+    ['waiting for something unknown', '{"type":"wait","until":{"kind":"forever"}}'],
   ])('refuses %s', (_case, raw) => {
     expect(parseClientMessage(raw)).toBeNull();
   });
@@ -117,6 +134,31 @@ describe('startLiveSession', () => {
     await expect
       .poll(() => messages.filter((m) => m.type === 'mode').at(-1))
       .toEqual({ type: 'mode', mode: 'record' });
+    await session.close();
+  });
+
+  it('records waiting: a fixed time, until the page is quiet, until a text or an element shows', async () => {
+    const { session, steps, centre, page } = await open('/aufnahme.html');
+    await session.handle({ type: 'wait', until: { kind: 'duration', ms: 1500 } });
+    await session.handle({ type: 'wait', until: { kind: 'networkIdle' } });
+    await session.handle({ type: 'wait', until: { kind: 'text', text: 'Vielen Dank' } });
+    await session.handle({ type: 'mode', mode: 'wait' });
+    await session.handle({ type: 'click', ...(await centre('nav a')) });
+
+    await expect.poll(() => steps().length).toBe(5);
+    expect(steps().slice(1)).toEqual([
+      { type: 'wait', until: { kind: 'duration', ms: 1500 } },
+      { type: 'wait', until: { kind: 'networkIdle' } },
+      {
+        type: 'wait',
+        until: { kind: 'element', target: { by: 'text', text: 'Vielen Dank', exact: false } },
+      },
+      {
+        type: 'wait',
+        until: { kind: 'element', target: { by: 'role', role: 'link', name: 'Kontakt' } },
+      },
+    ]);
+    expect(page.url()).toMatch(/aufnahme\.html$/);
     await session.close();
   });
 

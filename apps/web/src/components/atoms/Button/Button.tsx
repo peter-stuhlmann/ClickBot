@@ -1,6 +1,6 @@
 import { cva, type VariantProps } from 'class-variance-authority';
 import Link from 'next/link';
-import type { ButtonHTMLAttributes, ReactNode } from 'react';
+import type { ButtonHTMLAttributes, ReactNode, Ref } from 'react';
 import { cn } from '@/lib/cn';
 
 export const buttonVariants = cva(
@@ -37,6 +37,8 @@ export type ButtonProps = Omit<ButtonHTMLAttributes<HTMLButtonElement>, 'type'> 
     icon?: ReactNode;
     /** Shows a spinner, disables the button and sets aria-busy. */
     loading?: boolean;
+    /** To give the button the focus back, e.g. when a menu it opened closes. */
+    ref?: Ref<HTMLButtonElement>;
     /** Renders a link that looks like a button, e.g. "Abbrechen" back to the job list. */
     href?: string;
   };

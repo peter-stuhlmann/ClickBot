@@ -104,6 +104,25 @@ describe('LiveBrowser', () => {
     expect(screen.getByText('Der nächste Klick wird eine Prüfung.')).toBeVisible();
   });
 
+  it('inserts waiting, or lets the next click choose the element to wait for', async () => {
+    const user = userEvent.setup();
+    const onInput = vi.fn();
+    const { rerender } = render(<LiveBrowser {...props({ onInput })} />);
+    await user.click(screen.getByRole('button', { name: 'Warten einfügen' }));
+    await user.click(screen.getByRole('button', { name: 'Bis die Seite nichts mehr lädt' }));
+    await user.click(screen.getByRole('button', { name: 'Warten einfügen' }));
+    await user.click(screen.getByRole('button', { name: /Bis ein Element erscheint/ }));
+    expect(onInput.mock.calls).toEqual([
+      [{ type: 'wait', until: { kind: 'networkIdle' } }],
+      [{ type: 'mode', mode: 'wait' }],
+    ]);
+
+    rerender(<LiveBrowser {...props({ onInput, mode: 'wait' })} />);
+    expect(
+      screen.getByText('Der nächste Klick wählt das Element, auf das gewartet wird.'),
+    ).toBeVisible();
+  });
+
   it('lists the recorded steps, removes one and takes them over', async () => {
     const user = userEvent.setup();
     const onRemoveStep = vi.fn();

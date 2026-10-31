@@ -132,6 +132,22 @@ describe('startRecorder', () => {
     expect(page.url()).toMatch(/\/aufnahme\.html$/);
     await context.close();
   });
+
+  it('turns a click into waiting for that element, without clicking the page', async () => {
+    const { context, page, settled, recorder } = await record('/aufnahme.html');
+    await recorder.setMode('wait');
+    await page.getByRole('link', { name: 'Kontakt' }).click();
+
+    expect(await settled(1)).toEqual([
+      {
+        type: 'wait',
+        until: { kind: 'element', target: { by: 'role', role: 'link', name: 'Kontakt' } },
+      },
+    ]);
+    expect(page.url()).toMatch(/\/aufnahme\.html$/);
+    expect(recorder.mode()).toBe('record');
+    await context.close();
+  });
 });
 
 describe('startRecorder – keys', () => {
