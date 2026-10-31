@@ -681,6 +681,7 @@ Alle Befehle im Repo-Root ausführen.
 | `pnpm format` / `pnpm format:check`        | Prettier schreiben / prüfen                                                                     |
 | `pnpm check`                               | format:check, lint, typecheck und test in einem Lauf                                            |
 | `pnpm --filter @click-bot/web build`       | Produktions-Build der Web-App                                                                   |
+| `pnpm --filter @click-bot/web icons`       | Favicon (`.ico`, SVG), Apple- und Manifest-Icons aus dem Logo-Zeichen neu erzeugen              |
 
 - **Build-Skripte:** pnpm führt Build-Skripte von Abhängigkeiten nur aus, wenn sie in
   `pnpm-workspace.yaml` unter `onlyBuiltDependencies` freigegeben sind.
