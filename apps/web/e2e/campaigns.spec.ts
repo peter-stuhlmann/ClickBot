@@ -54,8 +54,13 @@ test.describe('Projekte und Kampagnen', () => {
       '20.11.–30.11.2026',
     );
 
-    // The wizard offers the campaigns of this project only.
+    // The wizard offers the campaigns of this project only, in its last step.
     await page.goto('/jobs/neu');
+    await page.getByRole('textbox', { name: 'Website (Start-URL)' }).fill('beispiel.de');
+    await page.getByRole('button', { name: /Frei mit KI/ }).click();
+    await page.getByRole('textbox', { name: 'Was soll auf der Website gelten?' }).fill('Lädt.');
+    await page.getByRole('button', { name: 'Weiter' }).click();
+    await page.getByRole('button', { name: 'Weiter' }).click();
     await page.getByRole('combobox', { name: 'Kampagne' }).click();
     await expect(page.getByRole('listbox', { name: 'Kampagne' }).getByRole('option')).toHaveText([
       'Kampagne wählen',

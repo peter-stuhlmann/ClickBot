@@ -11,6 +11,9 @@ import {
   scheduleErrors,
   stepErrors,
   summarise,
+  suggestName,
+  describeAdvanced,
+  WIZARD_STEPS,
   withStartUrl,
   toNewJobInput,
   toStep,
@@ -295,14 +298,14 @@ describe('toNewJobInput', () => {
 });
 
 describe('validateWizardStep', () => {
-  it('accepts a complete first step', () => {
-    expect(validateWizardStep(draft(), 'job', now)).toEqual([]);
+  it('accepts a complete last step', () => {
+    expect(validateWizardStep(draft(), 'devices', now)).toEqual([]);
   });
 
-  it('asks only for project and name in the first step', () => {
+  it('asks for campaign and name in the last step, with the devices', () => {
     const issues = validateWizardStep(
-      draft({ campaignId: '', name: ' ', startUrl: '', confirmed: false }),
-      'job',
+      draft({ campaignId: '', name: ' ', startUrl: '', confirmed: true }),
+      'devices',
       now,
     );
     expect(issues).toEqual([
@@ -312,7 +315,7 @@ describe('validateWizardStep', () => {
   });
 
   it('needs the start address together with the flow', () => {
-    expect(validateWizardStep(draft({ startUrl: 'ftp://x' }), 'flow', now)).toContainEqual({
+    expect(validateWizardStep(draft({ startUrl: 'ftp://x' }), 'test', now)).toContainEqual({
       path: 'startUrl',
       message: 'Start-URL muss mit http:// oder https:// beginnen.',
     });
@@ -320,7 +323,7 @@ describe('validateWizardStep', () => {
 
   it('accepts a start URL without scheme, because https:// is added', () => {
     const steps = [step('open', { url: 'https://beispiel.de' })];
-    expect(validateWizardStep(draft({ startUrl: 'beispiel.de', steps }), 'flow', now)).toEqual([]);
+    expect(validateWizardStep(draft({ startUrl: 'beispiel.de', steps }), 'test', now)).toEqual([]);
   });
 
   it('needs the confirmation that testing is allowed before the job is created', () => {
@@ -332,14 +335,14 @@ describe('validateWizardStep', () => {
   it('reports flow problems with paths to the step fields', () => {
     const issues = validateWizardStep(
       draft({ steps: [step('open', { url: 'kontakt' }), step('click', { targetValue: '' })] }),
-      'flow',
+      'test',
       now,
     );
     expect(paths(issues)).toEqual(['flow.steps.0.url']);
   });
 
   it('asks for at least one step', () => {
-    expect(validateWizardStep(draft({ steps: [] }), 'flow', now)).toEqual([
+    expect(validateWizardStep(draft({ steps: [] }), 'test', now)).toEqual([
       { path: 'flow.steps', message: 'Der Ablauf braucht mindestens einen Schritt.' },
     ]);
   });
@@ -450,22 +453,6 @@ describe('withStartUrl', () => {
   });
 });
 
-describe('wizardStepOf', () => {
-  it.each([
-    ['campaignId', 'job'],
-    ['startUrl', 'flow'],
-    ['name', 'job'],
-    ['confirmed', 'devices'],
-    ['flow.steps.2.target.label', 'flow'],
-    ['schedule.slots.0.time', 'schedule'],
-    ['devices', 'devices'],
-    ['deviceBrowsers.android', 'devices'],
-    ['something.else', 'job'],
-  ])('sends %s to the %s step', (path, wizardStep) => {
-    expect(wizardStepOf(path)).toBe(wizardStep);
-  });
-});
-
 describe('stepErrors', () => {
   it('maps the paths of a step to the fields of the step form', () => {
     const issues = [
@@ -519,6 +506,79 @@ describe('stepErrors', () => {
   });
 });
 
+describe('wizard steps', () => {
+  it('has three: the website with the test, when, and devices with the name', () => {
+    expect(WIZARD_STEPS.map((step) => step.key)).toEqual(['test', 'schedule', 'devices']);
+  });
+
+  it('sends every problem to the step that shows its field', () => {
+    expect(wizardStepOf('startUrl')).toBe('test');
+    expect(wizardStepOf('flow.steps.1.target.name')).toBe('test');
+    expect(wizardStepOf('schedule.slots.0.time')).toBe('schedule');
+    expect(wizardStepOf('devices')).toBe('devices');
+    expect(wizardStepOf('deviceBrowsers.android')).toBe('devices');
+    expect(wizardStepOf('name')).toBe('devices');
+    expect(wizardStepOf('campaignId')).toBe('devices');
+    expect(wizardStepOf('confirmed')).toBe('devices');
+  });
+
+  it('checks website and flow in the first step, name and campaign in the last', () => {
+    const fresh = emptyDraft(now);
+    expect(validateWizardStep(fresh, 'test', now).map((issue) => issue.path)).toEqual([
+      'startUrl',
+      'flow.steps',
+    ]);
+    expect(validateWizardStep(fresh, 'devices', now).map((issue) => issue.path)).toEqual([
+      'campaignId',
+      'name',
+      'confirmed',
+    ]);
+  });
+});
+
+describe('suggestName', () => {
+  it('takes the first sentence of the goal of a free test', () => {
+    const steps = stepsForAiTask(
+      'beispiel.de',
+      'Es gibt ein Kontaktformular. Es lässt sich absenden.',
+    );
+    expect(suggestName(draft({ steps }))).toBe('Es gibt ein Kontaktformular');
+  });
+
+  it('shortens a long goal at a word', () => {
+    const goal =
+      'Auf der Startseite gibt es einen blauen Button mit der Aufschrift Newsletter abonnieren und daneben ein Feld';
+    const name = suggestName(draft({ steps: stepsForAiTask('beispiel.de', goal) }));
+    expect(name.length).toBeLessThanOrEqual(60);
+    expect(name).toMatch(/…$/);
+    expect(name).not.toMatch(/ …$/);
+  });
+
+  it('names a fixed flow after the website', () => {
+    expect(suggestName(draft({ startUrl: 'https://www.beispiel.de/kontakt', steps: [] }))).toBe(
+      'Test auf beispiel.de',
+    );
+    expect(suggestName(draft({ startUrl: '', steps: [] }))).toBe('');
+  });
+});
+
+describe('describeAdvanced', () => {
+  it('says nothing is changed while the defaults hold', () => {
+    expect(describeAdvanced(emptyDraft(now))).toEqual({
+      summary: 'GA4-Markierung an · Werbung blockiert',
+      changed: false,
+    });
+  });
+
+  it('names what was switched off', () => {
+    const all = { debugMode: false, internalTraffic: false, botFlag: false, runNumber: false };
+    expect(describeAdvanced(draft({ analyticsMarking: all, blockAds: false }))).toEqual({
+      summary: 'GA4-Markierung aus · Werbung erlaubt',
+      changed: true,
+    });
+  });
+});
+
 describe('scheduleErrors', () => {
   it('collects one message per slot row and the interval fields', () => {
     const errors = scheduleErrors([
@@ -540,17 +600,38 @@ describe('scheduleErrors', () => {
 describe('summarise', () => {
   const campaigns = [{ id: 'campaign-1', name: 'Black Friday' }];
 
-  it('shows dashes for what is not decided yet', () => {
+  it('shows dashes for what is not decided yet, and no technical rows while they are default', () => {
     expect(summarise(emptyDraft(now), campaigns, now)).toEqual([
-      { label: 'Kampagne', value: '–' },
       { label: 'Website', value: '–' },
-      { label: 'Job-Name', value: '–' },
-      { label: 'Ablauf', value: '–' },
+      { label: 'Test', value: '–' },
       { label: 'Zeitplan', value: 'alle 60 Min. · max. 24 Läufe' },
       { label: 'Geräte', value: 'Desktop (Chrome)' },
-      { label: 'GA4-Markierung', value: 'alle an' },
-      { label: 'Werbung', value: 'blockiert' },
+      { label: 'Name', value: '–' },
     ]);
+  });
+
+  it('names the campaign only when the project has several', () => {
+    const two = [...campaigns, { id: 'campaign-2', name: 'Sommer' }];
+    const rows = summarise(draft({ campaignId: 'campaign-2' }), two, now);
+    expect(rows.at(-1)).toEqual({ label: 'Kampagne', value: 'Sommer' });
+    expect(summarise(draft(), campaigns, now).some((row) => row.label === 'Kampagne')).toBe(false);
+  });
+
+  it('describes a free test by its mode, and shows changed technical settings', () => {
+    const free = draft({
+      steps: stepsForAiTask('beispiel.de', 'Es gibt ein Kontaktformular.'),
+      blockAds: false,
+      analyticsMarking: { debugMode: false, internalTraffic: true, botFlag: true, runNumber: true },
+    });
+    const rows = summarise(free, campaigns, now);
+    expect(rows.find((row) => row.label === 'Test')).toEqual({
+      label: 'Test',
+      value: 'Frei mit KI',
+    });
+    expect(rows.find((row) => row.label === 'Erweitert')).toEqual({
+      label: 'Erweitert',
+      value: 'GA4-Markierung aus: Debug-Modus · Werbung erlaubt',
+    });
   });
 
   it('summarises a complete draft', () => {
@@ -573,14 +654,11 @@ describe('summarise', () => {
       now,
     );
     expect(rows).toEqual([
-      { label: 'Kampagne', value: 'Black Friday' },
       { label: 'Website', value: 'beispiel.de/kontakt' },
-      { label: 'Job-Name', value: 'Kontaktformular-Test' },
-      { label: 'Ablauf', value: '2 Schritte' },
+      { label: 'Test', value: 'Fester Ablauf · 2 Schritte' },
       { label: 'Zeitplan', value: '2 Termine · 10 Bots' },
       { label: 'Geräte', value: 'Desktop (Chrome), iPhone 15 (Safari)' },
-      { label: 'GA4-Markierung', value: 'alle an' },
-      { label: 'Werbung', value: 'blockiert' },
+      { label: 'Name', value: 'Kontaktformular-Test' },
     ]);
   });
 
@@ -691,9 +769,9 @@ describe('GA4 marking in the wizard', () => {
       [],
       now,
     );
-    expect(rows.find((row) => row.label === 'GA4-Markierung')).toEqual({
-      label: 'GA4-Markierung',
-      value: 'Aus: Debug-Modus',
+    expect(rows.find((row) => row.label === 'Erweitert')).toEqual({
+      label: 'Erweitert',
+      value: 'GA4-Markierung aus: Debug-Modus',
     });
   });
 });
@@ -705,17 +783,17 @@ describe('ads in the wizard', () => {
     expect(toNewJobInput(draft({ blockAds: false }), now).blockAds).toBe(false);
   });
 
-  it('says in the summary whether ads are blocked', () => {
+  it('says in the summary when ads are allowed, nothing while they are blocked', () => {
     const value = (blockAds: boolean) =>
-      summarise(draft({ blockAds }), [], now).find((row) => row.label === 'Werbung')?.value;
-    expect(value(true)).toBe('blockiert');
-    expect(value(false)).toBe('erlaubt');
+      summarise(draft({ blockAds }), [], now).find((row) => row.label === 'Erweitert')?.value;
+    expect(value(true)).toBeUndefined();
+    expect(value(false)).toBe('Werbung erlaubt');
   });
 });
 
 describe('.htaccess steps in the wizard', () => {
   it('need a user name and a password', () => {
-    const issues = validateWizardStep(draft({ steps: [step('basicAuth')] }), 'flow', now);
+    const issues = validateWizardStep(draft({ steps: [step('basicAuth')] }), 'test', now);
     expect(issues).toEqual([
       { path: 'flow.steps.0.username', message: 'Bitte ausfüllen.' },
       { path: 'flow.steps.0.password', message: 'Bitte ausfüllen.' },

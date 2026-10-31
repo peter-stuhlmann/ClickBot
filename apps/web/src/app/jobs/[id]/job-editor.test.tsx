@@ -171,6 +171,8 @@ describe('JobEditor', () => {
     const user = userEvent.setup();
     const { saveAction } = renderEditor();
 
+    // Technical settings wait behind "Erweiterte Einstellungen".
+    await user.click(screen.getByRole('button', { name: 'Erweiterte Einstellungen' }));
     await user.click(screen.getByRole('switch', { name: 'Debug-Modus' }));
     await user.click(saveButton());
 
@@ -186,10 +188,20 @@ describe('JobEditor', () => {
     const user = userEvent.setup();
     const { saveAction } = renderEditor();
 
+    await user.click(screen.getByRole('button', { name: 'Erweiterte Einstellungen' }));
     await user.click(screen.getByRole('switch', { name: /Werbung blockieren/ }));
     expect(screen.getByText('Anzeigen zählen als Impressionen')).toBeVisible();
     await user.click(saveButton());
     expect(saveAction.mock.calls[0]?.[1].blockAds).toBe(false);
+  });
+
+  it('opens the technical settings from the start when one of them was changed', () => {
+    const changed = { ...draftOf(), blockAds: false };
+    renderEditor({ initial: changed });
+    expect(screen.getByRole('button', { name: 'Erweiterte Einstellungen' })).toHaveAttribute(
+      'aria-expanded',
+      'true',
+    );
   });
 
   it('keeps a stored start in the past, but checks everything else before saving', async () => {

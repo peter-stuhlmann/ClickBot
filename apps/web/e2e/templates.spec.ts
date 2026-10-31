@@ -1,5 +1,4 @@
 import { expect, test } from '@playwright/test';
-import { chooseOption } from './select';
 
 test.describe('Vorlagen', () => {
   test('makes a template, takes it over in the wizard and deletes it again', async ({ page }) => {
@@ -29,13 +28,10 @@ test.describe('Vorlagen', () => {
 
     // In the wizard: the steps come after opening the start page.
     await page.goto('/jobs/neu');
-    await chooseOption(page.getByRole('combobox', { name: 'Kampagne' }), 'Allgemein');
-    await page.getByRole('textbox', { name: 'Job-Name' }).fill('E2E aus Vorlage');
-    await page.getByRole('button', { name: 'Weiter' }).click();
     await page
       .getByRole('textbox', { name: 'Website (Start-URL)' })
       .fill('http://127.0.0.1:4100/kontakt.html');
-    await page.getByRole('button', { name: /Aus Vorlage/ }).click();
+    await page.getByRole('button', { name: /Aus Vorlage übernehmen/ }).click();
     await page.getByRole('button', { name: /E2E Kontakt absenden/ }).click();
     await page.getByRole('button', { name: 'Schritte übernehmen' }).click();
     await expect(

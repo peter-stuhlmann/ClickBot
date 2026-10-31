@@ -3,6 +3,7 @@ import { Button } from '@/components/atoms/Button';
 import { Card } from '@/components/atoms/Card';
 import { Icon } from '@/components/atoms/Icon';
 import { Input } from '@/components/atoms/Input';
+import { Notice } from '@/components/molecules/Notice';
 import { StepItem } from '@/components/molecules/StepItem';
 import { WaitMenu } from '@/components/molecules/WaitMenu';
 import { cn } from '@/lib/cn';
@@ -18,6 +19,8 @@ export type LiveBrowserProps = {
   viewport: LiveViewport;
   mode: LiveMode;
   error?: string;
+  /** The worker is not connected: recording cannot start, and the card says so. */
+  offline?: boolean;
   steps: StepItemView[];
   onStart: () => void;
   onInput: (input: LiveInput) => void;
@@ -44,6 +47,7 @@ export function LiveBrowser({
   viewport,
   mode,
   error,
+  offline = false,
   steps,
   onStart,
   onInput,
@@ -64,11 +68,17 @@ export function LiveBrowser({
     return (
       <Card
         title="Im Browser aufnehmen"
-        description="Click-Bot öffnet die Start-URL in einem Browser auf dem Server. Du klickst dich durch, jeder Klick und jede Eingabe wird ein Schritt. Passwörter werden nie aufgezeichnet."
+        description="Du siehst die Website hier im Fenster und klickst dich einmal durch. Jeder Klick und jede Eingabe wird ein Schritt. Passwörter werden nie aufgezeichnet."
       >
+        {offline && (
+          <Notice tone="warning" title="Das Testsystem ist gerade nicht verbunden">
+            Aufnehmen geht, sobald es wieder da ist. Bis dahin kannst du den Test als „Frei mit KI“
+            beschreiben oder eine Vorlage übernehmen.
+          </Notice>
+        )}
         {error && <p className="text-small text-danger">{error}</p>}
         <div>
-          <Button icon={<Icon name="record" size={16} />} onClick={onStart}>
+          <Button icon={<Icon name="record" size={16} />} disabled={offline} onClick={onStart}>
             Aufnahme starten
           </Button>
         </div>

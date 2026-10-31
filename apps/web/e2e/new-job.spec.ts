@@ -9,27 +9,25 @@ test.describe('Neuer Job', () => {
     await expect(page.getByRole('heading', { level: 1, name: 'Neuer Job' })).toBeVisible();
 
     // 1 · Job
-    await chooseOption(page.getByRole('combobox', { name: 'Kampagne' }), 'Allgemein');
-    await page.getByRole('textbox', { name: 'Job-Name' }).fill('E2E Kontaktseite');
-    await page.getByRole('button', { name: 'Weiter' }).click();
     // The start address is asked for with the flow.
     await page
       .getByRole('textbox', { name: 'Website (Start-URL)' })
       .fill('http://127.0.0.1:4100/kontakt.html');
 
-    // 2 · Ablauf: a free test, only its goal.
+    // 1 · Website & Test: a free test, only its goal.
     await page.getByRole('button', { name: /Frei mit KI/ }).click();
     await page
       .getByRole('textbox', { name: 'Was soll auf der Website gelten?' })
       .fill('Es gibt ein Kontaktformular mit Feldern für Name und E-Mail.');
     await page.getByRole('button', { name: 'Weiter' }).click();
 
-    // 3 · Zeitplan
+    // 2 · Wann
     await page.getByRole('textbox', { name: 'Alle (Minuten)' }).fill('30');
     await page.getByRole('textbox', { name: 'Max. Läufe' }).fill('2');
     await page.getByRole('button', { name: 'Weiter' }).click();
 
-    // 4 · Geräte: beside the summary the card is narrow, so the devices take two rows of two.
+    // 3 · Geräte & Freigabe: beside the summary the card is narrow, so the devices take two
+    // rows of two.
     // The cards, not their buttons: a chosen card has a thicker border.
     const top = async (name: RegExp) =>
       (await page.getByRole('button', { name }).locator('..').boundingBox())?.y ?? Number.NaN;
@@ -50,6 +48,11 @@ test.describe('Neuer Job', () => {
     await expect(page.getByRole('complementary', { name: 'Zusammenfassung' })).toContainText(
       'Desktop (Chrome), Desktop (Firefox), iPhone 15 (Safari), Android (Pixel 8) (Firefox)',
     );
+    // The name is suggested from the goal.
+    await expect(page.getByRole('textbox', { name: 'Job-Name' })).toHaveValue(
+      'Es gibt ein Kontaktformular mit Feldern für Name und E-Mail',
+    );
+    await page.getByRole('textbox', { name: 'Job-Name' }).fill('E2E Kontaktseite');
     await page.getByRole('checkbox', { name: /Test freigegeben/ }).check();
     await page.getByRole('button', { name: 'Job anlegen' }).click();
 
@@ -62,15 +65,16 @@ test.describe('Neuer Job', () => {
 
   test('creates a job with random starts, shaped by a curve per weekday', async ({ page }) => {
     await page.goto('/jobs/neu');
-    await chooseOption(page.getByRole('combobox', { name: 'Kampagne' }), 'Allgemein');
-    await page.getByRole('textbox', { name: 'Job-Name' }).fill('E2E Zufall');
-    await page.getByRole('button', { name: 'Weiter' }).click();
     await page
       .getByRole('textbox', { name: 'Website (Start-URL)' })
       .fill('http://127.0.0.1:4100/kontakt.html');
+    await page.getByRole('button', { name: /Frei mit KI/ }).click();
+    await page
+      .getByRole('textbox', { name: 'Was soll auf der Website gelten?' })
+      .fill('Die Seite lädt.');
     await page.getByRole('button', { name: 'Weiter' }).click();
 
-    // 3 · Zeitplan: random, 40 runs in the week from today, no starts in the early morning.
+    // 2 · Wann: random, 40 runs in the week from today, no starts in the early morning.
     await page.getByRole('radio', { name: 'Zufall' }).click();
     await page.getByRole('textbox', { name: 'Läufe im Zeitraum' }).fill('40');
     const curve = page.getByRole('slider', { name: /^Verteilung am / });
@@ -86,6 +90,7 @@ test.describe('Neuer Job', () => {
     await expect(page.getByText(/40 Starts × 1 Gerät = 40 Läufe/).first()).toBeVisible();
     await page.getByRole('button', { name: 'Weiter' }).click();
 
+    await page.getByRole('textbox', { name: 'Job-Name' }).fill('E2E Zufall');
     await page.getByRole('checkbox', { name: /Test freigegeben/ }).check();
     await page.getByRole('button', { name: 'Job anlegen' }).click();
     await expect(page).toHaveURL('/');
@@ -96,13 +101,13 @@ test.describe('Neuer Job', () => {
 
   test('creates no job without the confirmation that testing is allowed', async ({ page }) => {
     await page.goto('/jobs/neu');
-    await chooseOption(page.getByRole('combobox', { name: 'Kampagne' }), 'Allgemein');
-    await page.getByRole('textbox', { name: 'Job-Name' }).fill('Ohne Freigabe');
-    await page.getByRole('button', { name: 'Weiter' }).click();
     await page.getByRole('textbox', { name: 'Website (Start-URL)' }).fill('beispiel.de');
-    for (let step = 2; step <= 3; step += 1) {
-      await page.getByRole('button', { name: 'Weiter' }).click();
-    }
+    await page.getByRole('button', { name: /Frei mit KI/ }).click();
+    await page
+      .getByRole('textbox', { name: 'Was soll auf der Website gelten?' })
+      .fill('Die Seite lädt.');
+    await page.getByRole('button', { name: 'Weiter' }).click();
+    await page.getByRole('button', { name: 'Weiter' }).click();
     await page.getByRole('button', { name: 'Job anlegen' }).click();
 
     // Next.js has its own role="alert" (route announcer), so filter by text.

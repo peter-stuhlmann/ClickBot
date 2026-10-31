@@ -108,6 +108,8 @@ test.describe('Job-Editor', () => {
   test('switches the GA4 marking of a job off, with a warning, and keeps it', async ({ page }) => {
     await page.goto('/');
     await page.getByRole('link', { name: 'Kontaktformular-Test', exact: true }).click();
+    // Technical settings wait behind "Erweiterte Einstellungen".
+    await page.getByRole('button', { name: 'Erweiterte Einstellungen' }).click();
     const main = page.getByRole('switch', { name: 'Bot-Läufe in GA4 markieren' });
     await expect(main).toBeChecked();
 
@@ -121,6 +123,7 @@ test.describe('Job-Editor', () => {
     await page.getByRole('button', { name: 'Speichern' }).click();
     await expect(page.getByRole('status').filter({ hasText: 'Gespeichert.' })).toBeVisible();
 
+    // Changed settings open by themselves, so the warning is in view.
     await page.reload();
     await expect(page.getByRole('switch', { name: 'Bot-Kennung' })).toBeChecked();
     await expect(page.getByRole('switch', { name: 'Debug-Modus' })).not.toBeChecked();

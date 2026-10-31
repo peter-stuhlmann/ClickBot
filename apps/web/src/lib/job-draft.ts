@@ -6,6 +6,7 @@ import {
   deviceBrowserProblems,
   describeMarking,
   flowSchema,
+  markingState,
   localToUtc,
   normalizeDeviceBrowsers,
   runTargets,
@@ -31,13 +32,16 @@ import type { SummaryRowView } from './views';
  */
 
 export const WIZARD_STEPS = [
-  { key: 'job', label: 'Job', question: 'Zu welcher Kampagne gehört der Job?' },
-  { key: 'flow', label: 'Ablauf', question: 'Wo beginnt der Test, und was soll passieren?' },
-  { key: 'schedule', label: 'Zeitplan', question: 'Wann soll der Bot laufen?' },
+  {
+    key: 'test',
+    label: 'Website & Test',
+    question: 'Welche Website, und was soll geprüft werden?',
+  },
+  { key: 'schedule', label: 'Wann', question: 'Wann soll der Test laufen?' },
   {
     key: 'devices',
-    label: 'Standort & Gerät',
-    question: 'Von wo und auf welchem Gerät wird getestet?',
+    label: 'Geräte & Freigabe',
+    question: 'Auf welchen Geräten, und unter welchem Namen?',
   },
 ] as const;
 
@@ -680,15 +684,59 @@ function scheduleIssues(schedule: ScheduleDraft, now: Date, original?: ScheduleD
 /** Problems that keep the user on `step`. Empty means "Weiter" may continue. */
 export function validateWizardStep(draft: WizardDraft, step: WizardStep, now: Date): Issue[] {
   switch (step) {
-    case 'job':
-      return jobIssues(draft);
-    case 'flow':
+    case 'test':
       return [...startUrlIssues(draft), ...flowIssues(draft, now)];
     case 'schedule':
       return scheduleIssues(draft.schedule, now);
     case 'devices':
-      return [...deviceIssues(draft), ...confirmationIssues(draft)];
+      return [...deviceIssues(draft), ...jobIssues(draft), ...confirmationIssues(draft)];
   }
+}
+
+const NAME_LIMIT = 60;
+
+/**
+ * A name for the test, before the user types one: the first sentence of the goal of a free
+ * test, or "Test auf <website>" for a fixed flow. Empty while there is nothing to go by.
+ */
+export function suggestName(draft: Pick<WizardDraft, 'startUrl' | 'steps'>): string {
+  const goal = draft.steps.find((step) => step.type === 'ai')?.value.trim() ?? '';
+  if (goal) {
+    const sentence = (goal.split(/(?<=[.!?])\s/)[0] ?? goal).replace(/[.!?]+$/, '').trim();
+    if (sentence.length <= NAME_LIMIT) return sentence;
+    const cut = sentence.slice(0, NAME_LIMIT - 1);
+    return `${cut.slice(0, Math.max(cut.lastIndexOf(' '), 20)).trimEnd()}…`;
+  }
+  try {
+    const host = new URL(normaliseUrl(draft.startUrl)).hostname.replace(/^www\./, '');
+    return host ? `Test auf ${host}` : '';
+  } catch {
+    return '';
+  }
+}
+
+/** "GA4-Markierung aus" or "GA4-Markierung aus: Debug-Modus"; null while everything is on. */
+function markingSummary(marking: AnalyticsMarking): string | null {
+  const state = markingState(marking);
+  if (state === 'on') return null;
+  if (state === 'off') return 'GA4-Markierung aus';
+  return `GA4-Markierung ${(describeMarking(marking) ?? '').replace(/^Aus/, 'aus')}`;
+}
+
+/**
+ * One line for the collapsed "Erweiterte Einstellungen": what GA4 marking and ad blocking stand
+ * at, and whether anything differs from the recommended defaults.
+ */
+export function describeAdvanced(draft: Pick<WizardDraft, 'analyticsMarking' | 'blockAds'>): {
+  summary: string;
+  changed: boolean;
+} {
+  const marking = markingSummary(draft.analyticsMarking) ?? 'GA4-Markierung an';
+  const ads = draft.blockAds ? 'Werbung blockiert' : 'Werbung erlaubt';
+  return {
+    summary: `${marking} · ${ads}`,
+    changed: markingState(draft.analyticsMarking) !== 'on' || !draft.blockAds,
+  };
 }
 
 export type JobUpdateDraftInput = Omit<NewJobDraftInput, 'status'>;
@@ -841,10 +889,9 @@ export function withStartUrl(
 /** The wizard step that shows the field at `path`, e.g. after the server rejected the job. */
 export function wizardStepOf(path: string): WizardStep {
   const [head] = path.split('.');
-  if (head === 'flow' || head === 'schedule' || head === 'devices') return head;
-  if (head === 'startUrl') return 'flow';
-  if (head === 'deviceBrowsers' || head === 'confirmed') return 'devices';
-  return 'job';
+  if (head === 'schedule') return 'schedule';
+  if (head === 'flow' || head === 'startUrl') return 'test';
+  return 'devices';
 }
 
 /** The browser problems by device, e.g. { android: 'Mindestens einen Browser wählen.' }. */
@@ -945,24 +992,35 @@ export function summarise(
   const scheduleText = schedule.success
     ? Object.values(describeSchedule(schedule.data)).join(' · ')
     : DASH;
+  const free = draft.steps.some((step) => step.type === 'ai');
+  const test = free
+    ? 'Frei mit KI'
+    : draft.steps.length > 0
+      ? `Fester Ablauf · ${plural(draft.steps.length, 'Schritt', 'Schritte')}`
+      : DASH;
+  // Technical settings only when they differ from the defaults: the summary stays short.
+  const changed = [
+    markingSummary(draft.analyticsMarking),
+    draft.blockAds ? null : 'Werbung erlaubt',
+  ].filter((part): part is string => Boolean(part));
   return [
-    {
-      label: 'Kampagne',
-      value: campaigns.find((campaign) => campaign.id === draft.campaignId)?.name ?? DASH,
-    },
     {
       label: 'Website',
       value: draft.startUrl.trim() ? displayUrl(normaliseUrl(draft.startUrl)) : DASH,
     },
-    { label: 'Job-Name', value: draft.name.trim() || DASH },
-    {
-      label: 'Ablauf',
-      value: draft.steps.length > 0 ? plural(draft.steps.length, 'Schritt', 'Schritte') : DASH,
-    },
+    { label: 'Test', value: test },
     { label: 'Zeitplan', value: scheduleText },
     { label: 'Geräte', value: describeTargets(draft.devices, draft.deviceBrowsers) || DASH },
-    { label: 'GA4-Markierung', value: describeMarking(draft.analyticsMarking) ?? 'alle an' },
-    { label: 'Werbung', value: draft.blockAds ? 'blockiert' : 'erlaubt' },
+    { label: 'Name', value: draft.name.trim() || DASH },
+    ...(campaigns.length > 1
+      ? [
+          {
+            label: 'Kampagne',
+            value: campaigns.find((campaign) => campaign.id === draft.campaignId)?.name ?? DASH,
+          },
+        ]
+      : []),
+    ...(changed.length > 0 ? [{ label: 'Erweitert', value: changed.join(' · ') }] : []),
   ];
 }
 

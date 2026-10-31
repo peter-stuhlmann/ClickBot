@@ -78,14 +78,8 @@ describe('DevicePicker', () => {
     );
   });
 
-  it('says honestly that location profiles do not exist yet', () => {
+  it('shows a problem with the chosen devices', () => {
     render(<DevicePicker {...props} selected={[]} error="Mindestens ein Gerät wählen." />);
     expect(screen.getByText('Mindestens ein Gerät wählen.')).toBeVisible();
-    expect(screen.getByRole('region', { name: 'Von wo aus testen?' })).toHaveTextContent('geplant');
-  });
-
-  it('fits a narrow column without the location card', () => {
-    render(<DevicePicker {...props} compact />);
-    expect(screen.queryByRole('region', { name: 'Von wo aus testen?' })).not.toBeInTheDocument();
   });
 });

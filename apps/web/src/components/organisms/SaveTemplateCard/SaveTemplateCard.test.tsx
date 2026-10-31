@@ -42,9 +42,11 @@ describe('SaveTemplateCard', () => {
     }));
     render(<SaveTemplateCard jobId="job-1" defaultName="Login" action={action} />);
     await user.click(screen.getByRole('button', { name: 'Vorlage erstellen' }));
-    expect(
-      await screen.findByRole('textbox', { name: 'Name der Vorlage' }),
-    ).toHaveAccessibleDescription('Eine Vorlage mit diesem Namen gibt es schon.');
+    // The field is there before the action answers: wait for the message, not the field.
+    await screen.findByText('Eine Vorlage mit diesem Namen gibt es schon.');
+    expect(screen.getByRole('textbox', { name: 'Name der Vorlage' })).toHaveAccessibleDescription(
+      'Eine Vorlage mit diesem Namen gibt es schon.',
+    );
     expect(screen.getByRole('textbox', { name: 'Beschreibung (optional)' })).toHaveValue('x');
   });
 

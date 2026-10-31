@@ -18,13 +18,24 @@ Projekte, die Anmeldung, das Profil und die Einstellungen der KI-Anbieter stehen
   - `apps/web`:
     - App-Rahmen mit Sidebar
     - Screen 01 „Jobs“ mit echten Daten, inklusive Pausieren und Fortsetzen
-    - Screen 05 „Neuer Job“ (`/jobs/neu`): Assistent in vier Schritten: Job (Kampagne des
-      aktuellen Projekts und Name; mit nur einer Kampagne ist sie vorausgewählt), Ablauf (Start-URL oben, der erste Schritt „Seite öffnen“ folgt ihr, solange er nicht
-      von Hand geändert wurde), Zeitplan, Geräte (mit der Freigabe am Ende). Am Ende wird der Job aktiv angelegt und läuft nach Zeitplan.
-      Zwei Arten zu testen (`MethodPicker`): „Fester Ablauf“ (aufnehmen im Live-Browser, Screen
-      04, oder „Aus Vorlage übernehmen“; danach eine Liste, in der jeder Schritt korrigierbar ist,
-      ohne „Schritt hinzufügen“) und „Frei mit KI“ (nur das Ziel des Tests, `GoalCard`; siehe
-      Worker → KI-Schritt). Jeder Modus behält seinen Stand, während der andere gezeigt wird.
+    - Screen 05 „Neuer Job“ (`/jobs/neu`): Assistent in drei Schritten (`WIZARD_STEPS`), so
+      dass die Website das Erste ist, was man eingibt:
+      1. „Website & Test“: Start-URL (der erste Schritt „Seite öffnen“ folgt ihr, solange er
+         nicht von Hand geändert wurde) und die Art zu testen (`MethodPicker`): „Fester Ablauf“
+         (aufnehmen im Live-Browser, Screen 04, oder „Aus Vorlage übernehmen“; danach eine Liste,
+         in der jeder Schritt korrigierbar ist, ohne „Schritt hinzufügen“) oder „Frei mit KI“
+         (nur das Ziel des Tests, `GoalCard`; siehe Worker → KI-Schritt). Jeder Modus behält
+         seinen Stand, während der andere gezeigt wird. Ist der Worker offline, sagt die
+         Aufnahme-Karte das vorab (`LiveBrowser offline`); fehlt ein KI-Anbieter, die Ziel-Karte
+         (`GoalCard aiReady`).
+      2. „Wann“: der Zeitplan.
+      3. „Geräte & Freigabe“: Geräte, der Name (beim Ankommen aus Ziel oder Website
+         vorgeschlagen, `suggestName`), die Kampagne nur bei mehreren im Projekt (sonst
+         „Allgemein“, `defaultCampaignId` von der Seite), „Erweiterte Einstellungen“ (GA4-
+         Markierung und Werbung, eingeklappt in einem `AccordionItem` mit Zusammenfassung
+         `describeAdvanced` und Badge „Geändert“) und die Freigabe.
+         Am Ende wird der Job aktiv angelegt und läuft nach Zeitplan. Die Zusammenfassung rechts
+         zeigt Technik-Einstellungen nur, wenn sie vom Standard abweichen.
     - „Vorlagen“ (`/vorlagen`, ohne Figma-Entwurf): Abläufe für jede Website, für alle Projekte.
       Anlegen unter `/vorlagen/neu` (gleicher Baukasten, ohne Passwortschutz) oder im Editor eines
       Jobs mit „Als Vorlage speichern“ (`toTemplateFlow`: ohne das Öffnen der Start-URL am Anfang,
@@ -34,7 +45,9 @@ Projekte, die Anmeldung, das Profil und die Einstellungen der KI-Anbieter stehen
       Vorlage ändert keinen Job.
     - Screen 02 „Editor“ (`/jobs/<id>`, über den Job-Namen in der Liste): Name, Start-URL,
       Zeitplan, Geräte und Ablauf eines bestehenden Jobs ändern. Zwei Spalten statt der drei
-      aus dem Design, weil die Terminzeilen sonst zu schmal werden.
+      aus dem Design, weil die Terminzeilen sonst zu schmal werden. GA4-Markierung und Werbung
+      liegen auch hier unter „Erweiterte Einstellungen“; das Akkordeon ist offen, wenn eine davon
+      vom Standard abweicht, damit die Warnung zu sehen ist.
     - „Testlauf starten“ im Editor: speichert offene Änderungen, startet einen Bot auf dem
       ersten Gerät und öffnet dessen Report. Der Report lädt sich alle 2 s neu, solange der
       Lauf wartet oder läuft.
@@ -84,7 +97,9 @@ Projekte, die Anmeldung, das Profil und die Einstellungen der KI-Anbieter stehen
     Analytics-Werkzeuge als GA4
   - E-Mail-Versand (Einladungslinks werden angezeigt und von Hand weitergegeben), Konten
     sperren oder löschen, Rate-Limit je IP-Adresse beim Login
-  - im Assistenten: Standort-Profile je Termin; im Editor KI und Aufnehmen; Schritte vom Typ „auslesen“ lassen sich noch nicht anlegen
+  - im Assistenten: Standort-Profile (die Karte „Von wo aus testen?“ aus dem Design gibt es
+    erst, wenn es Profile gibt); im Editor Aufnehmen; Schritte vom Typ „auslesen“ lassen sich
+    noch nicht anlegen
   - im Lauf-Report: PDF, „Erneut ausführen“, KI-Eingriffe des Fallbacks, Konsolenfehler und ausgelesene
     Werte (dafür speichert der Worker noch keine Daten)
   - im Editor: KI-Box, „Erfolg & Daten“ und Variablen-Liste aus dem Design

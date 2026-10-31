@@ -3,7 +3,9 @@
 import { runTargets } from '@click-bot/shared';
 import { useRouter } from 'next/navigation';
 import { useMemo, useState, useTransition } from 'react';
+import { Badge } from '@/components/atoms/Badge';
 import { Button } from '@/components/atoms/Button';
+import { AccordionItem } from '@/components/molecules/AccordionItem';
 import { Icon } from '@/components/atoms/Icon';
 import { AdBlockingForm } from '@/components/organisms/AdBlockingForm';
 import { AnalyticsMarkingForm } from '@/components/organisms/AnalyticsMarkingForm';
@@ -19,6 +21,7 @@ import { EditorLayout } from '@/components/templates/EditorLayout';
 import { browserLabel, deviceLabel, toggleDevice, toggleDeviceBrowser } from '@/lib/devices';
 import {
   appendStep,
+  describeAdvanced,
   describeRunTotal,
   browserErrors,
   errorsByPath,
@@ -78,6 +81,8 @@ export function JobEditor({
   const [selected, setSelected] = useState<number | null>(initial.steps.length > 0 ? 0 : null);
   const [issues, setIssues] = useState<Issue[]>([]);
   const [justSaved, setJustSaved] = useState(false);
+  // Open from the start when a setting was changed, so its warning is in view.
+  const [advancedOpen, setAdvancedOpen] = useState(() => describeAdvanced(initial).changed);
   const [saving, startSaving] = useTransition();
   const [testing, startTesting] = useTransition();
 
@@ -145,6 +150,7 @@ export function JobEditor({
   }
 
   const selectedStep = selected === null ? undefined : draft.steps[selected];
+  const advanced = describeAdvanced(draft);
   // The test run takes the first device in its first browser, as queueTestRun does.
   const [testTarget] = runTargets(draft.devices, draft.deviceBrowsers);
 
@@ -209,7 +215,6 @@ export function JobEditor({
             typeLocked={startedSlots.length > 0}
           />
           <DevicePicker
-            compact
             selected={draft.devices}
             deviceBrowsers={draft.deviceBrowsers}
             error={errors.devices}
@@ -221,11 +226,25 @@ export function JobEditor({
               })
             }
           />
-          <AnalyticsMarkingForm
-            marking={draft.analyticsMarking}
-            onChange={(analyticsMarking) => update({ analyticsMarking })}
-          />
-          <AdBlockingForm blockAds={draft.blockAds} onChange={(blockAds) => update({ blockAds })} />
+          <AccordionItem
+            id="advanced"
+            title="Erweiterte Einstellungen"
+            description={advanced.summary}
+            aside={advanced.changed ? <Badge tone="warning">Geändert</Badge> : undefined}
+            open={advancedOpen}
+            onToggle={() => setAdvancedOpen((open) => !open)}
+          >
+            <div className="flex flex-col gap-6">
+              <AnalyticsMarkingForm
+                marking={draft.analyticsMarking}
+                onChange={(analyticsMarking) => update({ analyticsMarking })}
+              />
+              <AdBlockingForm
+                blockAds={draft.blockAds}
+                onChange={(blockAds) => update({ blockAds })}
+              />
+            </div>
+          </AccordionItem>
           <SaveTemplateCard
             jobId={jobId}
             defaultName={saved.name}

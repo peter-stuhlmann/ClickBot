@@ -104,6 +104,12 @@ describe('LiveBrowser', () => {
     expect(screen.getByText('Der nächste Klick wird eine Prüfung.')).toBeVisible();
   });
 
+  it('says before starting that the worker is not connected', () => {
+    render(<LiveBrowser {...props({ status: 'idle', offline: true })} />);
+    expect(screen.getByText('Das Testsystem ist gerade nicht verbunden')).toBeVisible();
+    expect(screen.getByRole('button', { name: 'Aufnahme starten' })).toBeDisabled();
+  });
+
   it('inserts waiting, or lets the next click choose the element to wait for', async () => {
     const user = userEvent.setup();
     const onInput = vi.fn();

@@ -11,18 +11,33 @@ const campaigns = [
 ];
 
 describe('JobBasicsForm', () => {
-  it('asks only for campaign and name, and reports each as it changes', async () => {
+  it('asks for the name and, with several campaigns, for the campaign', async () => {
     const user = userEvent.setup();
     const onChange = vi.fn();
     render(<JobBasicsForm values={empty} campaigns={campaigns} errors={{}} onChange={onChange} />);
-    expect(screen.getAllByRole('combobox')).toHaveLength(1);
     expect(screen.getAllByRole('textbox')).toHaveLength(1);
 
-    await chooseOption(user, screen.getByRole('combobox', { name: 'Kampagne' }), 'Black Friday');
     fireEvent.change(screen.getByRole('textbox', { name: 'Job-Name' }), {
       target: { value: 'Kontakt' },
     });
-    expect(onChange.mock.calls).toEqual([[{ campaignId: 'k2' }], [{ name: 'Kontakt' }]]);
+    await chooseOption(user, screen.getByRole('combobox', { name: 'Kampagne' }), 'Black Friday');
+    expect(onChange.mock.calls).toEqual([[{ name: 'Kontakt' }], [{ campaignId: 'k2' }]]);
+    expect(screen.getByRole('link', { name: 'Neue Kampagne' })).toHaveAttribute(
+      'href',
+      '/kampagnen/neu',
+    );
+  });
+
+  it('hides the campaign while the project has only one', () => {
+    render(
+      <JobBasicsForm
+        values={{ campaignId: 'k1', name: '' }}
+        campaigns={[campaigns[0] as { id: string; name: string }]}
+        errors={{}}
+        onChange={vi.fn()}
+      />,
+    );
+    expect(screen.queryByRole('combobox')).not.toBeInTheDocument();
   });
 
   it('shows the errors next to their fields', () => {
@@ -39,14 +54,6 @@ describe('JobBasicsForm', () => {
     );
     expect(screen.getByRole('textbox', { name: 'Job-Name' })).toHaveAccessibleDescription(
       /Name fehlt\./,
-    );
-  });
-
-  it('offers to create a campaign', () => {
-    render(<JobBasicsForm values={empty} campaigns={campaigns} errors={{}} onChange={vi.fn()} />);
-    expect(screen.getByRole('link', { name: 'Neue Kampagne' })).toHaveAttribute(
-      'href',
-      '/kampagnen/neu',
     );
   });
 });

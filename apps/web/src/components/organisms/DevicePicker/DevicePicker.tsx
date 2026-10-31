@@ -1,6 +1,6 @@
 import type { DeviceBrowsers } from '@click-bot/shared';
 import { Card } from '@/components/atoms/Card';
-import { Icon, type IconName } from '@/components/atoms/Icon';
+import type { IconName } from '@/components/atoms/Icon';
 import { DeviceChoice } from '@/components/molecules/DeviceChoice';
 import { browserChoices, DEVICE_OPTIONS, type BrowserKey, type DeviceKey } from '@/lib/devices';
 
@@ -13,8 +13,6 @@ export type DevicePickerProps = {
   browserErrors?: Partial<Record<DeviceKey, string>>;
   onToggle: (device: DeviceKey) => void;
   onToggleBrowser: (device: DeviceKey, browser: BrowserKey) => void;
-  /** Narrow column (editor): without the location card. */
-  compact?: boolean;
 };
 
 const ICONS: Record<DeviceKey, IconName> = {
@@ -27,10 +25,7 @@ const ICONS: Record<DeviceKey, IconName> = {
 const IOS_ONLY = 'Auf iOS ist jeder Browser Safari (WebKit).';
 const NO_BROWSER = 'Mindestens einen Browser wählen.';
 
-/**
- * Step 4 of the job wizard: the devices to test on, each with its own browsers. Location profiles
- * are not built yet.
- */
+/** The devices to test on, each with its own browsers (wizard and editor). */
 export function DevicePicker({
   selected,
   deviceBrowsers,
@@ -38,13 +33,12 @@ export function DevicePicker({
   browserErrors = {},
   onToggle,
   onToggleBrowser,
-  compact = false,
 }: DevicePickerProps) {
   return (
     <>
       <Card
         title="Auf welchen Geräten testen?"
-        description="Mehrfachauswahl möglich – jedes Gerät läuft in den Browsern, die du bei ihm wählst. Jede Kombination ist ein eigener Bot mit einer eigenen Zeile im Report."
+        description="Du kannst mehrere wählen. Jedes Gerät läuft in den Browsern, die du bei ihm anhakst, und bekommt eine eigene Zeile im Report."
       >
         {/* Columns by the width of the card, not of the window: beside the summary it is narrow. */}
         <div className="@container">
@@ -76,27 +70,10 @@ export function DevicePicker({
         </div>
         {error && <p className="text-small text-danger">{error}</p>}
         <p className="text-small text-text-muted">
-          Jedes Gerät läuft mit echter Bildschirmgröße, Touch und Gerätekennung. Android gibt es mit
-          Chrome oder Firefox, Safari nur auf Desktop, iPhone und iPad.
+          Jedes Gerät läuft mit echter Bildschirmgröße und Touch. Auf iPhone und iPad ist jeder
+          Browser Safari.
         </p>
       </Card>
-      {!compact && (
-        <Card
-          title="Von wo aus testen?"
-          description="Standort-Profile setzen IP (Proxy), GPS-Koordinaten, Sprache und Zeitzone passend zusammen."
-          aside={
-            <span className="rounded-chip bg-neutral-soft px-2 py-0.5 text-small text-text-muted">
-              geplant
-            </span>
-          }
-        >
-          <p className="flex items-start gap-2 text-body text-text">
-            <Icon name="location" className="text-text-muted" />
-            Bis es Standort-Profile gibt, laufen alle Bots ohne Proxy, mit deutscher Sprache und
-            Zeitzone Europe/Berlin.
-          </p>
-        </Card>
-      )}
     </>
   );
 }

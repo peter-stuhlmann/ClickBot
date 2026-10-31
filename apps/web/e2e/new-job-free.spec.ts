@@ -1,12 +1,8 @@
 import { expect, test } from '@playwright/test';
-import { chooseOption } from './select';
 
 test.describe('Neuer Job – Frei mit KI', () => {
   test('creates a free test with only its goal, which the editor shows again', async ({ page }) => {
     await page.goto('/jobs/neu');
-    await chooseOption(page.getByRole('combobox', { name: 'Kampagne' }), 'Allgemein');
-    await page.getByRole('textbox', { name: 'Job-Name' }).fill('E2E Freier Test');
-    await page.getByRole('button', { name: 'Weiter' }).click();
     await page
       .getByRole('textbox', { name: 'Website (Start-URL)' })
       .fill('http://127.0.0.1:4100/newsletter.html');
@@ -16,6 +12,7 @@ test.describe('Neuer Job – Frei mit KI', () => {
     await page.getByRole('textbox', { name: 'Was soll auf der Website gelten?' }).fill(goal);
     await page.getByRole('button', { name: 'Weiter' }).click();
     await page.getByRole('button', { name: 'Weiter' }).click();
+    await page.getByRole('textbox', { name: 'Job-Name' }).fill('E2E Freier Test');
     await page.getByRole('checkbox', { name: /Test freigegeben/ }).check();
     await page.getByRole('button', { name: 'Job anlegen' }).click();
     await expect(page).toHaveURL('/');

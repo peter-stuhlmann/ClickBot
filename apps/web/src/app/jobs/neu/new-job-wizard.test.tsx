@@ -3,7 +3,7 @@ import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Issue, WizardDraft } from '@/lib/job-draft';
 import type { StartRecordingAction } from '@/lib/views';
-import { NewJobWizard } from './new-job-wizard';
+import { NewJobWizard, type NewJobWizardProps } from './new-job-wizard';
 import { chooseOption } from '../../../../test/select';
 
 // 13:30 in Berlin. Only Date is faked, so user-event's timers keep working.
@@ -51,15 +51,19 @@ const contactTemplate = {
 
 function renderWizard(
   createAction = vi.fn<CreateAction>(async () => ({ issues: [] })),
-  startRecording: StartRecordingAction = noRecording,
+  overrides: Partial<NewJobWizardProps> = {},
 ) {
   render(
     <NewJobWizard
       campaigns={campaigns}
       now={NOW}
       createAction={createAction}
-      startRecording={startRecording}
+      startRecording={noRecording}
       templates={[contactTemplate]}
+      aiReady
+      workerOnline
+      defaultCampaignId="k1"
+      {...overrides}
     />,
   );
   return createAction;
@@ -90,15 +94,7 @@ class FakeLiveSocket {
 
 const weiter = () => screen.getByRole('button', { name: 'Weiter' });
 const summary = () => within(screen.getByRole('region', { name: 'Zusammenfassung' }));
-const subtitle = () => screen.getByText(/^Schritt \d von 4/);
-
-/** Step 1 asks only for project and name. */
-async function fillJob(user: ReturnType<typeof userEvent.setup>) {
-  await chooseOption(user, screen.getByRole('combobox', { name: 'Kampagne' }), 'Black Friday');
-  fireEvent.change(screen.getByRole('textbox', { name: 'Job-Name' }), {
-    target: { value: 'Kontaktformular-Test' },
-  });
-}
+const subtitle = () => screen.getByText(/^Schritt \d von 3/);
 
 function fillStartUrl() {
   fireEvent.change(screen.getByRole('textbox', { name: 'Website (Start-URL)' }), {
@@ -106,11 +102,22 @@ function fillStartUrl() {
   });
 }
 
-/** Through step 1 into step 2, with the start address entered there. */
-async function toFlowStep(user: ReturnType<typeof userEvent.setup>) {
-  await fillJob(user);
-  await user.click(weiter());
+/** A free test with a goal: the quickest complete first step. */
+async function describeFreeTest(
+  user: ReturnType<typeof userEvent.setup>,
+  goal = 'Es gibt ein Formular.',
+) {
   fillStartUrl();
+  await user.click(screen.getByRole('button', { name: /Frei mit KI/ }));
+  fireEvent.change(screen.getByRole('textbox', { name: 'Was soll auf der Website gelten?' }), {
+    target: { value: goal },
+  });
+}
+
+async function takeTemplate(user: ReturnType<typeof userEvent.setup>) {
+  fillStartUrl();
+  await user.click(screen.getByRole('button', { name: /Aus Vorlage übernehmen/ }));
+  await user.click(screen.getByRole('button', { name: 'Schritte übernehmen' }));
 }
 
 async function confirmApproval(user: ReturnType<typeof userEvent.setup>) {
@@ -118,6 +125,22 @@ async function confirmApproval(user: ReturnType<typeof userEvent.setup>) {
 }
 
 describe('NewJobWizard', () => {
+  it('starts with the website and the way to test, a fixed flow by default', () => {
+    renderWizard();
+    expect(subtitle()).toHaveTextContent(
+      'Schritt 1 von 3 · Welche Website, und was soll geprüft werden?',
+    );
+    expect(screen.getByRole('textbox', { name: 'Website (Start-URL)' })).toBeVisible();
+    expect(screen.getByRole('button', { name: /Fester Ablauf/ })).toHaveAttribute(
+      'aria-pressed',
+      'true',
+    );
+    expect(screen.getByRole('button', { name: 'Aufnahme starten' })).toBeVisible();
+    // Name and campaign come last, not first.
+    expect(screen.queryByRole('textbox', { name: 'Job-Name' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('combobox', { name: 'Kampagne' })).not.toBeInTheDocument();
+  });
+
   it('records steps in the live browser and takes them over', async () => {
     vi.stubGlobal('WebSocket', FakeLiveSocket);
     const user = userEvent.setup();
@@ -125,14 +148,9 @@ describe('NewJobWizard', () => {
       ok: true,
       url: 'ws://localhost:4200/live?token=t',
     }));
-    renderWizard(undefined, startRecording);
-    await toFlowStep(user);
+    renderWizard(undefined, { startRecording });
+    fillStartUrl();
 
-    // A fixed flow is the default and starts with the live browser.
-    expect(screen.getByRole('button', { name: /Fester Ablauf/ })).toHaveAttribute(
-      'aria-pressed',
-      'true',
-    );
     await user.click(screen.getByRole('button', { name: 'Aufnahme starten' }));
     expect(startRecording).toHaveBeenCalledWith('127.0.0.1:4100/kontakt.html');
     const socket = FakeLiveSocket.last as FakeLiveSocket;
@@ -163,20 +181,28 @@ describe('NewJobWizard', () => {
 
   it('says why the live browser does not start', async () => {
     const user = userEvent.setup();
-    renderWizard(undefined, async () => ({
-      ok: false,
-      message: 'Der Worker ist offline. Ohne ihn gibt es keinen Live-Browser.',
-    }));
-    await toFlowStep(user);
+    renderWizard(undefined, {
+      startRecording: async () => ({
+        ok: false,
+        message: 'Der Worker ist offline. Ohne ihn gibt es keinen Live-Browser.',
+      }),
+    });
+    fillStartUrl();
     await user.click(screen.getByRole('button', { name: 'Aufnahme starten' }));
     expect(await screen.findByText(/Der Worker ist offline/)).toBeVisible();
+  });
+
+  it('tells before recording that the worker is not connected', () => {
+    renderWizard(undefined, { workerOnline: false });
+    expect(screen.getByText('Das Testsystem ist gerade nicht verbunden')).toBeVisible();
+    expect(screen.getByRole('button', { name: 'Aufnahme starten' })).toBeDisabled();
   });
 
   it('tests freely: only the goal, which the AI checks in every run', async () => {
     const user = userEvent.setup();
     const createAction = renderWizard();
-    await toFlowStep(user);
 
+    fillStartUrl();
     await user.click(screen.getByRole('button', { name: /Frei mit KI/ }));
     expect(screen.queryByRole('region', { name: 'Ablauf' })).not.toBeInTheDocument();
     const goal = screen.getByRole('textbox', { name: 'Was soll auf der Website gelten?' });
@@ -188,18 +214,26 @@ describe('NewJobWizard', () => {
     await user.click(weiter());
     await confirmApproval(user);
     await user.click(screen.getByRole('button', { name: 'Job anlegen' }));
-    expect(createAction.mock.calls[0]?.[0].steps).toMatchObject([
-      { type: 'open', url: 'https://127.0.0.1:4100/kontakt.html' },
-      { type: 'ai', value: 'Es gibt einen blauen Newsletter-Button.' },
-    ]);
+    expect(createAction.mock.calls[0]?.[0]).toMatchObject({
+      campaignId: 'k1',
+      steps: [
+        { type: 'open', url: 'https://127.0.0.1:4100/kontakt.html' },
+        { type: 'ai', value: 'Es gibt einen blauen Newsletter-Button.' },
+      ],
+    });
+  });
+
+  it('warns in a free test while no AI provider is set up', async () => {
+    const user = userEvent.setup();
+    renderWizard(undefined, { aiReady: false });
+    await user.click(screen.getByRole('button', { name: /Frei mit KI/ }));
+    expect(screen.getByText('Noch kein KI-Anbieter eingerichtet')).toBeVisible();
   });
 
   it('keeps the steps of each mode while the other one is shown', async () => {
     const user = userEvent.setup();
     renderWizard();
-    await toFlowStep(user);
-    await user.click(screen.getByRole('button', { name: /Aus Vorlage übernehmen/ }));
-    await user.click(screen.getByRole('button', { name: 'Schritte übernehmen' }));
+    await takeTemplate(user);
 
     await user.click(screen.getByRole('button', { name: /Frei mit KI/ }));
     fireEvent.change(screen.getByRole('textbox', { name: 'Was soll auf der Website gelten?' }), {
@@ -216,72 +250,83 @@ describe('NewJobWizard', () => {
   it('takes over the steps of a template, after opening the start page', async () => {
     const user = userEvent.setup();
     renderWizard();
-    await toFlowStep(user);
-
-    await user.click(screen.getByRole('button', { name: /Aus Vorlage übernehmen/ }));
-    await user.click(screen.getByRole('button', { name: 'Schritte übernehmen' }));
-
+    await takeTemplate(user);
     expect(
       screen.getByRole('button', { name: 'Schritt 1: Öffne 127.0.0.1:4100/kontakt.html' }),
     ).toBeVisible();
     expect(screen.getByRole('button', { name: 'Schritt 2: Klicke auf „Absenden“' })).toBeVisible();
   });
 
-  it('chooses the only campaign of the project right away', async () => {
+  it('suggests a name from the goal, and the campaign of the project is set already', async () => {
     const user = userEvent.setup();
-    render(
-      <NewJobWizard
-        campaigns={[{ id: 'k1', name: 'Allgemein' }]}
-        now={NOW}
-        createAction={vi.fn()}
-        startRecording={noRecording}
-        templates={[]}
-      />,
+    renderWizard();
+    await describeFreeTest(user, 'Das Kontaktformular lässt sich abschicken. Danach kommt Dank.');
+    await user.click(weiter());
+    await user.click(weiter());
+
+    expect(subtitle()).toHaveTextContent('Schritt 3 von 3');
+    expect(screen.getByRole('textbox', { name: 'Job-Name' })).toHaveValue(
+      'Das Kontaktformular lässt sich abschicken',
     );
     expect(screen.getByRole('combobox', { name: 'Kampagne' })).toHaveTextContent('Allgemein');
-    fireEvent.change(screen.getByRole('textbox', { name: 'Job-Name' }), {
-      target: { value: 'Kontakt' },
-    });
-    await user.click(weiter());
-    expect(subtitle()).toHaveTextContent('Schritt 2 von 4');
+    expect(summary().getByText('Das Kontaktformular lässt sich abschicken')).toBeInTheDocument();
   });
 
-  it('stays on the first step and names every missing field', async () => {
+  it('hides the campaign when the project has only one', async () => {
+    const user = userEvent.setup();
+    renderWizard(undefined, { campaigns: [campaigns[0] as { id: string; name: string }] });
+    await describeFreeTest(user);
+    await user.click(weiter());
+    await user.click(weiter());
+    expect(screen.queryByRole('combobox', { name: 'Kampagne' })).not.toBeInTheDocument();
+    expect(summary().queryByText('Kampagne')).not.toBeInTheDocument();
+  });
+
+  it('keeps the technical settings folded away, and shows when they were changed', async () => {
+    const user = userEvent.setup();
+    const createAction = renderWizard();
+    await describeFreeTest(user);
+    await user.click(weiter());
+    await user.click(weiter());
+
+    const advanced = screen.getByRole('button', { name: 'Erweiterte Einstellungen' });
+    expect(advanced).toHaveAttribute('aria-expanded', 'false');
+    expect(advanced).toHaveAccessibleDescription('GA4-Markierung an · Werbung blockiert');
+    expect(screen.queryByText('Geändert')).not.toBeInTheDocument();
+
+    await user.click(advanced);
+    await user.click(screen.getByRole('switch', { name: /Werbung blockieren/ }));
+    expect(advanced).toHaveAccessibleDescription(/Werbung erlaubt.*Geändert/);
+    expect(summary().getByText('Werbung erlaubt')).toBeInTheDocument();
+
+    await confirmApproval(user);
+    await user.click(screen.getByRole('button', { name: 'Job anlegen' }));
+    expect(createAction.mock.calls[0]?.[0]).toMatchObject({ blockAds: false });
+  });
+
+  it('stays on the first step and names the missing website and flow', async () => {
     const user = userEvent.setup();
     renderWizard();
 
     await user.click(weiter());
 
     expect(screen.getByRole('alert')).toHaveTextContent('Bitte die markierten Angaben prüfen.');
-    expect(subtitle()).toHaveTextContent('Schritt 1 von 4 · Zu welcher Kampagne gehört der Job?');
-    expect(screen.getByRole('combobox', { name: 'Kampagne' })).toBeInvalid();
-    expect(screen.getByRole('textbox', { name: 'Job-Name' })).toBeInvalid();
-    expect(screen.queryByRole('textbox', { name: 'Website (Start-URL)' })).not.toBeInTheDocument();
+    expect(subtitle()).toHaveTextContent('Schritt 1 von 3');
+    expect(screen.getByRole('textbox', { name: 'Website (Start-URL)' })).toBeInvalid();
     expect(screen.queryByRole('checkbox')).not.toBeInTheDocument();
   });
 
-  // Clicks through all four steps; with coverage instrumentation that takes longer than 5 s.
-  it('walks through all four steps and saves the job', { timeout: 20_000 }, async () => {
+  // Clicks through all three steps; with coverage instrumentation that takes longer than 5 s.
+  it('walks through all three steps and saves the job', { timeout: 20_000 }, async () => {
     const user = userEvent.setup();
     const createAction = renderWizard();
 
-    await fillJob(user);
-    await user.click(weiter());
-
-    // Step 2 asks for the start address; the flow starts with opening it.
-    expect(subtitle()).toHaveTextContent(
-      'Schritt 2 von 4 · Wo beginnt der Test, und was soll passieren?',
-    );
-    fillStartUrl();
+    await describeFreeTest(user, 'Das Kontaktformular lässt sich abschicken.');
     expect(summary().getByText('127.0.0.1:4100/kontakt.html')).toBeInTheDocument();
-    await user.click(screen.getByRole('button', { name: /Frei mit KI/ }));
-    fireEvent.change(screen.getByRole('textbox', { name: 'Was soll auf der Website gelten?' }), {
-      target: { value: 'Das Kontaktformular lässt sich abschicken.' },
-    });
-    expect(summary().getByText('2 Schritte')).toBeInTheDocument();
+    expect(summary().getByText('Frei mit KI')).toBeInTheDocument();
     await user.click(weiter());
 
-    expect(subtitle()).toHaveTextContent('Schritt 3 von 4');
+    expect(subtitle()).toHaveTextContent('Schritt 2 von 3 · Wann soll der Test laufen?');
     fireEvent.change(screen.getByRole('textbox', { name: 'Alle (Minuten)' }), {
       target: { value: '15' },
     });
@@ -291,10 +336,14 @@ describe('NewJobWizard', () => {
     expect(summary().getByText('alle 15 Min. · max. 4 Läufe')).toBeInTheDocument();
     await user.click(weiter());
 
-    expect(subtitle()).toHaveTextContent('Schritt 4 von 4');
+    expect(subtitle()).toHaveTextContent('Schritt 3 von 3');
     await user.click(screen.getByRole('button', { name: /iPhone 15/ }));
     expect(summary().getByText('Desktop (Chrome), iPhone 15 (Safari)')).toBeInTheDocument();
     expect(screen.getByText(/4 Starts × 2 Geräte = 8 Läufe/)).toBeInTheDocument();
+    fireEvent.change(screen.getByRole('textbox', { name: 'Job-Name' }), {
+      target: { value: 'Kontaktformular-Test' },
+    });
+    await chooseOption(user, screen.getByRole('combobox', { name: 'Kampagne' }), 'Black Friday');
 
     // The confirmation that the website may be tested comes right before creating the job.
     await user.click(screen.getByRole('button', { name: 'Job anlegen' }));
@@ -321,27 +370,26 @@ describe('NewJobWizard', () => {
   it('goes back with "Zurück" and through the finished steps above', async () => {
     const user = userEvent.setup();
     renderWizard();
-    await toFlowStep(user);
+    await describeFreeTest(user);
     await user.click(weiter());
-    expect(subtitle()).toHaveTextContent('Schritt 3 von 4');
+    expect(subtitle()).toHaveTextContent('Schritt 2 von 3');
 
     await user.click(screen.getByRole('button', { name: 'Zurück' }));
-    expect(subtitle()).toHaveTextContent('Schritt 2 von 4');
-
-    await user.click(screen.getByRole('button', { name: '1 · Job (erledigt)' }));
-    expect(screen.getByRole('textbox', { name: 'Job-Name' })).toHaveValue('Kontaktformular-Test');
+    expect(subtitle()).toHaveTextContent('Schritt 1 von 3');
+    await user.click(weiter());
+    await user.click(screen.getByRole('button', { name: '1 · Website & Test (erledigt)' }));
+    expect(screen.getByRole('textbox', { name: 'Website (Start-URL)' })).toHaveValue(
+      '127.0.0.1:4100/kontakt.html',
+    );
     expect(screen.getByRole('link', { name: 'Abbrechen' })).toHaveAttribute('href', '/');
   });
 
   it('marks an invalid flow step and opens it for editing', async () => {
     const user = userEvent.setup();
     renderWizard();
-    await toFlowStep(user);
-    await user.click(screen.getByRole('button', { name: /Aus Vorlage übernehmen/ }));
-    await user.click(screen.getByRole('button', { name: 'Schritte übernehmen' }));
+    await takeTemplate(user);
 
     await user.click(screen.getByRole('button', { name: /^Schritt 2:/ }));
-    fireEvent.change(screen.getByRole('textbox', { name: 'Name' }), { target: { value: '' } });
     await chooseOption(
       user,
       screen.getByRole('combobox', { name: 'Element finden über' }),
@@ -351,7 +399,7 @@ describe('NewJobWizard', () => {
     await user.click(screen.getByRole('button', { name: /^Schritt 1:/ }));
     await user.click(weiter());
 
-    expect(subtitle()).toHaveTextContent('Schritt 2 von 4');
+    expect(subtitle()).toHaveTextContent('Schritt 1 von 3');
     expect(screen.getByRole('region', { name: 'Schritt 2 bearbeiten' })).toBeVisible();
     expect(screen.getByRole('textbox', { name: 'Label' })).toHaveAccessibleDescription(
       'Bitte ausfüllen.',
@@ -361,9 +409,7 @@ describe('NewJobWizard', () => {
   it('reorders and removes steps, keeping the selection on the moved step', async () => {
     const user = userEvent.setup();
     renderWizard();
-    await toFlowStep(user);
-    await user.click(screen.getByRole('button', { name: /Aus Vorlage übernehmen/ }));
-    await user.click(screen.getByRole('button', { name: 'Schritte übernehmen' }));
+    await takeTemplate(user);
     await user.click(screen.getByRole('button', { name: /^Schritt 2:/ }));
 
     await user.click(screen.getByRole('button', { name: 'Schritt 2 nach oben' }));
@@ -387,7 +433,7 @@ describe('NewJobWizard', () => {
   it('keeps at least one device', async () => {
     const user = userEvent.setup();
     renderWizard();
-    await toFlowStep(user);
+    await describeFreeTest(user);
     await user.click(weiter());
     await user.click(weiter());
 
@@ -406,14 +452,14 @@ describe('NewJobWizard', () => {
         ],
       })),
     );
-    await toFlowStep(user);
+    await describeFreeTest(user);
     await user.click(weiter());
     await user.click(screen.getByRole('radio', { name: 'Termine' }));
     await user.click(weiter());
     await confirmApproval(user);
     await user.click(screen.getByRole('button', { name: 'Job anlegen' }));
 
-    expect(subtitle()).toHaveTextContent('Schritt 3 von 4');
+    expect(subtitle()).toHaveTextContent('Schritt 2 von 3');
     expect(screen.getByLabelText('Uhrzeit Termin 1')).toHaveAccessibleDescription(
       'Der Termin liegt in der Vergangenheit.',
     );
