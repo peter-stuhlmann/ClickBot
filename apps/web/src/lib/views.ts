@@ -47,6 +47,8 @@ export type RunStepView = {
   detail: string;
   duration: string;
   screenshotUrl: string | null;
+  /** AI step: what the AI did, one line per action. */
+  aiActions?: string[];
 };
 
 /** Screen 03 "Lauf-Report". */

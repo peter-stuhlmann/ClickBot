@@ -309,8 +309,9 @@ export async function executeStep(
       return {};
     }
 
+    // runFlow runs AI steps (ai-step.ts); the actions of the AI never contain another one.
     case 'ai':
-      throw new StepError('KI-Schritte sind noch nicht verfügbar.');
+      throw new StepError('Ein KI-Schritt läuft nur als Teil eines Ablaufs.');
   }
   return {};
 }

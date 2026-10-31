@@ -78,12 +78,12 @@ Projekte, die Anmeldung, das Profil und die Einstellungen der KI-Anbieter stehen
     - meldet seinen Status an die Web-App
     - führt Läufe in Chrome, Firefox und Safari (WebKit) aus und emuliert Geräte
 - **Noch nicht gebaut:**
-  - im Worker: Proxies und Standort-Profile, KI-Schritte, KI-Suche nach Elementen, Live-Stream; Markierung für andere
+  - im Worker: Proxies und Standort-Profile, KI-Suche nach Elementen (`aiFallback`), Live-Stream; Markierung für andere
     Analytics-Werkzeuge als GA4
   - E-Mail-Versand (Einladungslinks werden angezeigt und von Hand weitergegeben), Konten
     sperren oder löschen, Rate-Limit je IP-Adresse beim Login
   - im Assistenten: Standort-Profile je Termin; im Editor KI und Aufnehmen; Schritte vom Typ „auslesen“ lassen sich noch nicht anlegen
-  - im Lauf-Report: PDF, „Erneut ausführen“, KI-Eingriffe, Konsolenfehler und ausgelesene
+  - im Lauf-Report: PDF, „Erneut ausführen“, KI-Eingriffe des Fallbacks, Konsolenfehler und ausgelesene
     Werte (dafür speichert der Worker noch keine Daten)
   - im Editor: KI-Box, „Erfolg & Daten“ und Variablen-Liste aus dem Design
   - alle übrigen Screens, auch der Welle-Report (03b)
@@ -181,7 +181,7 @@ Die Pakete unter `packages/` liefern TypeScript-Quelltext aus, ohne eigenen Buil
   - Starts in der Vergangenheit sind erlaubt, wenn sie schon gespeichert waren
     (`validateJobEdit`). Eine gespeicherte Intervall-Startzeit bleibt sekundengenau, solange
     Datum und Uhrzeit im Formular unverändert sind.
-  - Jobs mit Schritten ohne Formular (Auslesen, KI) zeigt der Editor nur an, damit
+  - Jobs mit Schritten ohne Formular (Auslesen) zeigt der Editor nur an, damit
     Speichern sie nicht verliert.
 - **Zugangsdaten:**
   - Gespeichert wird nur der verschlüsselte Wert (`createCipher`: AES-256-GCM, Schlüssel aus
@@ -223,7 +223,7 @@ Die Pakete unter `packages/` liefern TypeScript-Quelltext aus, ohne eigenen Buil
     der Adresse lässt Browser das Bild dauerhaft cachen; ein neues Bild hat eine neue Adresse.
 - **Vorlagen** (`templates.ts`, Tabelle `flow_templates`): Name (eindeutig ohne Groß- und
   Kleinschreibung), Beschreibung, Ablauf (`templateFlowSchema` in `packages/shared`: nur Schritte
-  der Formulare, kein Passwortschutz). Gehören keinem Projekt.
+  der Formulare, auch KI-Schritte, kein Passwortschutz). Gehören keinem Projekt.
 - **KI-Anbieter** (`ai-providers.ts`, Tabelle `ai_providers`):
   - Eine Zeile je Anbieter (Gemini, OpenAI, Perplexity, Claude, Custom), Liste und Regeln in
     `packages/shared/src/ai-providers.ts`.
@@ -372,7 +372,21 @@ time, bots }]`, `stagger`) bilden die Bots eines Termins eine Welle.
   die werden markiert), der Tag Manager und Googles Einwilligungs-Banner
   (fundingchoicesmessages.google.com), damit Tests die Seite wie Besucher sehen. Die Analyse für
   die KI und der Live-Browser blockieren immer; es gibt dort noch keinen Job.
-- **Noch nicht verfügbar:** KI-Schritte schlagen mit klarer Meldung fehl, bis sie gebaut sind.
+- **KI-Schritt** (`ai-step.ts`, Typ `ai` mit `instruction`): Die KI findet ihren Weg während des
+  Laufs. `runFlow` führt ihn aus, nicht `executeStep`.
+  - Je Runde: Seitenaufbau lesen (`readStructure`, wie die Analyse), die KI um genau eine Aktion
+    bitten (`nextAgentAction` in `packages/ai`), sie wie einen Schritt ausführen (`executeStep`,
+    höchstens 10 s), das Ergebnis oder die Fehlermeldung zurückgeben. Bis „done“ oder „fail“,
+    höchstens `MAX_AI_ACTIONS` (20) Aktionen.
+  - Erlaubte Aktionen: klicken, ausfüllen, auswählen, Taste, scrollen, Seite öffnen, warten.
+    „Seite öffnen“ nur auf der Website der Start-URL (`www.` egal). Erfundene echte E-Mail-Adressen
+    werden `{{faker.email}}` (`safeMail`).
+  - Zugangsdaten sieht die KI nur als Namen (`{{secret.name}}`). Adresse, Titel und Seitenaufbau
+    gehen maskiert raus, auch Formularwerte in der Adresse.
+  - Der Standard-Anbieter wird je Lauf gelesen (`getAiConfig`), nur wenn der Ablauf einen
+    KI-Schritt hat. Ohne Anbieter scheitert der Schritt mit Hinweis auf „Einstellungen → KI & API“.
+  - Jede Aktion steht als Zeile in `run_steps.ai_actions` und im Report unter dem Schritt, auch
+    wenn er scheitert.
 - **Warteschlange** (`packages/db/src/queue.ts`), pro Takt (1 s) in `createWorker`:
   1. `planDueRuns` legt für aktive Jobs die fälligen Starts als `queued`-Läufe an.
      - Ein Start ist Termin × Bot × Gerät × Browser (`runTargets`).
@@ -494,6 +508,14 @@ time, bots }]`, `stagger`) bilden die Bots eines Termins eine Welle.
      Eine ungültige Antwort bekommt eine zweite Chance mit der Fehlermeldung.
   4. Nichts wird gespeichert oder ausgeführt, bis die Schritte übernommen werden. Ohne Worker
      oder ohne lesbare Seite sagt der Vorschlag das („Seite nicht gelesen“).
+  5. „Als KI-Schritt übernehmen“ (`stepsForAiTask`) braucht keinen Vorschlag: „Seite öffnen“ mit
+     der Start-URL, dann die Beschreibung als ein KI-Schritt, der die Elemente erst im Lauf sucht.
+- **KI-Schritt im Lauf** (`agent-step.ts`): `agentPrompt` gibt Auftrag, Website, Namen der
+  Zugangsdaten, bisherige Aktionen mit Ergebnis und den Seitenaufbau (als Daten, nie als
+  Anweisung). Die Regeln im Prompt: keine Captchas, keine Umgehung von Bot-Schutz, keine
+  Werbeklicks, keine echten Daten, nichts Unumkehrbares über den Auftrag hinaus.
+  `parseAgentAction` prüft jede Aktion mit `stepSchema`; eine unbrauchbare Antwort bekommt einen
+  zweiten Versuch.
 - Tests ersetzen nur `fetch` bzw. den Client und prüfen Anfrage und Auswertung. Die E2E-Tests
   sprechen nie mit einem echten Anbieter: `new-job-ai.spec.ts` startet eine eigene
   OpenAI-kompatible Attrappe und richtet sie als „Custom“ ein.

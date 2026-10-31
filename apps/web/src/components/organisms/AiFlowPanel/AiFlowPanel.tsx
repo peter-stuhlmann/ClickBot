@@ -27,6 +27,8 @@ export type AiFlowPanelProps = {
   onAnswer: (question: string, answer: string) => void;
   /** Replaces the flow with the suggested steps. */
   onAccept: () => void;
+  /** Replaces the flow with the start page and the description as one AI step. */
+  onAcceptAsAiStep: () => void;
 };
 
 const PLACEHOLDER =
@@ -46,6 +48,7 @@ export function AiFlowPanel({
   answers,
   onAnswer,
   onAccept,
+  onAcceptAsAiStep,
 }: AiFlowPanelProps) {
   const count = suggestion?.steps.length ?? 0;
   return (
@@ -71,6 +74,14 @@ export function AiFlowPanel({
           >
             {suggestion ? 'Neu erzeugen' : 'Vorschlag erzeugen'}
           </Button>
+          <Button
+            variant="secondary"
+            icon={<Icon name="bot" size={16} />}
+            disabled={!description.trim() || generating}
+            onClick={onAcceptAsAiStep}
+          >
+            Als KI-Schritt übernehmen
+          </Button>
           {generating && (
             <p role="status" className="text-small text-text-muted">
               Die Seite wird geöffnet und die KI schreibt die Schritte – das kann bis zu einer
@@ -78,6 +89,10 @@ export function AiFlowPanel({
             </p>
           )}
         </div>
+        <p className="text-small text-text-muted">
+          „Vorschlag erzeugen“ macht daraus feste Schritte, die du prüfen und ändern kannst. Als
+          KI-Schritt sucht die KI die Elemente erst während des Laufs, bei jedem Lauf neu.
+        </p>
       </Card>
 
       {suggestion?.notice && (

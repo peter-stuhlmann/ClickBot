@@ -1,5 +1,6 @@
 import {
   claimNextRun,
+  getAiConfig,
   claimPageAnalysis,
   completePageAnalysis,
   completeRun,
@@ -13,7 +14,9 @@ import {
   type Device,
   type PlanOptions,
 } from '@click-bot/db';
+import { createAiClient, nextAgentAction, type AiClient, type AiConfig } from '@click-bot/ai';
 import type { BrowserContext } from 'playwright';
+import type { AgentDriver } from './ai-step';
 import type { ArtifactStore } from './artifacts';
 import { toStepMessage } from './errors';
 import { analysePage } from './page-analysis';
@@ -28,6 +31,8 @@ export type WorkerDeps = {
   /** Upper limit of browsers running at the same time (MAX_CONCURRENT_BROWSERS). */
   maxConcurrent: number;
   workerId: string;
+  /** Talks to the AI provider of AI steps; tests replace it. */
+  createAiClient?: (config: AiConfig) => AiClient;
   clock?: () => Date;
   planning?: Omit<PlanOptions, 'now'>;
   log?: (message: string) => void;
@@ -44,6 +49,21 @@ export type Worker = {
   stop(): Promise<void>;
 };
 
+/**
+ * The AI for the AI steps of a flow: the default provider, read for each run so a changed key
+ * applies right away. Undefined without AI steps or without a provider; the step then says so.
+ */
+async function agentFor(
+  deps: WorkerDeps,
+  steps: readonly { type: string }[],
+): Promise<AgentDriver | undefined> {
+  if (!steps.some((step) => step.type === 'ai')) return undefined;
+  const config = await getAiConfig(deps.db, deps.cipher);
+  if (!config) return undefined;
+  const client = (deps.createAiClient ?? createAiClient)(config);
+  return (input) => nextAgentAction(client, input);
+}
+
 async function executeRun(deps: WorkerDeps, { run, job }: ClaimedRun): Promise<void> {
   const now = deps.clock ?? (() => new Date());
   let context: BrowserContext | undefined;
@@ -55,6 +75,7 @@ async function executeRun(deps: WorkerDeps, { run, job }: ClaimedRun): Promise<v
       now: now(),
     });
     const result = await runFlow(context, job.flow, {
+      ai: await agentFor(deps, job.flow.steps),
       baseUrl: job.startUrl,
       runNr: run.runNr,
       botNr: run.botNr,
@@ -83,6 +104,7 @@ async function executeRun(deps: WorkerDeps, { run, job }: ClaimedRun): Promise<v
         durationMs: step.durationMs,
         message: step.message ?? null,
         screenshotPath: screenshots.get(step.stepId) ?? null,
+        aiActions: step.aiActions ?? null,
       })),
       blockedAdRequests: result.blockedAdRequests,
     });

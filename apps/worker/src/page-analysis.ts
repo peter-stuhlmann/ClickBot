@@ -1,5 +1,5 @@
 import { ALL_MARKINGS_ON, type PageFacts } from '@click-bot/shared';
-import type { BrowserContext, Frame } from 'playwright';
+import type { BrowserContext, Frame, Page } from 'playwright';
 import { blockAds } from './ad-blocking';
 import { markBotTraffic } from './bot-marking';
 import { StepError, refusedCredentials } from './errors';
@@ -42,6 +42,20 @@ async function frameSnapshot(frame: Frame): Promise<string> {
 }
 
 /**
+ * The accessibility tree of the page and its iframes (where cookie banners often live), as an AI
+ * model reads it: for "Mit KI beschreiben" and for the actions of AI steps.
+ */
+export async function readStructure(page: Page): Promise<string> {
+  const parts: string[] = [];
+  for (const frame of page.frames()) {
+    const snapshot = await frameSnapshot(frame);
+    if (!snapshot.trim()) continue;
+    parts.push(frame === page.mainFrame() ? snapshot : `# iframe ${frame.url()}\n${snapshot}`);
+  }
+  return parts.join('\n\n').slice(0, MAX_SNAPSHOT_CHARS);
+}
+
+/**
  * Opens `url` once, like a run (GA4 requests marked as bot traffic), and reads what "Mit KI
  * beschreiben" needs: the accessibility tree of the page and its iframes, forms, the consent tool
  * and GA4 ids. Throws StepError with a German reason when the page cannot be read.
@@ -64,13 +78,7 @@ export async function analysePage(context: BrowserContext, url: string): Promise
     // Consent banners and other overlays often arrive a moment after the load event.
     await page.waitForLoadState('networkidle', { timeout: SETTLE_TIMEOUT_MS }).catch(() => {});
 
-    const parts: string[] = [];
-    for (const frame of page.frames()) {
-      const snapshot = await frameSnapshot(frame);
-      if (!snapshot.trim()) continue;
-      parts.push(frame === page.mainFrame() ? snapshot : `# iframe ${frame.url()}\n${snapshot}`);
-    }
-
+    const snapshot = await readStructure(page);
     const found = await page.evaluate(() => ({
       forms: document.forms.length,
       requiredFields: document.querySelectorAll('[required], [aria-required="true"]').length,
@@ -86,7 +94,7 @@ export async function analysePage(context: BrowserContext, url: string): Promise
     return {
       url: page.url(),
       title: await page.title(),
-      snapshot: parts.join('\n\n').slice(0, MAX_SNAPSHOT_CHARS),
+      snapshot,
       forms: found.forms,
       requiredFields: found.requiredFields,
       cookieBanner: detectConsentTool([...found.sources, ...page.frames().map((f) => f.url())]),

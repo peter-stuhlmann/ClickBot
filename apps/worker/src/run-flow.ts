@@ -1,6 +1,7 @@
 import { ALL_MARKINGS_ON, maskSecrets, type AnalyticsMarking, type Flow } from '@click-bot/shared';
 import type { BrowserContext } from 'playwright';
 import { blockAds } from './ad-blocking';
+import { AiStepError, runAiStep, type AgentDriver } from './ai-step';
 import { createGa4Recorder } from './analytics';
 import { markBotTraffic } from './bot-marking';
 import { toStepMessage } from './errors';
@@ -21,6 +22,8 @@ export type RunOptions = {
   analyticsMarking?: AnalyticsMarking;
   /** Whether requests to ad networks are stopped; default: yes. */
   blockAds?: boolean;
+  /** The AI for AI steps; without it they fail and say why. */
+  ai?: AgentDriver;
 };
 
 export type StepResult = {
@@ -29,6 +32,8 @@ export type StepResult = {
   status: 'passed' | 'failed' | 'skipped';
   durationMs: number;
   message?: string;
+  /** AI step: what the AI did, one line per action, masked. */
+  aiActions?: string[];
 };
 
 export type RunResult = {
@@ -85,12 +90,20 @@ export async function runFlow(
 
     const started = performance.now();
     const duration = () => Math.ceil(performance.now() - started);
+    const ctx = { vars, baseUrl: options.baseUrl, analytics };
     try {
-      const outcome = await executeStep(() => page, step, {
-        vars,
-        baseUrl: options.baseUrl,
-        analytics,
-      });
+      if (step.type === 'ai') {
+        const { actions } = await runAiStep(() => page, step, { ...ctx, drive: options.ai, mask });
+        result.steps.push({
+          stepId: step.id,
+          index,
+          status: 'passed',
+          durationMs: duration(),
+          aiActions: actions,
+        });
+        continue;
+      }
+      const outcome = await executeStep(() => page, step, ctx);
       if (step.type === 'extract' && outcome.extracted !== undefined) {
         result.extracted[step.saveAs] = mask(outcome.extracted);
       }
@@ -105,6 +118,7 @@ export async function runFlow(
         status: 'failed',
         durationMs: duration(),
         message: mask(toStepMessage(error)),
+        ...(error instanceof AiStepError ? { aiActions: error.actions } : {}),
       });
       // Bounded: on a page that hangs, an unbounded screenshot would block the browser slot.
       await waitForPdf(page, FAILURE_SCREENSHOT_TIMEOUT_MS);

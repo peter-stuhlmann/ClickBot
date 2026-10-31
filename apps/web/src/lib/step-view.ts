@@ -24,6 +24,7 @@ export const STEP_TYPE_OPTIONS: readonly Option<EditableStepType>[] = [
   { value: 'screenshot', label: 'Bildschirmfoto' },
   { value: 'analytics', label: 'Analytics-Event prüfen' },
   { value: 'basicAuth', label: 'Passwortschutz (.htaccess)' },
+  { value: 'ai', label: 'KI-Schritt' },
 ];
 
 export const TARGET_OPTIONS: readonly Option<TargetBy>[] = [
@@ -99,6 +100,7 @@ const TYPE_BADGE: Record<EditableStepType, { typeLabel: string; tone: StepTone }
   screenshot: { typeLabel: 'Screenshot', tone: 'neutral' },
   analytics: { typeLabel: 'Analytics', tone: 'warning' },
   basicAuth: { typeLabel: 'Passwortschutz', tone: 'neutral' },
+  ai: { typeLabel: 'KI', tone: 'primary' },
 };
 
 const EMPTY = '…';
@@ -217,6 +219,8 @@ function describeContent(step: StepDraft): Content {
       };
     case 'analytics':
       return { title: `GA4-Event „${or(value)}“`, detail: `ga4 event = "${value}"` };
+    case 'ai':
+      return { title: or(value), detail: 'Die KI findet die Elemente während des Laufs.' };
     case 'basicAuth': {
       // Never the password itself, not even its length.
       const user = step.username.trim();

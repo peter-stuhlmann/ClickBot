@@ -126,6 +126,9 @@ importers:
 
   apps/worker:
     dependencies:
+      '@click-bot/ai':
+        specifier: workspace:*
+        version: link:../../packages/ai
       '@click-bot/db':
         specifier: workspace:*
         version: link:../../packages/db

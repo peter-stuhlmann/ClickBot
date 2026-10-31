@@ -18,3 +18,11 @@ export {
   type FlowSuggestion,
   type FlowSuggestionInput,
 } from './flow-suggestion';
+export {
+  agentPrompt,
+  nextAgentAction,
+  parseAgentAction,
+  type AgentAction,
+  type AgentInput,
+  type AgentPage,
+} from './agent-step';

@@ -6,6 +6,7 @@ import {
   getPageAnalysis,
   getWorkerStatus,
   requestPageAnalysis,
+  saveAiProvider,
   schema,
   type Cipher,
 } from '@click-bot/db';
@@ -44,9 +45,15 @@ afterAll(async () => {
 });
 
 function startWorker(
-  options: { maxConcurrent?: number; cipher?: Cipher; newContext?: WorkerDeps['newContext'] } = {},
+  options: {
+    maxConcurrent?: number;
+    cipher?: Cipher;
+    newContext?: WorkerDeps['newContext'];
+    createAiClient?: WorkerDeps['createAiClient'];
+  } = {},
 ): Worker {
   worker = createWorker({
+    createAiClient: options.createAiClient,
     db,
     cipher: options.cipher ?? cipher,
     newContext: options.newContext ?? (() => browser.newContext()),
@@ -114,6 +121,58 @@ async function dueJob(steps: unknown[], bots = 1) {
 const allRuns = () => db.select().from(schema.runs).orderBy(schema.runs.runNr);
 
 describe('worker', () => {
+  it('runs an AI step with the default provider and stores what the AI did', async () => {
+    await saveAiProvider(db, cipher, {
+      kind: 'custom',
+      model: 'test-modell',
+      baseUrl: 'http://127.0.0.1:1/v1',
+    });
+    const configs: string[] = [];
+    const replies = [
+      '{"type":"click","target":{"by":"role","role":"button","name":"Alle akzeptieren"}}',
+      '{"type":"done","summary":"Cookies akzeptiert."}',
+    ];
+    await dueJob([
+      { id: 'open', type: 'open', url: '/kontakt.html' },
+      { id: 'ki', type: 'ai', instruction: 'Akzeptiere die Cookies.' },
+    ]);
+    const w = startWorker({
+      createAiClient: (config) => {
+        configs.push(`${config.kind}/${config.model}`);
+        return {
+          complete: async () => replies.shift() ?? '{"type":"fail","reason":"Nichts mehr."}',
+          listModels: async () => null,
+        };
+      },
+    });
+
+    await w.tick();
+    await w.idle();
+    const [run] = await allRuns();
+    expect(run?.status).toBe('passed');
+    expect(configs).toEqual(['custom/test-modell']);
+    const steps = await db.select().from(schema.runSteps).orderBy(schema.runSteps.stepIndex);
+    expect(steps[1]?.aiActions).toEqual([
+      'Klick auf Rolle „button“ mit Name „Alle akzeptieren“: ok',
+      'Fertig: Cookies akzeptiert.',
+    ]);
+  });
+
+  it('fails an AI step clearly while no AI provider is set up', async () => {
+    await dueJob([
+      { id: 'open', type: 'open', url: '/kontakt.html' },
+      { id: 'ki', type: 'ai', instruction: 'Akzeptiere die Cookies.' },
+    ]);
+    const w = startWorker();
+    await w.tick();
+    await w.idle();
+    const [run] = await allRuns();
+    expect(run).toMatchObject({
+      status: 'failed',
+      error: 'Kein KI-Anbieter eingerichtet: unter „Einstellungen → KI & API“ einen speichern.',
+    });
+  });
+
   it('opens a page queued for "Mit KI beschreiben" and stores what it found', async () => {
     const ok = await requestPageAnalysis(db, `${browser.origin()}/kontakt.html`, new Date());
     const broken = await requestPageAnalysis(db, `${browser.origin()}/fehler`, new Date());

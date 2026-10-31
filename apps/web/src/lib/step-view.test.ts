@@ -112,7 +112,7 @@ describe('describeStep', () => {
 });
 
 describe('STEP_TYPE_OPTIONS', () => {
-  it('offers every step type the worker can run, but no AI or code steps yet', () => {
+  it('offers every step type the worker can run, but no reading out or code', () => {
     expect(STEP_TYPE_OPTIONS.map((option) => option.value)).toEqual([
       'open',
       'click',
@@ -125,6 +125,7 @@ describe('STEP_TYPE_OPTIONS', () => {
       'screenshot',
       'analytics',
       'basicAuth',
+      'ai',
     ]);
   });
 });
@@ -150,6 +151,17 @@ describe('describeStep for .htaccess steps', () => {
     expect(
       describeStep(step('basicAuth', { storedPassword: '{{secret.htaccess-beispiel-de}}' })).detail,
     ).toBe('basic auth, user = "", password = ••••••');
+  });
+});
+
+describe('describeStep for AI steps', () => {
+  it('shows the task of the AI', () => {
+    expect(describeStep(step('ai', { value: '  Schick das Kontaktformular ab.  ' }))).toEqual({
+      typeLabel: 'KI',
+      tone: 'primary',
+      title: 'Schick das Kontaktformular ab.',
+      detail: 'Die KI findet die Elemente während des Laufs.',
+    });
   });
 });
 

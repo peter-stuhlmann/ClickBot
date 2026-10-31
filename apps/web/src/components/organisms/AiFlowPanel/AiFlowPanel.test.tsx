@@ -22,11 +22,25 @@ function props(overrides: Partial<AiFlowPanelProps> = {}): AiFlowPanelProps {
     answers: {},
     onAnswer: vi.fn(),
     onAccept: vi.fn(),
+    onAcceptAsAiStep: vi.fn(),
     ...overrides,
   };
 }
 
 describe('AiFlowPanel', () => {
+  it('takes the description over as one AI step, without a suggestion first', async () => {
+    const user = userEvent.setup();
+    const onAcceptAsAiStep = vi.fn();
+    const { rerender } = render(<AiFlowPanel {...props({ onAcceptAsAiStep })} />);
+    const button = screen.getByRole('button', { name: 'Als KI-Schritt übernehmen' });
+    expect(button).toBeDisabled();
+
+    rerender(<AiFlowPanel {...props({ onAcceptAsAiStep, description: 'Geh zum Impressum.' })} />);
+    await user.click(button);
+    expect(onAcceptAsAiStep).toHaveBeenCalledOnce();
+    expect(screen.getByText(/sucht die KI die Elemente erst während des Laufs/)).toBeVisible();
+  });
+
   it('asks for a description and sends it to the AI', async () => {
     const user = userEvent.setup();
     const onDescriptionChange = vi.fn();

@@ -92,6 +92,7 @@ describe('getRunReport', () => {
         durationMs: 800,
         message: null,
         screenshotPath: null,
+        aiActions: null,
       },
       {
         stepIndex: 1,
@@ -100,6 +101,7 @@ describe('getRunReport', () => {
         durationMs: 3_000,
         message: 'Element nicht gefunden …',
         screenshotPath: `runs/${failed.id}/1-send.png`,
+        aiActions: null,
       },
     ]);
     // (4 s + 2 s) / 2; the queued run does not count.

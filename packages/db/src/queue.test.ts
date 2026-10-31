@@ -321,6 +321,30 @@ describe('completeRun', () => {
     ]);
   });
 
+  it('stores what the AI did in an AI step, for the report', async () => {
+    await activeJob(wave(1));
+    await planDueRuns(db, { now, lookaheadMs: 2 * MIN });
+    const claimed = await claimNextRun(db, at(2 * MIN));
+    const actions = ['Klick auf Rolle „button“ mit Name „Einwilligen“: ok', 'Fertig: Erledigt.'];
+    await completeRun(db, claimed?.run.id as string, {
+      status: 'passed',
+      finishedAt: at(3 * MIN),
+      steps: [
+        {
+          stepId: 'ki',
+          index: 0,
+          status: 'passed',
+          durationMs: 4_000,
+          message: null,
+          screenshotPath: null,
+          aiActions: actions,
+        },
+      ],
+    });
+    const [step] = await db.select().from(runSteps);
+    expect(step?.aiActions).toEqual(actions);
+  });
+
   it('refuses to complete a run that is not running', async () => {
     await activeJob(wave(1));
     await planDueRuns(db, { now, lookaheadMs: 2 * MIN });

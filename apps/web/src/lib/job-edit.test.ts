@@ -106,15 +106,23 @@ describe('jobToDraft', () => {
   });
 
   it('refuses flows with steps the forms cannot show, so saving cannot drop them', () => {
-    const withAi = job({
+    const withExtract = job({
       flow: {
         version: 1,
-        steps: [...flow.steps, { ...base, id: 'ai', type: 'ai', instruction: 'Banner schließen' }],
+        steps: [
+          ...flow.steps,
+          {
+            ...base,
+            id: 'x',
+            type: 'extract',
+            target: { by: 'text', text: 'Nr.', exact: true },
+            saveAs: 'nr',
+          },
+        ],
       },
     });
-    expect(jobToDraft(withAi, now)).toEqual({
-      notEditable:
-        'Der Ablauf enthält Schritte, die der Editor noch nicht kann (Auslesen, KI oder Code).',
+    expect(jobToDraft(withExtract, now)).toEqual({
+      notEditable: 'Der Ablauf enthält Schritte, die der Editor noch nicht kann (Auslesen).',
     });
   });
 

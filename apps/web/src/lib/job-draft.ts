@@ -54,7 +54,8 @@ export type EditableStepType =
   | 'wait'
   | 'screenshot'
   | 'analytics'
-  | 'basicAuth';
+  | 'basicAuth'
+  | 'ai';
 /** Edge: to the edge of the page in `scrollDirection`, stored as top, bottom, left or right. */
 export type ScrollKind = 'by' | 'position' | 'element' | 'edge';
 export type TargetBy = 'role' | 'label' | 'text' | 'css' | 'testId';
@@ -71,7 +72,7 @@ export type StepDraft = {
   targetRole: string;
   /** Accessible name (role), label, text, CSS selector or test id, depending on targetBy. */
   targetValue: string;
-  /** fill: value · select: option · assert: text · analytics: event · screenshot: name */
+  /** fill: value · select: option · assert: text · analytics: event · screenshot: name · ai: task */
   value: string;
   assertKind: AssertKind;
   waitKind: WaitKind;
@@ -302,6 +303,15 @@ export function newStep(
   };
 }
 
+/**
+ * "Als KI-Schritt übernehmen": the start page, then the description as one AI step, which finds
+ * its elements during the run.
+ */
+export function stepsForAiTask(startUrl: string, task: string): StepDraft[] {
+  const open = newStep('open', [], startUrl);
+  return [open, { ...newStep('ai', [open], startUrl), value: task.trim() }];
+}
+
 /** "2,5" → 2.5; empty or garbage → NaN, which the schemas report. */
 function toNumber(text: string): number {
   const trimmed = text.trim().replace(',', '.');
@@ -416,6 +426,8 @@ export function toStep(step: StepDraft): Record<string, unknown> {
     }
     case 'analytics':
       return { ...base, provider: 'ga4', event: step.value.trim() };
+    case 'ai':
+      return { ...base, instruction: step.value.trim() };
     case 'basicAuth':
       // Spaces may belong to a password, so it goes as typed; the server stores it encrypted.
       return {
@@ -451,7 +463,7 @@ function targetFields(target: Target): Pick<StepDraft, 'targetBy' | 'targetRole'
  * the forms do not offer yet (extract, AI, code).
  */
 export function toStepDraft(step: Step): StepDraft | null {
-  if (step.type === 'extract' || step.type === 'ai') return null;
+  if (step.type === 'extract') return null;
   const draft: StepDraft = {
     ...newStep(step.type, [], ''),
     id: step.id,
@@ -515,6 +527,8 @@ export function toStepDraft(step: Step): StepDraft | null {
       return { ...draft, value: step.name ?? '', fullPage: step.fullPage };
     case 'analytics':
       return { ...draft, value: step.event };
+    case 'ai':
+      return { ...draft, value: step.instruction };
     case 'basicAuth':
       return { ...draft, username: step.username, storedPassword: step.password };
   }
@@ -718,8 +732,7 @@ export function jobToDraft(
   const steps = job.flow.steps.map(toStepDraft);
   if (steps.some((step) => step === null)) {
     return {
-      notEditable:
-        'Der Ablauf enthält Schritte, die der Editor noch nicht kann (Auslesen, KI oder Code).',
+      notEditable: 'Der Ablauf enthält Schritte, die der Editor noch nicht kann (Auslesen).',
     };
   }
   const { schedule } = job;
@@ -872,6 +885,7 @@ const VALUE_PATHS = new Set([
   'name',
   'assertion.text',
   'assertion.value',
+  'instruction',
 ]);
 
 function stepField(rest: string): StepField {

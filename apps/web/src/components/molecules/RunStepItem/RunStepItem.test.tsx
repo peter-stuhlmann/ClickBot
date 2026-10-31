@@ -49,6 +49,23 @@ describe('RunStepItem', () => {
     );
   });
 
+  it('lists what the AI did in an AI step, in order', () => {
+    render(
+      <RunStepItem
+        {...step({
+          title: 'Prüf das Impressum.',
+          detail: '',
+          aiActions: ['Klick auf Link „Impressum“: ok', 'Fertig: Alles da.'],
+        })}
+      />,
+    );
+    const list = screen.getByRole('list', { name: 'Aktionen der KI' });
+    expect([...list.querySelectorAll('li')].map((item) => item.textContent)).toEqual([
+      'Klick auf Link „Impressum“: ok',
+      'Fertig: Alles da.',
+    ]);
+  });
+
   it('leaves out an empty detail line', () => {
     const { container } = render(<RunStepItem {...step({ detail: '' })} />);
     expect(container.querySelectorAll('.truncate')).toHaveLength(0);

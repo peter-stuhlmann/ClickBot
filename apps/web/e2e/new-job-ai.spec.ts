@@ -48,7 +48,9 @@ test.describe('Neuer Job – Mit KI beschreiben', () => {
     await custom.getByRole('combobox', { name: 'Modell' }).fill('fake-llm');
     await custom.getByRole('button', { name: 'Speichern' }).click();
     await expect(custom.getByRole('status')).toHaveText('Gespeichert.');
-    await custom.getByRole('button', { name: 'Als Standard verwenden' }).click();
+    // The first provider saved becomes the default by itself; after other specs it may not be.
+    const makeDefault = custom.getByRole('button', { name: 'Als Standard verwenden' });
+    if (await makeDefault.isVisible()) await makeDefault.click();
     await expect(custom.getByText('Standard', { exact: true })).toBeVisible();
 
     await page.goto('/jobs/neu');
@@ -85,5 +87,33 @@ test.describe('Neuer Job – Mit KI beschreiben', () => {
     await expect(
       page.getByRole('button', { name: /^Schritt 3: Klicke auf „Absenden“/ }),
     ).toBeVisible();
+  });
+
+  test('takes a description over as one AI step that finds its way during the run', async ({
+    page,
+  }) => {
+    await page.goto('/jobs/neu');
+    await chooseOption(page.getByRole('combobox', { name: 'Kampagne' }), 'Allgemein');
+    await page.getByRole('textbox', { name: 'Job-Name' }).fill('KI-Schritt');
+    await page.getByRole('button', { name: 'Weiter' }).click();
+    await page
+      .getByRole('textbox', { name: 'Website (Start-URL)' })
+      .fill('http://127.0.0.1:4100/kontakt.html');
+
+    await page.getByRole('button', { name: /Mit KI beschreiben/ }).click();
+    await page
+      .getByRole('textbox', { name: 'Was soll der Bot tun?' })
+      .fill('Schick das Kontaktformular mit Testdaten ab.');
+    await page.getByRole('button', { name: 'Als KI-Schritt übernehmen' }).click();
+
+    await expect(
+      page.getByRole('button', { name: 'Schritt 1: Öffne 127.0.0.1:4100/kontakt.html' }),
+    ).toBeVisible();
+    await page
+      .getByRole('button', { name: /^Schritt 2: Schick das Kontaktformular mit Testdaten ab\./ })
+      .click();
+    await expect(page.getByRole('textbox', { name: 'Was soll der Bot tun?' })).toHaveValue(
+      'Schick das Kontaktformular mit Testdaten ab.',
+    );
   });
 });

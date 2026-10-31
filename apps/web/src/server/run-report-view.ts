@@ -13,7 +13,6 @@ const DASH = '–';
 // Step types the forms cannot show yet still get a readable title.
 const OTHER_TITLES: Partial<Record<Step['type'], string>> = {
   extract: 'Wert auslesen',
-  ai: 'KI-Schritt',
 };
 
 function describe(step: Step | undefined, stepId: string): { title: string; detail: string } {
@@ -50,6 +49,7 @@ function stepViews(report: RunReport): RunStepView[] {
       detail: row.message ?? detail,
       duration: row.status === 'skipped' ? DASH : formatDuration(row.durationMs),
       screenshotUrl: row.screenshotPath ? artifactUrl(row.screenshotPath) : null,
+      ...(row.aiActions ? { aiActions: row.aiActions } : {}),
     };
   });
 }

@@ -131,7 +131,8 @@ function extractJson(text: string): unknown {
 }
 
 // A made-up address could reach a real inbox; test data only goes to example.com/.org/.net.
-function safeMail(step: Record<string, unknown>): Record<string, unknown> {
+// Also used for the actions of AI steps (agent-step.ts).
+export function safeMail(step: Record<string, unknown>): Record<string, unknown> {
   const value = step.value;
   if (step.type !== 'fill' || typeof value !== 'string') return step;
   const address = value.trim();

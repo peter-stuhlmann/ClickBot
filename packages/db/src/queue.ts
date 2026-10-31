@@ -187,6 +187,8 @@ export type StepRecord = {
   /** Must already be masked (no secret values). */
   message: string | null;
   screenshotPath: string | null;
+  /** AI step: what the AI did, one line per action. Must already be masked. */
+  aiActions?: string[] | null;
 };
 
 export type RunOutcome = {
@@ -223,6 +225,7 @@ export async function completeRun(db: Database, runId: string, outcome: RunOutco
           durationMs: step.durationMs,
           message: step.message,
           screenshotPath: step.screenshotPath,
+          aiActions: step.aiActions ?? null,
         })),
       );
     }

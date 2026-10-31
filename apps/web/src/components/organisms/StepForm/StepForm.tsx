@@ -2,6 +2,7 @@ import { unknownTagHint } from '@click-bot/shared';
 import { Card } from '@/components/atoms/Card';
 import { Checkbox } from '@/components/atoms/Checkbox';
 import { Input } from '@/components/atoms/Input';
+import { Textarea } from '@/components/atoms/Textarea';
 import { Select } from '@/components/molecules/Select';
 import { Field } from '@/components/molecules/Field';
 import {
@@ -364,6 +365,25 @@ export function StepForm({ index, step, errors, onChange, types }: StepFormProps
         </Field>
       )}
 
+      {step.type === 'ai' && (
+        <Field
+          id="step-instruction"
+          label="Was soll der Bot tun?"
+          hint="In normalen Worten, wie für einen Kollegen, z. B. „Geh zum Impressum und prüfe, ob die Telefonnummer dasteht.“ Die KI sucht die Elemente während des Laufs selbst; der Report zeigt jede ihrer Aktionen."
+          error={errors.value}
+        >
+          {(control) => (
+            <Textarea
+              {...control}
+              rows={4}
+              maxLength={2000}
+              value={step.value}
+              onChange={(event) => set({ value: event.target.value })}
+            />
+          )}
+        </Field>
+      )}
+
       {step.type === 'screenshot' && (
         <Checkbox
           label="Ganze Seite aufnehmen, nicht nur den sichtbaren Bereich"
@@ -385,7 +405,8 @@ export function StepForm({ index, step, errors, onChange, types }: StepFormProps
         </Field>
       )}
 
-      {step.type !== 'basicAuth' && (
+      {/* An AI step has no timeout of its own: each of its actions has one. */}
+      {step.type !== 'basicAuth' && step.type !== 'ai' && (
         <Field
           id="step-timeout"
           label="Timeout (Sekunden)"

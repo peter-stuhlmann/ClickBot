@@ -627,9 +627,20 @@ describe('runFlow – failures', () => {
     expect(result.steps[1]?.message).toBe('Text „Passwort ••••“ ist nicht sichtbar (nach 0,3 s).');
   });
 
-  it('fails ai steps clearly until they are supported', async () => {
-    const result = await run([step('x', { type: 'ai', instruction: 'Akzeptiere Cookies' })]);
-    expect(result.steps[0]?.message).toBe('KI-Schritte sind noch nicht verfügbar.');
+  it('leaves AI steps to runFlow: a single action never runs one', async () => {
+    const context = await browser.newContext();
+    try {
+      const [ai] = flow([step('x', { type: 'ai', instruction: 'Akzeptiere Cookies' })]).steps;
+      if (!ai) throw new Error('no step');
+      const done = executeStep(await context.newPage(), ai, {
+        vars: { runNr: 1, botNr: 1, faker: () => undefined, secrets: {} },
+        baseUrl: browser.origin(),
+        analytics: createGa4Recorder(),
+      });
+      await expect(done).rejects.toThrow('Ein KI-Schritt läuft nur als Teil eines Ablaufs.');
+    } finally {
+      await context.close();
+    }
   });
 
   it('reports the current URL when the expected one is not reached', async () => {

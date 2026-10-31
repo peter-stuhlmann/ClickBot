@@ -99,6 +99,13 @@
       "when": 1793471769611,
       "tag": "0013_block_ads",
       "breakpoints": true
+    },
+    {
+      "idx": 14,
+      "version": "7",
+      "when": 1793473618120,
+      "tag": "0014_ai_actions",
+      "breakpoints": true
     }
   ]
 }

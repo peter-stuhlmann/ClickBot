@@ -51,7 +51,7 @@ describe('toTemplateFlow', () => {
     expect(steps).toEqual([click('c'), open('s', '/shop')]);
   });
 
-  it('leaves out password protection and steps the forms cannot edit', () => {
+  it('leaves out password protection and steps the forms cannot edit, keeps AI steps', () => {
     const steps = toTemplateFlow(
       flow(
         {
@@ -79,7 +79,7 @@ describe('toTemplateFlow', () => {
       ),
       START,
     ).steps;
-    expect(steps).toEqual([click('c')]);
+    expect(steps.map((step) => step.id)).toEqual(['k', 'c']);
   });
 
   it('keeps every address as it is without a usable start URL', () => {
@@ -89,10 +89,12 @@ describe('toTemplateFlow', () => {
 });
 
 describe('templateFlowSchema', () => {
-  it('accepts the steps of the step forms', () => {
+  it('accepts the steps of the step forms, AI steps as well', () => {
     expect(templateFlowSchema.safeParse(flow(open('a', '/kontakt'), click('c'))).success).toBe(
       true,
     );
+    const ai: Step = { ...base, id: 'k', type: 'ai', instruction: 'Zum Impressum' };
+    expect(templateFlowSchema.safeParse(flow(ai)).success).toBe(true);
   });
 
   it('refuses password protection and steps the forms cannot edit, at the step', () => {
@@ -108,9 +110,10 @@ describe('templateFlowSchema', () => {
         },
         {
           ...base,
-          id: 'k',
-          type: 'ai',
-          instruction: 'Bestellung prüfen',
+          id: 'x',
+          type: 'extract',
+          target: { by: 'testId', testId: 'nr' },
+          saveAs: 'nr',
         },
       ),
     );

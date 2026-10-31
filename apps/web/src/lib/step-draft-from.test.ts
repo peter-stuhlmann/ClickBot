@@ -66,6 +66,12 @@ const STORED: Step[] = [
   { ...base, id: 'k', type: 'press', key: 'Escape' },
   {
     ...base,
+    id: 'ki',
+    type: 'ai',
+    instruction: 'Hinterlasse unter dem Artikel einen Test-Kommentar.',
+  },
+  {
+    ...base,
     id: 'k2',
     type: 'press',
     key: 'Control+a',
@@ -106,10 +112,14 @@ describe('toStepDraft', () => {
     expect(toStepDraft(step)?.timeoutSeconds).toBe('120');
   });
 
-  it.each([
-    { ...base, id: 'x', type: 'extract', target: { by: 'css', selector: '#nr' }, saveAs: 'nr' },
-    { ...base, id: 'ki', type: 'ai', instruction: 'Akzeptiere das Cookie-Banner.' },
-  ] as Step[])('has no form for $type steps yet', (step) => {
+  it('has no form for extract steps yet', () => {
+    const step: Step = {
+      ...base,
+      id: 'x',
+      type: 'extract',
+      target: { by: 'css', selector: '#nr' },
+      saveAs: 'nr',
+    };
     expect(toStepDraft(step)).toBeNull();
   });
 });

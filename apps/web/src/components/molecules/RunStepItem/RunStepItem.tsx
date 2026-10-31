@@ -33,6 +33,7 @@ export function RunStepItem({
   detail,
   duration,
   screenshotUrl,
+  aiActions = [],
 }: RunStepItemProps) {
   const { icon, label } = STATUS[status];
   const muted = status === 'skipped' || status === 'pending';
@@ -59,6 +60,16 @@ export function RunStepItem({
           >
             {detail}
           </span>
+        )}
+        {aiActions.length > 0 && (
+          <ol
+            aria-label="Aktionen der KI"
+            className="mt-1 flex list-decimal flex-col gap-0.5 pl-5 text-meta text-text-muted"
+          >
+            {aiActions.map((action, index) => (
+              <li key={index}>{action}</li>
+            ))}
+          </ol>
         )}
       </div>
       <span className="shrink-0 font-mono text-small text-text-muted">{duration}</span>

@@ -19,6 +19,7 @@ export const TEMPLATE_STEP_TYPES = [
   'wait',
   'screenshot',
   'analytics',
+  'ai',
 ] as const satisfies readonly StepType[];
 
 const allowed = (step: Step) => (TEMPLATE_STEP_TYPES as readonly StepType[]).includes(step.type);

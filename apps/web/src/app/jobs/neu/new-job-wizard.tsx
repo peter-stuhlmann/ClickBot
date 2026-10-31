@@ -24,6 +24,7 @@ import { toggleDevice, toggleDeviceBrowser } from '@/lib/devices';
 import {
   appendStep,
   describeRunTotal,
+  stepsForAiTask,
   emptyDraft,
   browserErrors,
   errorsByPath,
@@ -231,6 +232,7 @@ export function NewJobWizard({
                 setAiAnswers((old) => ({ ...old, [question]: answer }))
               }
               onAccept={acceptSuggestion}
+              onAcceptAsAiStep={() => takeOver(stepsForAiTask(draft.startUrl, aiDescription))}
             />
           ) : (
             <>

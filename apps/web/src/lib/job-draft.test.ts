@@ -7,6 +7,7 @@ import {
   errorsByPath,
   newStep,
   normaliseUrl,
+  stepsForAiTask,
   scheduleErrors,
   stepErrors,
   summarise,
@@ -94,6 +95,18 @@ describe('newStep', () => {
   it('suggests a sensible way to find the element', () => {
     expect(newStep('click', [], '')).toMatchObject({ targetBy: 'role', targetRole: 'button' });
     expect(newStep('fill', [], '')).toMatchObject({ targetBy: 'label' });
+  });
+
+  it('turns a description into one AI step after opening the start page', () => {
+    const steps = stepsForAiTask('beispiel.de/blog', '  Hinterlasse einen Test-Kommentar. ');
+    expect(steps.map((s) => [s.id, s.type, s.url, s.value])).toEqual([
+      ['open-1', 'open', 'https://beispiel.de/blog', ''],
+      ['ai-1', 'ai', '', 'Hinterlasse einen Test-Kommentar.'],
+    ]);
+    expect(toStep(steps[1] as StepDraft)).toMatchObject({
+      type: 'ai',
+      instruction: 'Hinterlasse einen Test-Kommentar.',
+    });
   });
 
   it('scrolls a new scroll step on from where the page stands, a bit down', () => {

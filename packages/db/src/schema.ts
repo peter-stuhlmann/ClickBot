@@ -347,6 +347,8 @@ export const runSteps = pgTable(
     /** Already masked: must never contain secret values. */
     message: text('message'),
     screenshotPath: text('screenshot_path'),
+    /** AI step: what the AI did, one German line per action. Already masked. */
+    aiActions: jsonb('ai_actions').$type<string[]>(),
     createdAt: createdAt(),
   },
   (t) => [

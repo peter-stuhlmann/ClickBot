@@ -36,7 +36,16 @@ function stepRow(
   durationMs: number,
   extra: Partial<RunStepRow> = {},
 ): RunStepRow {
-  return { stepIndex, stepId, status, durationMs, message: null, screenshotPath: null, ...extra };
+  return {
+    stepIndex,
+    stepId,
+    status,
+    durationMs,
+    message: null,
+    screenshotPath: null,
+    aiActions: null,
+    ...extra,
+  };
 }
 
 const passedSteps = [
@@ -57,6 +66,7 @@ const failedSteps = [
 function report(
   overrides: {
     run?: Partial<RunReport['run']>;
+    job?: Partial<RunReport['job']>;
     steps?: RunStepRow[];
     averageDurationMs?: number | null;
   } = {},
@@ -89,6 +99,7 @@ function report(
       startUrl: 'https://beispiel.de',
       flow,
       runsPlanned: 20,
+      ...overrides.job,
     },
     steps: overrides.steps ?? passedSteps,
     averageDurationMs:
@@ -225,12 +236,23 @@ describe('toRunReportView', () => {
     const view = toRunReportView(report({ steps: [stepRow(0, 'old-step', 'passed', 100)] }));
     expect(view.steps[0]).toMatchObject({ title: 'Schritt „old-step“', detail: '' });
 
-    const withAi = report({ steps: [] });
-    withAi.job.flow = {
+    const withExtract = report({ steps: [] });
+    withExtract.job.flow = {
       version: 1,
-      steps: [{ ...base, id: 'ai', type: 'ai', instruction: 'Cookie-Banner schließen' }],
+      steps: [
+        {
+          ...base,
+          id: 'nr',
+          type: 'extract',
+          target: { by: 'testId', testId: 'nr' },
+          saveAs: 'nr',
+        },
+      ],
     };
-    expect(toRunReportView(withAi).steps[0]).toMatchObject({ title: 'KI-Schritt', detail: '' });
+    expect(toRunReportView(withExtract).steps[0]).toMatchObject({
+      title: 'Wert auslesen',
+      detail: '',
+    });
   });
 
   it('shows a step the AI had to help with as passed, with its note', () => {
@@ -304,6 +326,33 @@ describe('toRunReportView', () => {
 
     it('says nothing for runs from before the marking was recorded', () => {
       expect(toRunReportView(report({ run: { analyticsMarking: null } })).marking).toBeNull();
+    });
+  });
+
+  it('lists what the AI did in an AI step', () => {
+    const actions = ['Klick auf Link „Impressum“: ok', 'Fertig: Die Telefonnummer steht da.'];
+    const view = toRunReportView(
+      report({
+        job: {
+          flow: {
+            version: 1,
+            steps: [
+              {
+                id: 'ki',
+                type: 'ai',
+                instruction: 'Prüf die Telefonnummer im Impressum.',
+                timeoutMs: 10_000,
+                aiFallback: true,
+              },
+            ],
+          },
+        },
+        steps: [stepRow(0, 'ki', 'passed', 6_000, { aiActions: actions })],
+      }),
+    );
+    expect(view.steps[0]).toMatchObject({
+      title: 'Prüf die Telefonnummer im Impressum.',
+      aiActions: actions,
     });
   });
 
