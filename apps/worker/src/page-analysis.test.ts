@@ -29,6 +29,12 @@ describe('analysePage', () => {
     expect(facts.snapshot).toContain('button "Absenden"');
   });
 
+  it('reads a page whose ads never load, once its content is there', async () => {
+    const facts = await analyse('/werbung.html');
+    expect(facts.title).toBe('Artikel mit Werbung');
+    expect(facts.snapshot).toContain('heading "Welche Sprachen gibt es?"');
+  }, 15_000);
+
   it('marks the GA4 requests of the page as bot traffic, like every run', async () => {
     const context = await browser.newContext();
     const sent: string[] = [];

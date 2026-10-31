@@ -2,6 +2,7 @@ import { ALL_MARKINGS_ON, KEY_PATTERN } from '@click-bot/shared';
 import type { BrowserContext, Page } from 'playwright';
 import { markBotTraffic } from './bot-marking';
 import { refusedCredentials, toStepMessage } from './errors';
+import { openPage } from './navigate';
 import { startRecorder, type RecordedStep, type RecorderMode } from './recorder';
 
 /** Size of the live browser, as in the design ("Chromium auf dem Server · 1280 × 800"). */
@@ -107,7 +108,7 @@ export function parseClientMessage(raw: string): ClientMessage | null {
 
 async function open(page: Page, url: string): Promise<string | null> {
   try {
-    const response = await page.goto(url, { timeout: OPEN_TIMEOUT_MS });
+    const response = await openPage(page, url, OPEN_TIMEOUT_MS);
     if (response && response.status() >= 400)
       return `Seite antwortet mit HTTP ${response.status()}.`;
     return null;

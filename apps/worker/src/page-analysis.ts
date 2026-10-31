@@ -2,6 +2,7 @@ import { ALL_MARKINGS_ON, type PageFacts } from '@click-bot/shared';
 import type { BrowserContext, Frame } from 'playwright';
 import { markBotTraffic } from './bot-marking';
 import { StepError, refusedCredentials } from './errors';
+import { openPage } from './navigate';
 
 const OPEN_TIMEOUT_MS = 20_000;
 const SETTLE_TIMEOUT_MS = 5_000;
@@ -49,7 +50,7 @@ export async function analysePage(context: BrowserContext, url: string): Promise
   const page = await context.newPage();
   try {
     const locked = new StepError('Seite ist passwortgeschützt (HTTP 401).');
-    const response = await page.goto(url, { timeout: OPEN_TIMEOUT_MS }).catch((error: unknown) => {
+    const response = await openPage(page, url, OPEN_TIMEOUT_MS).catch((error: unknown) => {
       if (refusedCredentials(error)) throw locked;
       throw new StepError(`Seite lädt nicht (nach ${OPEN_TIMEOUT_MS / 1000} s).`);
     });

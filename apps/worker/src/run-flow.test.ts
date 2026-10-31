@@ -141,6 +141,17 @@ describe('runFlow – happy path', () => {
     expect(result.steps[1]?.durationMs).toBeGreaterThanOrEqual(300);
   });
 
+  it('opens a page once its content is there, even if an ad on it never loads', async () => {
+    const result = await run([
+      step('open', { type: 'open', url: '/werbung.html', timeoutMs: 1_000 }),
+      step('see', {
+        type: 'assert',
+        assertion: { kind: 'textVisible', text: 'Welche Sprachen gibt es?' },
+      }),
+    ]);
+    expect(result.status).toBe('passed');
+  });
+
   it('waits for an element that appears late, without a fixed pause', async () => {
     const result = await run([
       step('open', { type: 'open', url: '/langsam.html' }),

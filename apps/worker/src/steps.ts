@@ -2,6 +2,7 @@ import { interpolate, type Step, type Target, type VariableContext } from '@clic
 import type { Locator } from 'playwright';
 import type { Ga4Recorder } from './analytics';
 import { basicAuthHeader, hasBasicAuth, useBasicAuth } from './basic-auth';
+import { openPage } from './navigate';
 import { waitForPdf } from './pdf';
 import { StepError, ambiguousCount, formatSeconds, isTimeout, refusedCredentials } from './errors';
 import {
@@ -94,7 +95,7 @@ export async function executeStep(
     case 'open': {
       const url = new URL(text(step.url), ctx.baseUrl).href;
       const response = await onTimeout(
-        page.goto(url, { timeout }).catch((error: unknown) => {
+        openPage(page, url, timeout).catch((error: unknown) => {
           if (refusedCredentials(error)) return 401 as const;
           throw error;
         }),

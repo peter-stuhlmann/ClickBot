@@ -324,6 +324,9 @@ time, bots }]`, `stagger`) bilden die Bots eines Termins eine Welle.
     darauf (`waitForPdf`, liest den internen Ladezustand `loadState_` des Viewers, wartet daher
     nur, scheitert nie). Text im PDF finden Schritte nicht, URL und Foto gehen. In Tests lässt
     `guardContext` dafür `chrome:`- und `chrome-extension:`-Adressen durch.
+- **Seiten öffnen** (`openPage`, für „Seite öffnen“, die Analyse für die KI und den Live-Browser):
+  fertig, sobald der Inhalt da ist (DOMContentLoaded), danach höchstens 5 s Warten auf `load`.
+  Werbung oder Tracker, die nie laden, lassen eine Seite mit Inhalt nicht scheitern.
 - **Variablen** werden vor der Aktion aufgelöst. Eine unbekannte Variable bricht den Schritt
   ab, ohne dass die Seite angefasst wird.
 - **Meldungen:**
