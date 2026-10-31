@@ -97,7 +97,7 @@ const summary = () => within(screen.getByRole('region', { name: 'Zusammenfassung
 const subtitle = () => screen.getByText(/^Schritt \d von 3/);
 
 function fillStartUrl() {
-  fireEvent.change(screen.getByRole('textbox', { name: 'Website (Start-URL)' }), {
+  fireEvent.change(screen.getByRole('textbox', { name: 'Adresse der Website' }), {
     target: { value: '127.0.0.1:4100/kontakt.html' },
   });
 }
@@ -130,14 +130,14 @@ describe('NewJobWizard', () => {
     expect(subtitle()).toHaveTextContent(
       'Schritt 1 von 3 · Welche Website, und was soll geprüft werden?',
     );
-    expect(screen.getByRole('textbox', { name: 'Website (Start-URL)' })).toBeVisible();
+    expect(screen.getByRole('textbox', { name: 'Adresse der Website' })).toBeVisible();
     expect(screen.getByRole('button', { name: /Fester Ablauf/ })).toHaveAttribute(
       'aria-pressed',
       'true',
     );
     expect(screen.getByRole('button', { name: 'Aufnahme starten' })).toBeVisible();
     // Name and campaign come last, not first.
-    expect(screen.queryByRole('textbox', { name: 'Job-Name' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('textbox', { name: 'Name des Tests' })).not.toBeInTheDocument();
     expect(screen.queryByRole('combobox', { name: 'Kampagne' })).not.toBeInTheDocument();
   });
 
@@ -184,12 +184,12 @@ describe('NewJobWizard', () => {
     renderWizard(undefined, {
       startRecording: async () => ({
         ok: false,
-        message: 'Der Worker ist offline. Ohne ihn gibt es keinen Live-Browser.',
+        message: 'Das Testsystem ist nicht verbunden. Ohne es gibt es keinen Live-Browser.',
       }),
     });
     fillStartUrl();
     await user.click(screen.getByRole('button', { name: 'Aufnahme starten' }));
-    expect(await screen.findByText(/Der Worker ist offline/)).toBeVisible();
+    expect(await screen.findByText(/Das Testsystem ist nicht verbunden/)).toBeVisible();
   });
 
   it('tells before recording that the worker is not connected', () => {
@@ -213,7 +213,7 @@ describe('NewJobWizard', () => {
     await user.click(weiter());
     await user.click(weiter());
     await confirmApproval(user);
-    await user.click(screen.getByRole('button', { name: 'Job anlegen' }));
+    await user.click(screen.getByRole('button', { name: 'Test anlegen' }));
     expect(createAction.mock.calls[0]?.[0]).toMatchObject({
       campaignId: 'k1',
       steps: [
@@ -265,7 +265,7 @@ describe('NewJobWizard', () => {
     await user.click(weiter());
 
     expect(subtitle()).toHaveTextContent('Schritt 3 von 3');
-    expect(screen.getByRole('textbox', { name: 'Job-Name' })).toHaveValue(
+    expect(screen.getByRole('textbox', { name: 'Name des Tests' })).toHaveValue(
       'Das Kontaktformular lässt sich abschicken',
     );
     expect(screen.getByRole('combobox', { name: 'Kampagne' })).toHaveTextContent('Allgemein');
@@ -300,7 +300,7 @@ describe('NewJobWizard', () => {
     expect(summary().getByText('Werbung erlaubt')).toBeInTheDocument();
 
     await confirmApproval(user);
-    await user.click(screen.getByRole('button', { name: 'Job anlegen' }));
+    await user.click(screen.getByRole('button', { name: 'Test anlegen' }));
     expect(createAction.mock.calls[0]?.[0]).toMatchObject({ blockAds: false });
   });
 
@@ -312,7 +312,7 @@ describe('NewJobWizard', () => {
 
     expect(screen.getByRole('alert')).toHaveTextContent('Bitte die markierten Angaben prüfen.');
     expect(subtitle()).toHaveTextContent('Schritt 1 von 3');
-    expect(screen.getByRole('textbox', { name: 'Website (Start-URL)' })).toBeInvalid();
+    expect(screen.getByRole('textbox', { name: 'Adresse der Website' })).toBeInvalid();
     expect(screen.queryByRole('checkbox')).not.toBeInTheDocument();
   });
 
@@ -330,29 +330,29 @@ describe('NewJobWizard', () => {
     fireEvent.change(screen.getByRole('textbox', { name: 'Alle (Minuten)' }), {
       target: { value: '15' },
     });
-    fireEvent.change(screen.getByRole('textbox', { name: 'Max. Läufe' }), {
+    fireEvent.change(screen.getByRole('textbox', { name: 'Max. Durchläufe' }), {
       target: { value: '4' },
     });
-    expect(summary().getByText('alle 15 Min. · max. 4 Läufe')).toBeInTheDocument();
+    expect(summary().getByText('alle 15 Min. · max. 4 Durchläufe')).toBeInTheDocument();
     await user.click(weiter());
 
     expect(subtitle()).toHaveTextContent('Schritt 3 von 3');
     await user.click(screen.getByRole('button', { name: /iPhone 15/ }));
     expect(summary().getByText('Desktop (Chrome), iPhone 15 (Safari)')).toBeInTheDocument();
-    expect(screen.getByText(/4 Starts × 2 Geräte = 8 Läufe/)).toBeInTheDocument();
-    fireEvent.change(screen.getByRole('textbox', { name: 'Job-Name' }), {
+    expect(screen.getByText(/4 Starts × 2 Geräte = 8 Durchläufe/)).toBeInTheDocument();
+    fireEvent.change(screen.getByRole('textbox', { name: 'Name des Tests' }), {
       target: { value: 'Kontaktformular-Test' },
     });
     await chooseOption(user, screen.getByRole('combobox', { name: 'Kampagne' }), 'Black Friday');
 
     // The confirmation that the website may be tested comes right before creating the job.
-    await user.click(screen.getByRole('button', { name: 'Job anlegen' }));
+    await user.click(screen.getByRole('button', { name: 'Test anlegen' }));
     expect(createAction).not.toHaveBeenCalled();
     expect(screen.getByRole('checkbox')).toHaveAccessibleDescription(
       'Bitte bestätigen, dass ihr diese Website testen dürft.',
     );
     await confirmApproval(user);
-    await user.click(screen.getByRole('button', { name: 'Job anlegen' }));
+    await user.click(screen.getByRole('button', { name: 'Test anlegen' }));
 
     expect(createAction).toHaveBeenCalledOnce();
     expect(createAction.mock.calls[0]?.[0]).toMatchObject({
@@ -378,7 +378,7 @@ describe('NewJobWizard', () => {
     expect(subtitle()).toHaveTextContent('Schritt 1 von 3');
     await user.click(weiter());
     await user.click(screen.getByRole('button', { name: '1 · Website & Test (erledigt)' }));
-    expect(screen.getByRole('textbox', { name: 'Website (Start-URL)' })).toHaveValue(
+    expect(screen.getByRole('textbox', { name: 'Adresse der Website' })).toHaveValue(
       '127.0.0.1:4100/kontakt.html',
     );
     expect(screen.getByRole('link', { name: 'Abbrechen' })).toHaveAttribute('href', '/');
@@ -438,7 +438,7 @@ describe('NewJobWizard', () => {
     await user.click(weiter());
 
     await user.click(screen.getByRole('button', { name: /Desktop/ }));
-    await user.click(screen.getByRole('button', { name: 'Job anlegen' }));
+    await user.click(screen.getByRole('button', { name: 'Test anlegen' }));
 
     expect(screen.getByText('Mindestens ein Gerät wählen.')).toBeVisible();
   });
@@ -457,7 +457,7 @@ describe('NewJobWizard', () => {
     await user.click(screen.getByRole('radio', { name: 'Termine' }));
     await user.click(weiter());
     await confirmApproval(user);
-    await user.click(screen.getByRole('button', { name: 'Job anlegen' }));
+    await user.click(screen.getByRole('button', { name: 'Test anlegen' }));
 
     expect(subtitle()).toHaveTextContent('Schritt 2 von 3');
     expect(screen.getByLabelText('Uhrzeit Termin 1')).toHaveAccessibleDescription(

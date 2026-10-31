@@ -28,7 +28,7 @@ export async function createRecordingSession(
 ): Promise<{ id: string; token: string }> {
   if (!isWebAddress(input.startUrl)) {
     throw new ValidationError([
-      { path: 'startUrl', message: 'Start-URL muss mit http:// oder https:// beginnen.' },
+      { path: 'startUrl', message: 'Die Adresse muss mit http:// oder https:// beginnen.' },
     ]);
   }
   const token = newToken();

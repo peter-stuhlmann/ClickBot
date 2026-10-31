@@ -111,8 +111,8 @@ function RandomFields({
       </div>
       <Field
         id="schedule-random-runs"
-        label="Läufe im Zeitraum"
-        hint="Jeder Lauf startet zu einer zufälligen Zeit. Die Kurven legen fest, wann das wahrscheinlicher ist."
+        label="Durchläufe im Zeitraum"
+        hint="Jeder Durchlauf startet zu einer zufälligen Zeit. Die Kurven legen fest, wann das wahrscheinlicher ist."
         error={errors.fields.runs}
       >
         {(control) => (
@@ -130,7 +130,7 @@ function RandomFields({
           <span className="text-body font-medium text-text">Verteilung über den Tag</span>
           <span className="text-meta text-text-muted">
             Mitte ist normal, oben doppelt so häufig, ganz unten nie. Ein Tag mit höherer Kurve
-            bekommt mehr Läufe.
+            bekommt mehr Durchläufe.
           </span>
         </div>
         <SegmentedControl
@@ -180,7 +180,7 @@ export function ScheduleForm({
 
   return (
     <Card
-      title="Wann soll der Bot laufen?"
+      title="Wann soll der Test laufen?"
       description="Alle Zeiten in deutscher Zeit (Europe/Berlin)."
     >
       <SegmentedControl
@@ -192,7 +192,7 @@ export function ScheduleForm({
       />
       {typeLocked && (
         <p className="text-small text-text-muted">
-          Der Job hat schon Läufe, deshalb bleibt die Art des Zeitplans.
+          Der Test hat schon Durchläufe, deshalb bleibt die Art des Zeitplans.
         </p>
       )}
       {errors.fields.type && <p className="text-small text-danger">{errors.fields.type}</p>}
@@ -210,7 +210,7 @@ export function ScheduleForm({
                 />
               )}
             </Field>
-            <Field id="schedule-max-runs" label="Max. Läufe" error={errors.fields.maxRuns}>
+            <Field id="schedule-max-runs" label="Max. Durchläufe" error={errors.fields.maxRuns}>
               {(control) => (
                 <Input
                   {...control}
@@ -273,7 +273,7 @@ export function ScheduleForm({
               className="flex gap-2 text-label font-medium text-text-muted uppercase"
             >
               <span className="flex-1">Datum &amp; Uhrzeit</span>
-              <span className="w-36">Bots</span>
+              <span className="w-36">Browser</span>
             </div>
             {schedule.slots.map((slot, index) => (
               <SlotRow
@@ -319,8 +319,8 @@ export function ScheduleForm({
             <div className="flex flex-col gap-0.5">
               <span className="text-body font-medium text-text">Gestaffelt starten</span>
               <span className="text-meta text-text-muted">
-                Bots eines Termins starten im Abstand von {schedule.staggerSeconds} s statt alle in
-                derselben Sekunde.
+                Mehrere Durchläufe eines Termins starten im Abstand von {schedule.staggerSeconds} s
+                statt alle in derselben Sekunde.
               </span>
             </div>
           </div>

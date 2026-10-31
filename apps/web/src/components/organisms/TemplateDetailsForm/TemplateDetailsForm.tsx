@@ -17,7 +17,7 @@ export function TemplateDetailsForm({ values, errors, onChange }: TemplateDetail
   return (
     <Card
       title="Vorlage"
-      description="Jeder Job öffnet zuerst seine eigene Start-URL. Seiten der Website trägst du als Pfad ein, z. B. /kontakt, dann passt die Vorlage auf jede Website."
+      description="Jeder Test öffnet zuerst seine eigene Adresse der Website. Seiten der Website trägst du als Pfad ein, z. B. /kontakt, dann passt die Vorlage auf jede Website."
     >
       <Field id="template-name" label="Name der Vorlage" error={errors.name}>
         {(control) => (

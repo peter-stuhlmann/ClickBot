@@ -50,7 +50,7 @@ export function CalendarDay({ label, href, selected, today, entries }: CalendarD
             <li key={item.key} className="max-w-full">
               <Link
                 href={item.href}
-                aria-label={`${item.time} ${item.name}, ${item.runs === 1 ? '1 Lauf' : `${item.runs} Läufe`}${item.over ? ', Limit überschritten' : ''}`}
+                aria-label={`${item.time} ${item.name}, ${item.runs === 1 ? '1 Durchlauf' : `${item.runs} Durchläufe`}${item.over ? ', Limit überschritten' : ''}`}
                 className={entry({ over: item.over })}
               >
                 <span className="tabular-nums">{item.time}</span> {item.name}

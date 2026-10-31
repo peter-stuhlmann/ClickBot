@@ -10,7 +10,7 @@ import { randomScheduleSchema, randomStarts } from './random-schedule';
 
 export { DEFAULT_TIMEZONE, localToUtc } from './local-time';
 
-const BOTS_RANGE = 'Pro Termin 1 bis 50 Bots.';
+const BOTS_RANGE = 'Pro Termin 1 bis 50 Browser.';
 const EVERY_RANGE = 'Abstand muss zwischen 1 und 10.080 Minuten liegen.';
 const MAX_RUNS_RANGE = 'Bitte eine ganze Zahl zwischen 1 und 10.000 eingeben.';
 

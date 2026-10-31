@@ -7,7 +7,7 @@ export type BrowserManager = {
   close(): Promise<void>;
 };
 
-const CRASHED = 'Browser beendet oder abgestürzt. Der nächste Lauf startet einen neuen.';
+const CRASHED = 'Browser beendet oder abgestürzt. Der nächste Durchlauf startet einen neuen.';
 
 /**
  * Keeps one shared browser (one engine) for all runs. If it crashes, the runs in it fail (with the browser's

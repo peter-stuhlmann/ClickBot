@@ -16,7 +16,7 @@ import { AutoRefresh } from './auto-refresh';
 
 export const dynamic = 'force-dynamic';
 
-export const metadata: Metadata = { title: 'Lauf-Report · Click-Bot' };
+export const metadata: Metadata = { title: 'Durchlauf-Report · Click-Bot' };
 
 type Props = { params: Promise<{ id: string }> };
 
@@ -65,7 +65,7 @@ export default async function RunReportPage({ params }: Props) {
             description={view.meta}
             status={view.status}
             breadcrumb={[
-              { label: 'Jobs', href: '/' },
+              { label: 'Tests', href: '/' },
               { label: view.jobName, href: view.jobHref },
               { label: view.runLabel },
             ]}

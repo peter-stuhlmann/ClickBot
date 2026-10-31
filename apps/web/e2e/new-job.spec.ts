@@ -2,16 +2,16 @@ import { expect, test } from '@playwright/test';
 import { chooseOption } from './select';
 
 // Runs after jobs.spec.ts (one worker, files in name order), which expects only the demo jobs.
-test.describe('Neuer Job', () => {
+test.describe('Neuer Test', () => {
   test('creates an active job with the wizard and lists it', async ({ page }) => {
     await page.goto('/');
-    await page.getByRole('link', { name: 'Neuer Job' }).click();
-    await expect(page.getByRole('heading', { level: 1, name: 'Neuer Job' })).toBeVisible();
+    await page.getByRole('link', { name: 'Neuer Test' }).click();
+    await expect(page.getByRole('heading', { level: 1, name: 'Neuer Test' })).toBeVisible();
 
     // 1 · Job
     // The start address is asked for with the flow.
     await page
-      .getByRole('textbox', { name: 'Website (Start-URL)' })
+      .getByRole('textbox', { name: 'Adresse der Website' })
       .fill('http://127.0.0.1:4100/kontakt.html');
 
     // 1 · Website & Test: a free test, only its goal.
@@ -23,7 +23,7 @@ test.describe('Neuer Job', () => {
 
     // 2 · Wann
     await page.getByRole('textbox', { name: 'Alle (Minuten)' }).fill('30');
-    await page.getByRole('textbox', { name: 'Max. Läufe' }).fill('2');
+    await page.getByRole('textbox', { name: 'Max. Durchläufe' }).fill('2');
     await page.getByRole('button', { name: 'Weiter' }).click();
 
     // 3 · Geräte & Freigabe: beside the summary the card is narrow, so the devices take two
@@ -34,7 +34,7 @@ test.describe('Neuer Job', () => {
     expect(await top(/^Desktop/)).toBe(await top(/iPhone 15/));
     expect(await top(/Android/)).toBeGreaterThan(await top(/^Desktop/));
     await page.getByRole('button', { name: /iPhone 15/ }).click();
-    await expect(page.getByText(/2 Starts × 2 Geräte = 4 Läufe/)).toBeVisible();
+    await expect(page.getByText(/2 Starts × 2 Geräte = 4 Durchläufe/)).toBeVisible();
     // Each device in its own browsers: the desktop also in Firefox, Android only in Firefox,
     // the iPhone always in Safari.
     const browsersOf = (device: string) =>
@@ -44,17 +44,17 @@ test.describe('Neuer Job', () => {
     await browsersOf('Android (Pixel 8)').getByRole('button', { name: 'Firefox' }).click();
     await browsersOf('Android (Pixel 8)').getByRole('button', { name: 'Chrome' }).click();
     await expect(browsersOf('iPhone 15').getByRole('button', { name: 'Safari' })).toBeDisabled();
-    await expect(page.getByText(/2 Starts × 4 Kombinationen = 8 Läufe/)).toBeVisible();
+    await expect(page.getByText(/2 Starts × 4 Kombinationen = 8 Durchläufe/)).toBeVisible();
     await expect(page.getByRole('complementary', { name: 'Zusammenfassung' })).toContainText(
       'Desktop (Chrome), Desktop (Firefox), iPhone 15 (Safari), Android (Pixel 8) (Firefox)',
     );
     // The name is suggested from the goal.
-    await expect(page.getByRole('textbox', { name: 'Job-Name' })).toHaveValue(
+    await expect(page.getByRole('textbox', { name: 'Name des Tests' })).toHaveValue(
       'Es gibt ein Kontaktformular mit Feldern für Name und E-Mail',
     );
-    await page.getByRole('textbox', { name: 'Job-Name' }).fill('E2E Kontaktseite');
+    await page.getByRole('textbox', { name: 'Name des Tests' }).fill('E2E Kontaktseite');
     await page.getByRole('checkbox', { name: /Test freigegeben/ }).check();
-    await page.getByRole('button', { name: 'Job anlegen' }).click();
+    await page.getByRole('button', { name: 'Test anlegen' }).click();
 
     await expect(page).toHaveURL('/');
     const row = page.getByRole('row', { name: /E2E Kontaktseite/ });
@@ -66,7 +66,7 @@ test.describe('Neuer Job', () => {
   test('creates a job with random starts, shaped by a curve per weekday', async ({ page }) => {
     await page.goto('/jobs/neu');
     await page
-      .getByRole('textbox', { name: 'Website (Start-URL)' })
+      .getByRole('textbox', { name: 'Adresse der Website' })
       .fill('http://127.0.0.1:4100/kontakt.html');
     await page.getByRole('button', { name: /Frei mit KI/ }).click();
     await page
@@ -76,7 +76,7 @@ test.describe('Neuer Job', () => {
 
     // 2 · Wann: random, 40 runs in the week from today, no starts in the early morning.
     await page.getByRole('radio', { name: 'Zufall' }).click();
-    await page.getByRole('textbox', { name: 'Läufe im Zeitraum' }).fill('40');
+    await page.getByRole('textbox', { name: 'Durchläufe im Zeitraum' }).fill('40');
     const curve = page.getByRole('slider', { name: /^Verteilung am / });
     const box = await curve.boundingBox();
     if (!box) throw new Error('no curve');
@@ -87,28 +87,28 @@ test.describe('Neuer Job', () => {
     await page.mouse.up();
     await expect(curve).toHaveAttribute('aria-valuetext', '5 Uhr: nie');
     await page.getByRole('button', { name: 'Für alle Wochentage übernehmen' }).click();
-    await expect(page.getByText(/40 Starts × 1 Gerät = 40 Läufe/).first()).toBeVisible();
+    await expect(page.getByText(/40 Starts × 1 Gerät = 40 Durchläufe/).first()).toBeVisible();
     await page.getByRole('button', { name: 'Weiter' }).click();
 
-    await page.getByRole('textbox', { name: 'Job-Name' }).fill('E2E Zufall');
+    await page.getByRole('textbox', { name: 'Name des Tests' }).fill('E2E Zufall');
     await page.getByRole('checkbox', { name: /Test freigegeben/ }).check();
-    await page.getByRole('button', { name: 'Job anlegen' }).click();
+    await page.getByRole('button', { name: 'Test anlegen' }).click();
     await expect(page).toHaveURL('/');
     const row = page.getByRole('row', { name: /E2E Zufall/ });
     await expect(row).toContainText(/zufällig \d{2}\.\d{2}\.\d{4}–\d{2}\.\d{2}\.\d{4}/);
-    await expect(row).toContainText('40 Läufe');
+    await expect(row).toContainText('40 Durchläufe');
   });
 
   test('creates no job without the confirmation that testing is allowed', async ({ page }) => {
     await page.goto('/jobs/neu');
-    await page.getByRole('textbox', { name: 'Website (Start-URL)' }).fill('beispiel.de');
+    await page.getByRole('textbox', { name: 'Adresse der Website' }).fill('beispiel.de');
     await page.getByRole('button', { name: /Frei mit KI/ }).click();
     await page
       .getByRole('textbox', { name: 'Was soll auf der Website gelten?' })
       .fill('Die Seite lädt.');
     await page.getByRole('button', { name: 'Weiter' }).click();
     await page.getByRole('button', { name: 'Weiter' }).click();
-    await page.getByRole('button', { name: 'Job anlegen' }).click();
+    await page.getByRole('button', { name: 'Test anlegen' }).click();
 
     // Next.js has its own role="alert" (route announcer), so filter by text.
     await expect(
@@ -138,7 +138,7 @@ test.describe('Neuer Job', () => {
     );
 
     await page.getByRole('link', { name: 'E2E Kontaktseite', exact: true }).click();
-    await page.getByRole('button', { name: 'Job löschen' }).click();
+    await page.getByRole('button', { name: 'Test löschen' }).click();
     await page.getByRole('button', { name: 'Endgültig löschen' }).click();
     await expect(page).toHaveURL('/');
     await expect(page.getByRole('row', { name: /E2E Kontaktseite/ })).toHaveCount(0);

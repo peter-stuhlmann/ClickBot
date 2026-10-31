@@ -32,7 +32,7 @@ export default async function CampaignsPage() {
         title="Kampagnen"
         description={
           shell.project
-            ? `${shell.project.name} · Alle Kampagnen mit ihren Jobs und Läufen.`
+            ? `${shell.project.name} · Alle Kampagnen mit ihren Tests und Durchläufen.`
             : 'Noch kein Projekt. Lege oben in der Seitenleiste das erste an.'
         }
         actions={

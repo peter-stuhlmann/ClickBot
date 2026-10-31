@@ -63,7 +63,7 @@ export function CampaignForm({ projectName, action, campaign }: CampaignFormProp
       {campaign && <input type="hidden" name="id" value={campaign.id} />}
       <Card
         title={campaign ? 'Kampagne' : 'Neue Kampagne'}
-        description={`Im Projekt „${projectName}“. Eine Kampagne fasst Jobs zusammen, z. B. für eine Aktion oder eine Landingpage.`}
+        description={`Im Projekt „${projectName}“. Eine Kampagne fasst Tests zusammen, z. B. für eine Aktion oder eine Landingpage.`}
       >
         {state.error && <p className="text-small text-danger">{state.error}</p>}
         <Field id="campaign-name" label="Name" error={errors.name}>

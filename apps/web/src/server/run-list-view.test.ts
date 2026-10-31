@@ -30,7 +30,7 @@ describe('toRunListRow', () => {
       id: 'run-7',
       href: '/laeufe/run-7',
       jobName: 'Kontaktformular-Test',
-      detail: 'Lauf #7 · iPhone 15 · Safari · Bot 2',
+      detail: 'Durchlauf 7 · iPhone 15 · Safari · Browser 2',
       testRun: false,
       campaign: 'Black Friday',
       when: '05.11. 14:30',

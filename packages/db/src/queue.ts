@@ -221,7 +221,7 @@ export async function completeRun(db: Database, runId: string, outcome: RunOutco
       })
       .where(and(eq(runs.id, runId), eq(runs.status, 'running')))
       .returning({ id: runs.id });
-    if (updated.length === 0) throw new Error(`Lauf ${runId} läuft nicht (mehr).`);
+    if (updated.length === 0) throw new Error(`Durchlauf ${runId} läuft nicht (mehr).`);
 
     if (outcome.steps.length > 0) {
       await tx.insert(runSteps).values(
@@ -251,7 +251,7 @@ export async function recoverStaleRuns(
     .set({
       status: 'failed',
       finishedAt: now,
-      error: 'Lauf abgebrochen: Der Worker wurde während des Laufs beendet.',
+      error: 'Durchlauf abgebrochen: Das Testsystem wurde während des Durchlaufs beendet.',
     })
     .where(
       and(eq(runs.status, 'running'), lt(runs.startedAt, new Date(now.getTime() - staleAfterMs))),

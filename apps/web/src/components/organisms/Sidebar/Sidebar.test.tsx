@@ -18,7 +18,7 @@ describe('Sidebar', () => {
       within(nav)
         .getAllByRole('link')
         .map((link) => link.textContent),
-    ).toEqual(['Kampagnen', 'Jobs', 'Kalender', 'Läufe', 'Vorlagen', 'Einstellungen']);
+    ).toEqual(['Tests', 'Durchläufe', 'Kalender', 'Kampagnen', 'Vorlagen', 'Einstellungen']);
   });
 
   it('marks exactly the active section', () => {
@@ -57,7 +57,7 @@ describe('Sidebar', () => {
     );
     // Once in the top bar of small screens, once in the column.
     expect(screen.getAllByText('Click-Bot')).toHaveLength(2);
-    expect(screen.getByRole('status')).toHaveTextContent('Worker online · 1 Lauf aktiv');
+    expect(screen.getByRole('status')).toHaveTextContent('Testsystem bereit · 1 Durchlauf aktiv');
     expect(screen.getByText('Peter Stuhlmann')).toBeInTheDocument();
   });
 
@@ -119,7 +119,7 @@ describe('Sidebar on small screens', () => {
     render(<Sidebar active="jobs" worker={worker} user={null} {...shell} />);
 
     await user.click(menuButton());
-    await user.click(screen.getByRole('link', { name: 'Läufe' }));
+    await user.click(screen.getByRole('link', { name: 'Durchläufe' }));
     expect(menuButton()).toHaveAttribute('aria-expanded', 'false');
   });
 });

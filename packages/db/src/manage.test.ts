@@ -83,7 +83,7 @@ describe('deleteCustomer', () => {
     await jobIn(campaignId);
     await jobIn(campaignId, 'Login');
     expect(await issuesOf(deleteCustomer(db, customerId))).toEqual([
-      { path: 'form', message: 'Das Projekt hat noch 2 Jobs. Lösche sie zuerst.' },
+      { path: 'form', message: 'Das Projekt hat noch 2 Tests. Lösche sie zuerst.' },
     ]);
     expect(await db.select().from(customers).where(eq(customers.id, customerId))).toHaveLength(1);
   });
@@ -169,7 +169,7 @@ describe('deleteCampaign', () => {
       expect(await issuesOf(deleteCampaign(db, campaignId, typed))).toEqual([
         {
           path: 'confirm',
-          message: 'Die Kampagne hat noch 1 Job. Zum Löschen „Sommer löschen“ eintippen.',
+          message: 'Die Kampagne hat noch 1 Test. Zum Löschen „Sommer löschen“ eintippen.',
         },
       ]);
     }
@@ -177,7 +177,7 @@ describe('deleteCampaign', () => {
     expect(await issuesOf(deleteCampaign(db, campaignId))).toEqual([
       {
         path: 'confirm',
-        message: 'Die Kampagne hat noch 2 Jobs. Zum Löschen „Sommer löschen“ eintippen.',
+        message: 'Die Kampagne hat noch 2 Tests. Zum Löschen „Sommer löschen“ eintippen.',
       },
     ]);
     expect(await getCampaign(db, campaignId)).not.toBeNull();

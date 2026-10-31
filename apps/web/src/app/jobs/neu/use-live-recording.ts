@@ -11,7 +11,7 @@ import type { LiveInput, LiveMode, StartRecordingAction } from '@/lib/views';
 
 export type LiveStatus = 'idle' | 'connecting' | 'live' | 'ended';
 
-const NO_CONNECTION = 'Keine Verbindung zum Live-Browser. Läuft der Worker?';
+const NO_CONNECTION = 'Keine Verbindung zum Live-Browser. Läuft das Testsystem?';
 
 /**
  * The connection to the live browser of "Im Browser aufnehmen": asks the server for a one-time

@@ -15,7 +15,7 @@ export function AdBlockingForm({ blockAds, onChange }: AdBlockingFormProps) {
   return (
     <Card
       title="Werbung"
-      description="Werbenetzwerke können Bots nicht herausfiltern. Click-Bot blockiert ihre Anfragen deshalb wie ein Werbeblocker."
+      description="Werbenetzwerke können Browser nicht herausfiltern. Click-Bot blockiert ihre Anfragen deshalb wie ein Werbeblocker."
     >
       <SwitchRow
         label="Werbung blockieren"
@@ -25,9 +25,9 @@ export function AdBlockingForm({ blockAds, onChange }: AdBlockingFormProps) {
       />
       {!blockAds && (
         <Notice tone="danger" title="Anzeigen zählen als Impressionen">
-          Die Läufe dieses Jobs laden Anzeigen wie echte Besucher. Werbenetzwerke werten das als
-          ungültige Zugriffe; das kann dem Werbekonto der Website schaden. Nur für eigene Websites
-          oder mit Zustimmung des Kunden. Jeder Report vermerkt es.
+          Die Durchläufe dieses Tests laden Anzeigen wie echte Besucher. Werbenetzwerke werten das
+          als ungültige Zugriffe; das kann dem Werbekonto der Website schaden. Nur für eigene
+          Websites oder mit Zustimmung des Kunden. Jeder Report vermerkt es.
         </Notice>
       )}
     </Card>

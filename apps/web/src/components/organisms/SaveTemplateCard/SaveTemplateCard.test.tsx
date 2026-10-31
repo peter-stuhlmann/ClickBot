@@ -56,10 +56,10 @@ describe('SaveTemplateCard', () => {
         jobId="job-1"
         defaultName="Login"
         action={vi.fn()}
-        blocked="Erst den Job speichern."
+        blocked="Erst den Test speichern."
       />,
     );
     expect(screen.getByRole('button', { name: 'Vorlage erstellen' })).toBeDisabled();
-    expect(screen.getByText('Erst den Job speichern.')).toBeInTheDocument();
+    expect(screen.getByText('Erst den Test speichern.')).toBeInTheDocument();
   });
 });

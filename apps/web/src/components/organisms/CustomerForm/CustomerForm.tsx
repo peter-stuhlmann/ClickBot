@@ -29,7 +29,7 @@ export function CustomerForm({ action, project }: CustomerFormProps) {
       {project && <input type="hidden" name="id" value={project.id} />}
       <Card
         title={project ? 'Projekt' : 'Neues Projekt'}
-        description="Ein Projekt fasst Kampagnen und ihre Jobs zusammen. Das Kürzel für Adressen entsteht aus dem Namen."
+        description="Ein Projekt fasst Kampagnen und ihre Tests zusammen. Das Kürzel für Adressen entsteht aus dem Namen."
       >
         <Field id="customer-name" label="Name" error={state.error}>
           {(control) => (

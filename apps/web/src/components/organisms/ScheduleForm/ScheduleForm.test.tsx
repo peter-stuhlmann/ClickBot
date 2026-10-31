@@ -23,7 +23,7 @@ function Harness({
     <ScheduleForm
       schedule={schedule}
       errors={errors}
-      note="24 Starts × 1 Gerät = 24 Läufe"
+      note="24 Starts × 1 Gerät = 24 Durchläufe"
       onChange={(next) => {
         setSchedule(next);
         onChange(next);
@@ -37,11 +37,11 @@ describe('ScheduleForm', () => {
     render(<Harness />);
     expect(screen.getByRole('radio', { name: 'Intervall' })).toBeChecked();
     expect(screen.getByRole('textbox', { name: 'Alle (Minuten)' })).toHaveValue('60');
-    expect(screen.getByRole('textbox', { name: 'Max. Läufe' })).toHaveValue('24');
+    expect(screen.getByRole('textbox', { name: 'Max. Durchläufe' })).toHaveValue('24');
     expect(screen.getByRole('combobox', { name: 'Start' })).toHaveTextContent(
       'Sofort nach dem Anlegen',
     );
-    expect(screen.getByText('24 Starts × 1 Gerät = 24 Läufe')).toBeVisible();
+    expect(screen.getByText('24 Starts × 1 Gerät = 24 Durchläufe')).toBeVisible();
   });
 
   it('reports changed interval values', () => {
@@ -50,7 +50,7 @@ describe('ScheduleForm', () => {
     fireEvent.change(screen.getByRole('textbox', { name: 'Alle (Minuten)' }), {
       target: { value: '15' },
     });
-    fireEvent.change(screen.getByRole('textbox', { name: 'Max. Läufe' }), {
+    fireEvent.change(screen.getByRole('textbox', { name: 'Max. Durchläufe' }), {
       target: { value: '20' },
     });
     expect(onChange).toHaveBeenLastCalledWith(
@@ -99,7 +99,7 @@ describe('ScheduleForm', () => {
     await user.click(screen.getByRole('button', { name: 'Termin hinzufügen' }));
     expect(screen.getByLabelText('Uhrzeit Termin 2')).toHaveValue('15:00');
 
-    await user.click(screen.getByRole('button', { name: 'Ein Bot mehr (Termin 2)' }));
+    await user.click(screen.getByRole('button', { name: 'Einer mehr (Termin 2)' }));
     await user.click(screen.getByRole('button', { name: 'Termin 1 entfernen' }));
 
     expect(onChange).toHaveBeenLastCalledWith(
@@ -200,7 +200,7 @@ describe('ScheduleForm – Zufall', () => {
 
     expect(screen.getByRole('textbox', { name: 'Von' })).toHaveValue('05.11.2026');
     expect(screen.getByRole('textbox', { name: 'Bis' })).toHaveValue('11.11.2026');
-    expect(screen.getByRole('textbox', { name: 'Läufe im Zeitraum' })).toHaveValue('50');
+    expect(screen.getByRole('textbox', { name: 'Durchläufe im Zeitraum' })).toHaveValue('50');
     expect(screen.getByRole('slider', { name: 'Verteilung am Montag' })).toBeInTheDocument();
     expect(onChange).toHaveBeenLastCalledWith(expect.objectContaining({ type: 'random' }));
   });
@@ -254,9 +254,9 @@ describe('ScheduleForm – Zufall', () => {
     expect(screen.getByRole('textbox', { name: 'Bis' })).toHaveAccessibleDescription(
       'Das Ende liegt vor dem Start.',
     );
-    expect(screen.getByRole('textbox', { name: 'Läufe im Zeitraum' })).toHaveAccessibleDescription(
-      /zwischen 1 und 10.000/,
-    );
+    expect(
+      screen.getByRole('textbox', { name: 'Durchläufe im Zeitraum' }),
+    ).toHaveAccessibleDescription(/zwischen 1 und 10.000/);
     expect(screen.getByText('Die Kurven lassen im Zeitraum keinen Start zu.')).toBeVisible();
   });
 });

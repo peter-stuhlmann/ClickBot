@@ -356,7 +356,7 @@ export function suggestMove(
   return null;
 }
 
-const runsText = (runs: number) => (runs === 1 ? '1 Lauf' : `${runs} Läufe`);
+const runsText = (runs: number) => (runs === 1 ? '1 Durchlauf' : `${runs} Durchläufe`);
 
 function list(items: string[]): string {
   return items.length < 2 ? items.join('') : `${items.slice(0, -1).join(', ')} und ${items.at(-1)}`;
@@ -380,14 +380,14 @@ export function describeBusy(
   const waiting = busy.peak - limit;
   const together =
     names.length === 1
-      ? `${list(names)} startet mehr Läufe, als Browser frei sind.`
+      ? `${list(names)} startet mehr Durchläufe, als Browser frei sind.`
       : `${list(names)} laufen gleichzeitig.`;
   const late =
     waiting === 1
-      ? '1 Lauf wartet in der Warteschlange und startet später als geplant.'
-      : `${waiting} Läufe warten in der Warteschlange und starten später als geplant.`;
+      ? '1 Durchlauf wartet in der Warteschlange und startet später als geplant.'
+      : `${waiting} Durchläufe warten in der Warteschlange und starten später als geplant.`;
   return {
-    title: `${local(busy.start).time} Uhr: ${busy.peak} Läufe für ${limit} Browser`,
+    title: `${local(busy.start).time} Uhr: ${busy.peak} Durchläufe für ${limit} Browser`,
     text: `${together} ${late}`,
   };
 }
@@ -403,6 +403,6 @@ export function describeSuggestion(
       : `${dayLabel(move.to.date, 'long')} ${move.to.time}`;
   return {
     title: `Vorschlag: „${move.jobName}“ auf ${when} verschieben`,
-    text: `Dann laufen höchstens ${move.peak} von ${limit} Browsern gleichzeitig, und alle Läufe starten pünktlich.`,
+    text: `Dann laufen höchstens ${move.peak} von ${limit} Browsern gleichzeitig, und alle Durchläufe starten pünktlich.`,
   };
 }

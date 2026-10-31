@@ -116,7 +116,7 @@ export async function deleteCustomer(db: Database, id: string): Promise<void> {
       .from(jobs)
       .where(eq(jobs.customerId, id));
     if (count > 0) {
-      const what = count === 1 ? '1 Job' : `${count} Jobs`;
+      const what = count === 1 ? '1 Test' : `${count} Tests`;
       throw new ValidationError([
         { path: 'form', message: `Das Projekt hat noch ${what}. Lösche sie zuerst.` },
       ]);

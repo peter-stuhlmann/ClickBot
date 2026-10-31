@@ -26,7 +26,7 @@ export default async function TemplatesPage() {
     <AppShell active="vorlagen" {...shell} selectProject={selectProjectAction}>
       <PageHeader
         title="Vorlagen"
-        description="Abläufe für jede Website und alle Projekte. Im Assistenten „Neuer Job“ unter „Aus Vorlage“."
+        description="Abläufe für jede Website und alle Projekte. Im Assistenten „Neuer Test“ unter „Aus Vorlage“."
         actions={
           templates.length > 0 && (
             <Button href="/vorlagen/neu" icon={<Icon name="plus" size={16} />}>

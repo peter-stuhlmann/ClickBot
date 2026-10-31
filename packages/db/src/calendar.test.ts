@@ -140,7 +140,7 @@ describe('moveSlot', () => {
       scheduledAt: new Date('2026-11-05T12:38:00Z'),
     });
     await expect(move(job.id, { date: '2026-11-05', time: '13:45' })).rejects.toThrow(
-      'Dieser Termin hat schon Läufe',
+      'Dieser Termin hat schon Durchläufe',
     );
   });
 

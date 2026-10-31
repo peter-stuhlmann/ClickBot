@@ -26,7 +26,7 @@ describe('WeekCalendar', () => {
       'keine Termine',
     );
     const legend = within(week).getByRole('list', { name: 'Legende' });
-    expect(legend).toHaveTextContent('Lauf-Welle');
+    expect(legend).toHaveTextContent('Welle');
     expect(legend).toHaveTextContent('Limit überschritten');
   });
 });

@@ -14,9 +14,9 @@ const RATE_COLOUR: Record<Tone, string> = {
 // campaign of the current project; "Wochen-PDF" is left out until the PDF exists.
 const COLUMNS = [
   { label: 'Kampagne', width: 'w-16/49' },
-  { label: 'Jobs', width: 'w-8/49' },
-  { label: 'Läufe (30 Tage)', width: 'w-10/49' },
-  { label: 'Letzter Lauf', width: 'w-19/98' },
+  { label: 'Tests', width: 'w-8/49' },
+  { label: 'Durchläufe (30 Tage)', width: 'w-10/49' },
+  { label: 'Letzter Durchlauf', width: 'w-19/98' },
   { label: 'Erfolgsquote', width: 'w-11/98' },
 ];
 
@@ -68,7 +68,7 @@ export function CampaignsTable({ rows }: CampaignsTableProps) {
                 colSpan={COLUMNS.length}
                 className="block px-5 py-10 text-center text-text-muted xl:table-cell"
               >
-                Noch keine Kampagnen. Lege die erste Kampagne an, um Jobs darin zu erstellen.
+                Noch keine Kampagnen. Lege die erste Kampagne an, um Tests darin zu erstellen.
               </td>
             </tr>
           )}
@@ -89,21 +89,21 @@ export function CampaignsTable({ rows }: CampaignsTableProps) {
                 <div className="truncate font-mono text-small text-text-muted">{row.detail}</div>
               </td>
               <td role="cell" className="xl:py-3.5">
-                <CellLabel>Jobs</CellLabel>
+                <CellLabel>Tests</CellLabel>
                 <div className="text-body text-text">{row.jobs.primary}</div>
                 <div className="text-small text-text-muted">{row.jobs.secondary}</div>
               </td>
               <td role="cell" className="col-span-2 xl:py-3.5">
-                <CellLabel>Läufe (30 Tage)</CellLabel>
+                <CellLabel>Durchläufe (30 Tage)</CellLabel>
                 <div className="mb-1.5 text-meta text-text">{row.runs.label}</div>
-                <ProgressBar value={row.runs.value} label={`Erfolgreiche Läufe ${row.name}`} />
+                <ProgressBar value={row.runs.value} label={`Erfolgreiche Durchläufe ${row.name}`} />
               </td>
               <td role="cell" className="xl:py-3.5">
-                <CellLabel>Letzter Lauf</CellLabel>
+                <CellLabel>Letzter Durchlauf</CellLabel>
                 {row.lastRun ? (
                   <Link
                     href={row.lastRun.href}
-                    aria-label={`Letzter Lauf von ${row.name}: ${row.lastRun.label}, ${row.lastRun.when}`}
+                    aria-label={`Letzter Durchlauf von ${row.name}: ${row.lastRun.label}, ${row.lastRun.when}`}
                     className="group inline-flex flex-col items-start rounded-input focus-visible:outline-2 focus-visible:outline-primary"
                   >
                     <Badge tone={row.lastRun.tone}>{row.lastRun.label}</Badge>
@@ -112,7 +112,7 @@ export function CampaignsTable({ rows }: CampaignsTableProps) {
                     </span>
                   </Link>
                 ) : (
-                  <span className="text-small text-text-muted">noch kein Lauf</span>
+                  <span className="text-small text-text-muted">noch kein Durchlauf</span>
                 )}
               </td>
               <td role="cell" className="xl:py-3.5 xl:pr-5">

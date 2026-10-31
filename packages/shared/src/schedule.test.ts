@@ -237,7 +237,7 @@ describe('messages for the schedule form', () => {
 
   it('names the allowed number of bots per slot and asks for a first slot', () => {
     expect(messages(times([{ date: '2026-11-05', time: '13:24', bots: 51 }]))).toEqual({
-      'slots.0.bots': 'Pro Termin 1 bis 50 Bots.',
+      'slots.0.bots': 'Pro Termin 1 bis 50 Browser.',
     });
     expect(messages(times([]))).toEqual({ slots: 'Mindestens einen Termin anlegen.' });
   });

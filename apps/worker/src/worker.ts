@@ -111,9 +111,9 @@ async function executeRun(deps: WorkerDeps, { run, job }: ClaimedRun): Promise<v
     await completeRun(deps.db, run.id, {
       status: 'failed',
       finishedAt: now(),
-      error: `Lauf konnte nicht ausgeführt werden: ${toStepMessage(error)}`,
+      error: `Durchlauf konnte nicht ausgeführt werden: ${toStepMessage(error)}`,
       steps: [],
-    }).catch((reason: unknown) => deps.log?.(`Lauf ${run.id}: ${toStepMessage(reason)}`));
+    }).catch((reason: unknown) => deps.log?.(`Durchlauf ${run.id}: ${toStepMessage(reason)}`));
   } finally {
     await context?.close().catch(() => undefined);
   }

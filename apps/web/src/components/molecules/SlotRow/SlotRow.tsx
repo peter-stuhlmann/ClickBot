@@ -74,20 +74,20 @@ export function SlotRow({
             variant="ghost"
             size="sm"
             className="px-2"
-            aria-label={`Ein Bot weniger (${name})`}
+            aria-label={`Einer weniger (${name})`}
             disabled={slot.bots <= 1}
             onClick={() => onChange({ ...slot, bots: slot.bots - 1 })}
             icon={<Icon name="minus" size={16} />}
           />
           <span className="w-8 text-center text-body font-medium text-text" aria-live="polite">
             {slot.bots}
-            <span className="sr-only"> {slot.bots === 1 ? 'Bot' : 'Bots'}</span>
+            <span className="sr-only"> {slot.bots === 1 ? 'Browser' : 'Browser'}</span>
           </span>
           <Button
             variant="ghost"
             size="sm"
             className="px-2 text-primary"
-            aria-label={`Ein Bot mehr (${name})`}
+            aria-label={`Einer mehr (${name})`}
             disabled={slot.bots >= MAX_BOTS_PER_SLOT}
             onClick={() => onChange({ ...slot, bots: slot.bots + 1 })}
             icon={<Icon name="plus" size={16} />}
@@ -105,7 +105,7 @@ export function SlotRow({
       </div>
       {locked && (
         <p className="text-small text-text-muted">
-          Hat schon Läufe – nur die Zahl der Bots lässt sich ändern.
+          Hat schon Durchläufe – nur die Anzahl lässt sich ändern.
         </p>
       )}
       {error && (

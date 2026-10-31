@@ -17,8 +17,8 @@ export type JobSettingsFormProps = {
 /** Name, campaign and start address of an existing job (editor). */
 export function JobSettingsForm({ values, campaigns, errors, onChange }: JobSettingsFormProps) {
   return (
-    <Card title="Job">
-      <Field id="job-name" label="Job-Name" error={errors.name}>
+    <Card title="Test">
+      <Field id="job-name" label="Name des Tests" error={errors.name}>
         {(control) => (
           <Input
             {...control}
@@ -39,7 +39,7 @@ export function JobSettingsForm({ values, campaigns, errors, onChange }: JobSett
       </Field>
       <Field
         id="job-url"
-        label="Website (Start-URL)"
+        label="Adresse der Website"
         hint="Relative Adressen in den Schritten beziehen sich auf diese Adresse."
         error={errors.startUrl}
       >

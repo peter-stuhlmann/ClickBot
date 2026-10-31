@@ -17,7 +17,7 @@ describe('JobBasicsForm', () => {
     render(<JobBasicsForm values={empty} campaigns={campaigns} errors={{}} onChange={onChange} />);
     expect(screen.getAllByRole('textbox')).toHaveLength(1);
 
-    fireEvent.change(screen.getByRole('textbox', { name: 'Job-Name' }), {
+    fireEvent.change(screen.getByRole('textbox', { name: 'Name des Tests' }), {
       target: { value: 'Kontakt' },
     });
     await chooseOption(user, screen.getByRole('combobox', { name: 'Kampagne' }), 'Black Friday');
@@ -52,7 +52,7 @@ describe('JobBasicsForm', () => {
     expect(screen.getByRole('combobox', { name: 'Kampagne' })).toHaveAccessibleDescription(
       /Bitte eine Kampagne wählen\./,
     );
-    expect(screen.getByRole('textbox', { name: 'Job-Name' })).toHaveAccessibleDescription(
+    expect(screen.getByRole('textbox', { name: 'Name des Tests' })).toHaveAccessibleDescription(
       /Name fehlt\./,
     );
   });

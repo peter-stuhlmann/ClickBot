@@ -29,7 +29,7 @@ test.describe('Vorlagen', () => {
     // In the wizard: the steps come after opening the start page.
     await page.goto('/jobs/neu');
     await page
-      .getByRole('textbox', { name: 'Website (Start-URL)' })
+      .getByRole('textbox', { name: 'Adresse der Website' })
       .fill('http://127.0.0.1:4100/kontakt.html');
     await page.getByRole('button', { name: /Aus Vorlage übernehmen/ }).click();
     await page.getByRole('button', { name: /E2E Kontakt absenden/ }).click();

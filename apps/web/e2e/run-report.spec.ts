@@ -1,11 +1,13 @@
 import { expect, test } from '@playwright/test';
 
-test.describe('Lauf-Report', () => {
+test.describe('Durchlauf-Report', () => {
   test('opens the report of the last run from the job list', async ({ page }) => {
     await page.goto('/');
-    await page.getByRole('link', { name: /^Letzter Lauf von Login & Bestellstatus/ }).click();
+    await page.getByRole('link', { name: /^Letzter Durchlauf von Login & Bestellstatus/ }).click();
 
-    await expect(page.getByRole('heading', { level: 1, name: 'Lauf #31 von 48' })).toBeVisible();
+    await expect(
+      page.getByRole('heading', { level: 1, name: 'Durchlauf 31 von 48' }),
+    ).toBeVisible();
     await expect(page.getByRole('navigation', { name: 'Pfad' })).toContainText(
       'Login & Bestellstatus',
     );
@@ -18,8 +20,8 @@ test.describe('Lauf-Report', () => {
     const failure = page.getByRole('region', { name: /fehlgeschlagen$/ });
     await expect(failure).toContainText('Element nicht gefunden (Demo-Daten).');
 
-    await page.getByRole('link', { name: 'Jobs' }).first().click();
-    await expect(page.getByRole('heading', { level: 1, name: 'Jobs' })).toBeVisible();
+    await page.getByRole('link', { name: 'Tests' }).first().click();
+    await expect(page.getByRole('heading', { level: 1, name: 'Tests' })).toBeVisible();
   });
 
   test('shows a not-found page for an unknown run', async ({ page }) => {

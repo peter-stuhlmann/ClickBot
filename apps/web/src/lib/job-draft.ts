@@ -622,7 +622,7 @@ function jobIssues(draft: WizardDraft): Issue[] {
 function startUrlIssues(draft: WizardDraft): Issue[] {
   return isHttpUrl(normaliseUrl(draft.startUrl))
     ? []
-    : [{ path: 'startUrl', message: 'Start-URL muss mit http:// oder https:// beginnen.' }];
+    : [{ path: 'startUrl', message: 'Die Adresse muss mit http:// oder https:// beginnen.' }];
 }
 
 function flowIssues(draft: WizardDraft, now: Date): Issue[] {
@@ -1045,7 +1045,7 @@ export function describeRunTotal(draft: WizardDraft, now: Date): string | null {
       : plural(targets, 'Kombination', 'Kombinationen');
   return `${plural(starts, 'Start', 'Starts')} × ${perStart} = ${plural(
     starts * targets,
-    'Lauf',
-    'Läufe',
+    'Durchlauf',
+    'Durchläufe',
   )}`;
 }

@@ -36,17 +36,17 @@ export function toCampaignRow(row: CampaignOverviewRow, now: Date): CampaignRowV
     name: row.name,
     detail: [describePeriod(row.startsOn, row.endsOn), websites].filter(Boolean).join(' · '),
     jobs: {
-      primary: plural(row.jobs.total, 'Job', 'Jobs'),
+      primary: plural(row.jobs.total, 'Test', 'Tests'),
       secondary:
         row.jobs.total > 0
           ? `${row.jobs.active} aktiv · ${row.jobs.finished} beendet`
-          : 'noch keine Jobs',
+          : 'noch keine Tests',
     },
     runs: {
       label:
         rate === null
-          ? 'keine Läufe'
-          : `${plural(finished, 'Lauf', 'Läufe')} · ${formatPercent(rate)} ok`,
+          ? 'keine Durchläufe'
+          : `${plural(finished, 'Durchlauf', 'Durchläufe')} · ${formatPercent(rate)} ok`,
       value: rate ?? 0,
     },
     lastRun: row.lastRun
@@ -78,12 +78,12 @@ export function toCampaignStatCards(stats: CampaignStats): StatCardView[] {
       hint: stats.campaigns > 0 ? 'in diesem Projekt' : 'noch keine Kampagnen',
     },
     {
-      label: 'Jobs gesamt',
+      label: 'Tests gesamt',
       value: String(stats.jobs.total),
       hint: `${stats.jobs.active} aktiv · ${stats.jobs.finished} beendet`,
     },
     {
-      label: 'Läufe (30 Tage)',
+      label: 'Durchläufe (30 Tage)',
       value: stats.runs30d.toLocaleString('de-DE'),
       hint: change(stats.runs30d, stats.runsPrevious30d),
     },
@@ -92,8 +92,8 @@ export function toCampaignStatCards(stats: CampaignStats): StatCardView[] {
       value: finished > 0 ? formatPercent(successful / finished) : '–',
       hint:
         finished > 0
-          ? `${successful.toLocaleString('de-DE')} von ${plural(finished, 'Lauf', 'Läufen')}`
-          : 'noch keine Läufe',
+          ? `${successful.toLocaleString('de-DE')} von ${plural(finished, 'Durchlauf', 'Durchläufen')}`
+          : 'noch keine Durchläufe',
     },
   ];
 }

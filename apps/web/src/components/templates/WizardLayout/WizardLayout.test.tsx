@@ -6,7 +6,7 @@ describe('WizardLayout', () => {
   it('puts title, step, actions, form and summary in place', () => {
     render(
       <WizardLayout
-        title="Neuer Job"
+        title="Neuer Test"
         subtitle="Schritt 1 von 4 · Welche Website soll getestet werden?"
         actions={<button type="button">Weiter</button>}
         stepper={<nav aria-label="Schritte" />}
@@ -16,7 +16,7 @@ describe('WizardLayout', () => {
       </WizardLayout>,
     );
 
-    expect(screen.getByRole('heading', { level: 1, name: 'Neuer Job' })).toBeVisible();
+    expect(screen.getByRole('heading', { level: 1, name: 'Neuer Test' })).toBeVisible();
     expect(screen.getByText(/Schritt 1 von 4/)).toBeVisible();
     expect(screen.getByRole('button', { name: 'Weiter' })).toBeVisible();
     expect(screen.getByRole('navigation', { name: 'Schritte' })).toBeInTheDocument();

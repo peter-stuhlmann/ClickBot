@@ -47,7 +47,7 @@ export default async function ProjectPage({ params }: Props) {
           action={deleteProjectAction}
           blocked={
             jobs > 0
-              ? `Das Projekt hat noch ${jobs === 1 ? '1 Job' : `${jobs} Jobs`}. Lösche sie zuerst im Editor.`
+              ? `Das Projekt hat noch ${jobs === 1 ? '1 Test' : `${jobs} Tests`}. Lösche sie zuerst im Editor.`
               : undefined
           }
         />

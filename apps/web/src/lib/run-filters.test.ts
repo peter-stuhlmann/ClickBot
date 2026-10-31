@@ -107,9 +107,9 @@ describe('describePage', () => {
   it.each([
     [1_240, 1, '1–50 von 1.240 · neueste zuerst'],
     [1_240, 25, '1.201–1.240 von 1.240 · neueste zuerst'],
-    [7, 1, '7 Läufe · neueste zuerst'],
-    [1, 1, '1 Lauf'],
-    [0, 1, 'keine Läufe'],
+    [7, 1, '7 Durchläufe · neueste zuerst'],
+    [1, 1, '1 Durchlauf'],
+    [0, 1, 'keine Durchläufe'],
   ])('%d runs, page %d → %s', (total, page, text) => {
     expect(describePage(total, page)).toBe(text);
   });

@@ -60,7 +60,7 @@ function valueField(step: StepDraft): { label: string; hint?: string; mono?: boo
     case 'analytics':
       return {
         label: 'Event-Name',
-        hint: 'Der Bot wartet, bis die Seite dieses GA4-Event sendet, z. B. form_submit.',
+        hint: 'Click-Bot wartet, bis die Seite dieses GA4-Event sendet, z. B. form_submit.',
         mono: true,
       };
     default:
@@ -166,7 +166,7 @@ export function StepForm({ index, step, errors, onChange, types }: StepFormProps
             <Field
               id="step-scroll-distance"
               label="Strecke (Pixel)"
-              hint="So weit scrollt der Bot von der Stelle, an der die Seite gerade steht."
+              hint="So weit scrollt Click-Bot von der Stelle, an der die Seite gerade steht."
               error={errors.scrollDistance}
             >
               {(control) => (
@@ -220,7 +220,7 @@ export function StepForm({ index, step, errors, onChange, types }: StepFormProps
         <Field
           id="step-url"
           label="Adresse"
-          hint="Absolut (https://…) oder relativ zur Start-URL, z. B. /kontakt"
+          hint="Absolut (https://…) oder relativ zur Adresse der Website, z. B. /kontakt"
           error={errors.url}
         >
           {(control) => (
@@ -406,7 +406,7 @@ export function StepForm({ index, step, errors, onChange, types }: StepFormProps
         <Field
           id="step-timeout"
           label="Timeout (Sekunden)"
-          hint="So lange wartet der Bot auf die Seite oder das Element."
+          hint="So lange wartet Click-Bot auf die Seite oder das Element."
           error={errors.timeoutSeconds}
         >
           {(control) => (

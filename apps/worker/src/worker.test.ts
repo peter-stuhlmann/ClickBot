@@ -64,7 +64,7 @@ function startWorker(
 
 const contactSteps = [
   { id: 'open', type: 'open', url: '/kontakt.html' },
-  { id: 'name', type: 'fill', target: { by: 'label', label: 'Name' }, value: 'Bot {{bot_nr}}' },
+  { id: 'name', type: 'fill', target: { by: 'label', label: 'Name' }, value: 'Browser {{bot_nr}}' },
   { id: 'send', type: 'click', target: { by: 'role', role: 'button', name: 'Absenden' } },
   { id: 'thanks', type: 'assert', assertion: { kind: 'textVisible', text: 'Vielen Dank' } },
 ];
@@ -266,7 +266,7 @@ describe('worker', () => {
         {
           id: 'hi',
           type: 'assert',
-          assertion: { kind: 'textVisible', text: 'Hallo Bot {{bot_nr}}' },
+          assertion: { kind: 'textVisible', text: 'Hallo Browser {{bot_nr}}' },
         },
       ],
       3,
@@ -317,7 +317,7 @@ describe('worker', () => {
 
     const [run] = await allRuns();
     expect(run?.status).toBe('failed');
-    expect(run?.error).toMatch(/^Lauf konnte nicht ausgeführt werden: /);
+    expect(run?.error).toMatch(/^Durchlauf konnte nicht ausgeführt werden: /);
   });
 
   it('finishes running runs on stop and starts no new ones', async () => {

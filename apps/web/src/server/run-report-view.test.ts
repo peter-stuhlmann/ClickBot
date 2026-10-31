@@ -115,8 +115,8 @@ describe('toRunReportView', () => {
     expect(view).toMatchObject({
       jobName: 'Kontaktformular-Test',
       jobHref: '/jobs/job-1',
-      runLabel: 'Lauf #7',
-      title: 'Lauf #7 von 20',
+      runLabel: 'Durchlauf 7',
+      title: 'Durchlauf 7 von 20',
       status: { tone: 'success', label: 'Erfolgreich' },
       meta: 'Do., 05.11.2026 · 14:30:01 Uhr · ausgelöst durch Zeitplan',
       stepsSummary: '3 Schritte · 8,4 s',
@@ -125,9 +125,9 @@ describe('toRunReportView', () => {
     });
     expect(view.stats).toEqual([
       { label: 'Schritte', value: '3 / 3', hint: 'alle bestanden' },
-      { label: 'Dauer', value: '8,4 s', hint: 'Ø 3,9 s bei diesem Job' },
+      { label: 'Dauer', value: '8,4 s', hint: 'Ø 3,9 s bei diesem Test' },
       { label: 'Start', value: '14:30:01', hint: 'geplant 14:30:00 · 1 s später' },
-      { label: 'Gerät', value: 'iPhone 15', hint: 'Bot #2 · Safari' },
+      { label: 'Gerät', value: 'iPhone 15', hint: 'Browser 2 · Safari' },
     ]);
     expect(view.steps).toEqual([
       {
@@ -199,9 +199,9 @@ describe('toRunReportView', () => {
     ]);
     expect(view.stats).toEqual([
       { label: 'Schritte', value: '0 / 3', hint: 'noch nicht gestartet' },
-      { label: 'Dauer', value: '–', hint: 'Ø 3,9 s bei diesem Job' },
+      { label: 'Dauer', value: '–', hint: 'Ø 3,9 s bei diesem Test' },
       { label: 'Start', value: '–', hint: 'geplant 14:30:00' },
-      { label: 'Gerät', value: 'iPhone 15', hint: 'Bot #2 · Safari' },
+      { label: 'Gerät', value: 'iPhone 15', hint: 'Browser 2 · Safari' },
     ]);
   });
 
@@ -214,23 +214,23 @@ describe('toRunReportView', () => {
   });
 
   it('explains a run that failed before its first step', () => {
-    const error = 'Lauf konnte nicht ausgeführt werden: Browser abgestürzt';
+    const error = 'Durchlauf konnte nicht ausgeführt werden: Browser abgestürzt';
     const view = toRunReportView(report({ run: { status: 'failed', error }, steps: [] }));
     expect(view.stats[0]?.hint).toBe('keine Schritt-Ergebnisse');
-    expect(view.failure).toEqual({ title: 'Lauf fehlgeschlagen', message: error });
+    expect(view.failure).toEqual({ title: 'Durchlauf fehlgeschlagen', message: error });
   });
 
   it('marks a test run, which is not one of the planned runs', () => {
     const view = toRunReportView(
       report({ run: { slotIndex: null, runNr: 5, startedAt: scheduled } }),
     );
-    expect(view.title).toBe('Lauf #5 · Testlauf');
+    expect(view.title).toBe('Durchlauf 5 · manuell gestartet');
     expect(view.meta).toContain('manuell gestartet');
     expect(view.stats[2]?.hint).toBe('geplant 14:30:00 · pünktlich');
   });
 
   it('leaves out the planned count for a run numbered beyond it', () => {
-    expect(toRunReportView(report({ run: { runNr: 21 } })).title).toBe('Lauf #21');
+    expect(toRunReportView(report({ run: { runNr: 21 } })).title).toBe('Durchlauf 21');
   });
 
   it('names steps that are missing from the flow or have no form yet', () => {
@@ -272,8 +272,12 @@ describe('toRunReportView', () => {
   });
 
   it.each([
-    ['queued', true, 'Wartet auf den Worker. Der Report aktualisiert sich selbst.'],
-    ['queued', false, 'Der Worker ist offline. Der Lauf startet, sobald er wieder läuft.'],
+    ['queued', true, 'Wartet auf das Testsystem. Der Report aktualisiert sich selbst.'],
+    [
+      'queued',
+      false,
+      'Das Testsystem ist nicht verbunden. Der Durchlauf startet, sobald er wieder läuft.',
+    ],
     ['running', true, 'Läuft gerade. Der Report aktualisiert sich selbst.'],
     ['passed', true, null],
   ] as const)('tells what a %s run is waiting for (worker online: %s)', (status, online, live) => {
@@ -301,7 +305,7 @@ describe('toRunReportView', () => {
       expect(view.marking).toEqual({
         title: 'GA4-Markierung eingeschränkt',
         message:
-          'Aus: Debug-Modus, Interner Traffic. Die GA4-Ereignisse dieses Laufs können in den normalen Berichten erscheinen.',
+          'Aus: Debug-Modus, Interner Traffic. Die GA4-Ereignisse dieses Durchlaufs können in den normalen Berichten erscheinen.',
       });
     });
 
@@ -321,7 +325,7 @@ describe('toRunReportView', () => {
       expect(view.marking).toEqual({
         title: 'Ohne GA4-Markierung',
         message:
-          'Dieser Lauf war in GA4 nicht als Bot erkennbar. Seine Ereignisse zählen dort wie echte Besuche.',
+          'Dieser Durchlauf war in GA4 nicht als Browser erkennbar. Seine Ereignisse zählen dort wie echte Besuche.',
       });
     });
 
@@ -423,7 +427,7 @@ describe('toRunReportView', () => {
       expect(view.ads).toEqual({
         title: 'Werbung nicht blockiert',
         message:
-          'Dieser Lauf hat Anzeigen geladen wie ein echter Besucher. Sie zählen beim Werbenetzwerk als Impressionen.',
+          'Dieser Durchlauf hat Anzeigen geladen wie ein echter Besucher. Sie zählen beim Werbenetzwerk als Impressionen.',
       });
     });
   });

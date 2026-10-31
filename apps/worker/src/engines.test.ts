@@ -40,7 +40,7 @@ describe.each([
     const { result, sent } = await run([
       { id: 'open', type: 'open', url: '/kontakt.html' },
       { id: 'cookies', type: 'click', target: role('button', 'Alle akzeptieren') },
-      { id: 'name', type: 'fill', target: { by: 'label', label: 'Name' }, value: 'Bot 1' },
+      { id: 'name', type: 'fill', target: { by: 'label', label: 'Name' }, value: 'Browser 1' },
       {
         id: 'mail',
         type: 'fill',

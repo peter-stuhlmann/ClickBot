@@ -27,11 +27,11 @@ export default async function JobsPage() {
   return (
     <AppShell active="jobs" {...shell} selectProject={selectProjectAction}>
       <PageHeader
-        title="Jobs"
+        title="Tests"
         description={`${shell.project?.name ?? 'Kein Projekt'} · Automatisierte Browser-Abläufe, die nach Zeitplan laufen.`}
         actions={
           <Button href="/jobs/neu" icon={<Icon name="plus" size={16} />}>
-            Neuer Job
+            Neuer Test
           </Button>
         }
       />

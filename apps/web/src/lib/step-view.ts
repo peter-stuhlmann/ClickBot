@@ -61,7 +61,7 @@ export const FIXED_STEP_TYPES: readonly EditableStepType[] = STEP_TYPE_OPTIONS.m
 
 /** Hint for the goal of a free test (AI step), in the step form and in the wizard. */
 export const GOAL_HINT =
-  'Was auf der Website gelten soll, in normalen Worten, z. B. „Auf der Startseite gibt es einen blauen Button „Newsletter abonnieren“. Ein Klick öffnet ein Feld für die E-Mail. Ungültige Adressen werden abgelehnt.“ Den Weg sucht die KI im Lauf selbst und bewertet jedes Teilziel.';
+  'Was auf der Website gelten soll, in normalen Worten, z. B. „Auf der Startseite gibt es einen blauen Button „Newsletter abonnieren“. Ein Klick öffnet ein Feld für die E-Mail. Ungültige Adressen werden abgelehnt.“ Den Weg sucht die KI im Durchlauf selbst und bewertet jedes Teilziel.';
 
 export const SCROLL_OPTIONS: readonly Option<ScrollKind>[] = [
   { value: 'by', label: 'Von der aktuellen Position aus' },

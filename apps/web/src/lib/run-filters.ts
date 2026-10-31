@@ -121,9 +121,9 @@ export function pageHref(filters: RunFilters, page: number): string {
 
 /** "1–50 von 1.240 · neueste zuerst" above the table. */
 export function describePage(total: number, page: number): string {
-  if (total === 0) return 'keine Läufe';
-  if (total === 1) return '1 Lauf';
-  if (total <= PAGE_SIZE) return `${plural(total, 'Lauf', 'Läufe')} · neueste zuerst`;
+  if (total === 0) return 'keine Durchläufe';
+  if (total === 1) return '1 Durchlauf';
+  if (total <= PAGE_SIZE) return `${plural(total, 'Durchlauf', 'Durchläufe')} · neueste zuerst`;
   const from = (page - 1) * PAGE_SIZE + 1;
   const to = Math.min(total, page * PAGE_SIZE);
   const de = (value: number) => value.toLocaleString('de-DE');

@@ -9,8 +9,8 @@ const row = (overrides: Partial<JobRowView> = {}): JobRowView => ({
   name: 'Kontaktformular-Test',
   campaign: 'Black Friday',
   url: 'beispiel.de/kontakt',
-  schedule: { primary: 'alle 15 Min.', secondary: 'max. 20 Läufe' },
-  progress: { label: '7 / 20 Läufe', value: 0.35 },
+  schedule: { primary: 'alle 15 Min.', secondary: 'max. 20 Durchläufe' },
+  progress: { label: '7 / 20 Durchläufe', value: 0.35 },
   lastRun: { tone: 'success', label: 'Erfolgreich', when: 'vor 3 Min.', href: '/laeufe/run-7' },
   successRate: { text: '100 %', tone: 'success' },
   status: { label: 'Aktiv', active: true, toggleable: true },
@@ -23,10 +23,10 @@ describe('JobsTable', () => {
   it('has the six columns of the design', () => {
     render(<JobsTable rows={[row()]} toggleAction={noop} />);
     expect(screen.getAllByRole('columnheader').map((header) => header.textContent)).toEqual([
-      'Job',
+      'Test',
       'Zeitplan',
       'Fortschritt',
-      'Letzter Lauf',
+      'Letzter Durchlauf',
       'Erfolgsquote',
       'Status',
     ]);
@@ -41,7 +41,7 @@ describe('JobsTable', () => {
     expect(cells.getByText('beispiel.de/kontakt')).toBeInTheDocument();
     expect(cells.getByText('Black Friday')).toBeInTheDocument();
     expect(cells.getByText('alle 15 Min.')).toBeInTheDocument();
-    expect(cells.getByText('7 / 20 Läufe')).toBeInTheDocument();
+    expect(cells.getByText('7 / 20 Durchläufe')).toBeInTheDocument();
     expect(
       cells.getByRole('progressbar', { name: 'Fortschritt Kontaktformular-Test' }),
     ).toHaveAttribute('aria-valuenow', '35');
@@ -53,7 +53,13 @@ describe('JobsTable', () => {
   it('names the columns inside the row for small screens, but not twice for screen readers', () => {
     render(<JobsTable rows={[row()]} toggleAction={noop} />);
     const [, dataRow] = screen.getAllByRole('row');
-    for (const column of ['Zeitplan', 'Fortschritt', 'Letzter Lauf', 'Erfolgsquote', 'Status']) {
+    for (const column of [
+      'Zeitplan',
+      'Fortschritt',
+      'Letzter Durchlauf',
+      'Erfolgsquote',
+      'Status',
+    ]) {
       expect(within(dataRow as HTMLElement).getByText(column)).toHaveAttribute(
         'aria-hidden',
         'true',
@@ -73,7 +79,7 @@ describe('JobsTable', () => {
 
   it('marks jobs that never ran', () => {
     render(<JobsTable rows={[row({ lastRun: null, successRate: null })]} toggleAction={noop} />);
-    expect(screen.getByText('noch kein Lauf')).toBeInTheDocument();
+    expect(screen.getByText('noch kein Durchlauf')).toBeInTheDocument();
     expect(screen.getByText('–')).toBeInTheDocument();
   });
 
@@ -116,14 +122,14 @@ describe('JobsTable', () => {
 
   it('explains the empty state', () => {
     render(<JobsTable rows={[]} toggleAction={noop} />);
-    expect(screen.getByText(/Noch keine Jobs/)).toBeInTheDocument();
+    expect(screen.getByText(/Noch keine Tests/)).toBeInTheDocument();
   });
 
   it('links the last run to its report', () => {
     render(<JobsTable rows={[row()]} toggleAction={noop} />);
     expect(
       screen.getByRole('link', {
-        name: 'Letzter Lauf von Kontaktformular-Test: Erfolgreich, vor 3 Min.',
+        name: 'Letzter Durchlauf von Kontaktformular-Test: Erfolgreich, vor 3 Min.',
       }),
     ).toHaveAttribute('href', '/laeufe/run-7');
   });

@@ -143,7 +143,7 @@ describe('updateJob', () => {
         {
           path: 'schedule.slots.0',
           message:
-            'Dieser Termin hat schon Läufe und lässt sich nicht mehr verschieben oder löschen.',
+            'Dieser Termin hat schon Durchläufe und lässt sich nicht mehr verschieben oder löschen.',
         },
       ]);
 
@@ -180,7 +180,7 @@ describe('updateJob', () => {
         {
           path: 'schedule.type',
           message:
-            'Die Art des Zeitplans lässt sich nicht mehr ändern, weil der Job schon Läufe hat.',
+            'Die Art des Zeitplans lässt sich nicht mehr ändern, weil der Test schon Durchläufe hat.',
         },
       ]);
     });
@@ -309,7 +309,7 @@ describe('updateJob – random plans', () => {
     expect(issues).toEqual([
       {
         path: 'schedule.runs',
-        message: 'Es sind schon 5 Starts gelaufen; mindestens so viele Läufe.',
+        message: 'Es sind schon 5 Starts gelaufen; mindestens so viele Durchläufe.',
       },
     ]);
   });

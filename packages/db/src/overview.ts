@@ -203,11 +203,11 @@ export async function setJobActive(db: Database, jobId: string, active: boolean)
     where: eq(jobs.id, jobId),
     columns: { id: true },
   });
-  if (!exists) throw new NotFoundError('Job', jobId);
+  if (!exists) throw new NotFoundError('Test', jobId);
   throw new ValidationError([
     {
       path: 'status',
-      message: 'Entwürfe und beendete Jobs lassen sich nicht pausieren oder fortsetzen.',
+      message: 'Entwürfe und beendete Tests lassen sich nicht pausieren oder fortsetzen.',
     },
   ]);
 }

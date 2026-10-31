@@ -80,7 +80,7 @@ describe('randomScheduleSchema', () => {
         ],
       },
       'runs',
-      'Es sind schon 3 Starts gelaufen; mindestens so viele Läufe.',
+      'Es sind schon 3 Starts gelaufen; mindestens so viele Durchläufe.',
     ],
   ])('refuses %o at %s', (overrides, path, message) => {
     const result = randomScheduleSchema.safeParse({

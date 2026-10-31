@@ -29,8 +29,8 @@ describe('listVariables', () => {
 
 describe('interpolate', () => {
   it('replaces run and bot numbers', () => {
-    expect(interpolate('Testlauf #{{run_nr}} / Bot {{bot_nr}}', ctx).value).toBe(
-      'Testlauf #7 / Bot 3',
+    expect(interpolate('Manuell #{{run_nr}} / Browser {{bot_nr}}', ctx).value).toBe(
+      'Manuell #7 / Browser 3',
     );
   });
 

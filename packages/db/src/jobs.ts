@@ -72,7 +72,7 @@ const startUrlSchema = z.string().refine((value) => {
   } catch {
     return false;
   }
-}, 'Start-URL muss mit http:// oder https:// beginnen.');
+}, 'Die Adresse muss mit http:// oder https:// beginnen.');
 
 const devicesSchema = z.array(z.enum(device.enumValues)).min(1, 'Mindestens ein Gerät wählen.');
 
@@ -215,9 +215,9 @@ export async function listStartedSlots(db: Database, jobId: string): Promise<num
 }
 
 export const SLOT_FIXED =
-  'Dieser Termin hat schon Läufe und lässt sich nicht mehr verschieben oder löschen.';
+  'Dieser Termin hat schon Durchläufe und lässt sich nicht mehr verschieben oder löschen.';
 const TYPE_FIXED =
-  'Die Art des Zeitplans lässt sich nicht mehr ändern, weil der Job schon Läufe hat.';
+  'Die Art des Zeitplans lässt sich nicht mehr ändern, weil der Test schon Durchläufe hat.';
 
 /**
  * The planner recognises done starts by their position (runs.slot_index). Once a date has runs,
@@ -278,11 +278,11 @@ function rescheduleRandom(
 
 /** Saves the editor (screen 02). The status stays as it is. */
 export async function updateJob(db: Database, jobId: string, input: JobUpdateInput): Promise<Job> {
-  if (!isUuid(jobId)) throw new NotFoundError('Job', jobId);
+  if (!isUuid(jobId)) throw new NotFoundError('Test', jobId);
   return db.transaction(async (tx) => {
     // Same row lock as the planner: no start is planned from a half-changed schedule.
     const [current] = await tx.select().from(jobs).where(eq(jobs.id, jobId)).for('update');
-    if (!current) throw new NotFoundError('Job', jobId);
+    if (!current) throw new NotFoundError('Test', jobId);
 
     const issues: ValidationIssue[] = [];
     const fields = validateFields(
@@ -330,14 +330,14 @@ export async function updateJob(db: Database, jobId: string, input: JobUpdateInp
  * remove their screenshots, which live outside the database.
  */
 export async function deleteJob(db: Database, jobId: string): Promise<{ runIds: string[] }> {
-  if (!isUuid(jobId)) throw new NotFoundError('Job', jobId);
+  if (!isUuid(jobId)) throw new NotFoundError('Test', jobId);
   return db.transaction(async (tx) => {
     const [job] = await tx
       .select({ id: jobs.id })
       .from(jobs)
       .where(eq(jobs.id, jobId))
       .for('update');
-    if (!job) throw new NotFoundError('Job', jobId);
+    if (!job) throw new NotFoundError('Test', jobId);
     const owned = await tx.select({ id: runs.id }).from(runs).where(eq(runs.jobId, jobId));
     await tx.delete(jobs).where(eq(jobs.id, jobId));
     return { runIds: owned.map((run) => run.id) };
@@ -351,7 +351,7 @@ export function plannedRunCount(job: Pick<Job, 'schedule' | 'devices' | 'deviceB
 
 export async function getJob(db: Database, jobId: string): Promise<Job> {
   const job = isUuid(jobId) ? await db.query.jobs.findFirst({ where: eq(jobs.id, jobId) }) : null;
-  if (!job) throw new NotFoundError('Job', jobId);
+  if (!job) throw new NotFoundError('Test', jobId);
   return job;
 }
 
@@ -365,6 +365,6 @@ export async function allocateRunNumber(db: Database, jobId: string): Promise<nu
     .set({ runCounter: sql`${jobs.runCounter} + 1` })
     .where(eq(jobs.id, jobId))
     .returning({ runNr: jobs.runCounter });
-  if (!row) throw new NotFoundError('Job', jobId);
+  if (!row) throw new NotFoundError('Test', jobId);
   return row.runNr;
 }

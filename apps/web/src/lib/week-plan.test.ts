@@ -291,12 +291,12 @@ describe('texts', () => {
 
   it('explains an overload, naming jobs of other projects with their project', () => {
     expect(describeBusy(together, 6, PROJECT)).toEqual({
-      title: '13:38 Uhr: 12 Läufe für 6 Browser',
-      text: '„Kontaktformular“ (6 Läufe) und „Newsletter“ (Müller Shop, 6 Läufe) laufen gleichzeitig. 6 Läufe warten in der Warteschlange und starten später als geplant.',
+      title: '13:38 Uhr: 12 Durchläufe für 6 Browser',
+      text: '„Kontaktformular“ (6 Durchläufe) und „Newsletter“ (Müller Shop, 6 Durchläufe) laufen gleichzeitig. 6 Durchläufe warten in der Warteschlange und starten später als geplant.',
     });
     expect(describeBusy(alone, 6, PROJECT)).toEqual({
-      title: '10:00 Uhr: 8 Läufe für 6 Browser',
-      text: '„Allein“ (8 Läufe) startet mehr Läufe, als Browser frei sind. 2 Läufe warten in der Warteschlange und starten später als geplant.',
+      title: '10:00 Uhr: 8 Durchläufe für 6 Browser',
+      text: '„Allein“ (8 Durchläufe) startet mehr Durchläufe, als Browser frei sind. 2 Durchläufe warten in der Warteschlange und starten später als geplant.',
     });
   });
 
@@ -311,7 +311,7 @@ describe('texts', () => {
     };
     expect(describeSuggestion(move, 6)).toEqual({
       title: 'Vorschlag: „Newsletter“ auf 13:45 verschieben',
-      text: 'Dann laufen höchstens 6 von 6 Browsern gleichzeitig, und alle Läufe starten pünktlich.',
+      text: 'Dann laufen höchstens 6 von 6 Browsern gleichzeitig, und alle Durchläufe starten pünktlich.',
     });
     expect(
       describeSuggestion({ ...move, to: { date: '2026-11-06', time: '00:05' }, peak: 4 }, 6).title,

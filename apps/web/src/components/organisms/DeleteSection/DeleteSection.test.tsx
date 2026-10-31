@@ -41,12 +41,12 @@ describe('DeleteSection', () => {
     const user = userEvent.setup();
     render(
       <DeleteSection
-        {...props({ action: async () => ({ error: 'Die Kampagne hat noch 1 Job.' }) })}
+        {...props({ action: async () => ({ error: 'Die Kampagne hat noch 1 Test.' }) })}
       />,
     );
     await user.click(screen.getByRole('button', { name: 'Kampagne löschen' }));
     await user.click(screen.getByRole('button', { name: 'Endgültig löschen' }));
-    expect(await screen.findByRole('alert')).toHaveTextContent('Die Kampagne hat noch 1 Job.');
+    expect(await screen.findByRole('alert')).toHaveTextContent('Die Kampagne hat noch 1 Test.');
   });
 
   it('asks to type a phrase first when more goes with it, e.g. the jobs of a campaign', async () => {
@@ -74,8 +74,8 @@ describe('DeleteSection', () => {
   });
 
   it('explains why deleting is not possible right now', () => {
-    render(<DeleteSection {...props({ blocked: 'Die Kampagne hat noch 2 Jobs.' })} />);
+    render(<DeleteSection {...props({ blocked: 'Die Kampagne hat noch 2 Tests.' })} />);
     expect(screen.getByRole('button', { name: 'Kampagne löschen' })).toBeDisabled();
-    expect(screen.getByText('Die Kampagne hat noch 2 Jobs.')).toBeVisible();
+    expect(screen.getByText('Die Kampagne hat noch 2 Tests.')).toBeVisible();
   });
 });

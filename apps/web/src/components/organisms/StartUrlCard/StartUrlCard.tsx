@@ -13,11 +13,11 @@ export function StartUrlCard({ value, error, onChange }: StartUrlCardProps) {
   return (
     <Card
       title="Wo beginnt der Test?"
-      description="Der Bot öffnet diese Adresse als ersten Schritt. Click-Bot testet nur eigene Websites und Kundenseiten mit Freigabe."
+      description="Hier beginnt jeder Durchlauf. Getestet werden nur eigene Websites und Kundenseiten mit Freigabe."
     >
       <Field
         id="job-url"
-        label="Website (Start-URL)"
+        label="Adresse der Website"
         hint="z. B. https://beispiel.de/kontakt – ohne https:// wird es ergänzt."
         error={error}
       >

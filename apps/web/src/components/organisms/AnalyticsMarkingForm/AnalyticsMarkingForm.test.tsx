@@ -30,7 +30,7 @@ describe('AnalyticsMarkingForm', () => {
   it('starts with every marking on and no warning', () => {
     render(<Harness />);
     for (const name of [
-      'Bot-Läufe in GA4 markieren',
+      'Testdurchläufe in GA4 markieren',
       'Debug-Modus',
       'Interner Traffic',
       'Bot-Kennung',
@@ -51,7 +51,7 @@ describe('AnalyticsMarkingForm', () => {
     await user.click(switchNamed('Debug-Modus'));
 
     expect(onChange).toHaveBeenLastCalledWith({ ...ALL_MARKINGS_ON, debugMode: false });
-    expect(switchNamed('Bot-Läufe in GA4 markieren')).not.toBeChecked();
+    expect(switchNamed('Testdurchläufe in GA4 markieren')).not.toBeChecked();
     expect(screen.getByRole('region', { name: 'Markierung eingeschränkt' })).toHaveTextContent(
       'Aus: Debug-Modus. Die Ereignisse erscheinen in den normalen GA4-Berichten.',
     );
@@ -62,7 +62,7 @@ describe('AnalyticsMarkingForm', () => {
     const onChange = vi.fn();
     render(<Harness onChange={onChange} />);
 
-    await user.click(switchNamed('Bot-Läufe in GA4 markieren'));
+    await user.click(switchNamed('Testdurchläufe in GA4 markieren'));
     expect(onChange).toHaveBeenLastCalledWith({
       debugMode: false,
       internalTraffic: false,
@@ -71,10 +71,10 @@ describe('AnalyticsMarkingForm', () => {
     });
     expect(switchNamed('Laufnummer')).not.toBeChecked();
     expect(
-      screen.getByRole('region', { name: 'Bot-Läufe zählen in GA4 wie echte Besuche' }),
+      screen.getByRole('region', { name: 'Testdurchläufe zählen in GA4 wie echte Besuche' }),
     ).toHaveTextContent('Jeder Report vermerkt es.');
 
-    await user.click(switchNamed('Bot-Läufe in GA4 markieren'));
+    await user.click(switchNamed('Testdurchläufe in GA4 markieren'));
     expect(onChange).toHaveBeenLastCalledWith(ALL_MARKINGS_ON);
   });
 
@@ -82,7 +82,7 @@ describe('AnalyticsMarkingForm', () => {
     const user = userEvent.setup();
     const onChange = vi.fn();
     render(<Harness start={{ ...ALL_MARKINGS_ON, botFlag: false }} onChange={onChange} />);
-    await user.click(switchNamed('Bot-Läufe in GA4 markieren'));
+    await user.click(switchNamed('Testdurchläufe in GA4 markieren'));
     expect(onChange).toHaveBeenLastCalledWith(ALL_MARKINGS_ON);
   });
 

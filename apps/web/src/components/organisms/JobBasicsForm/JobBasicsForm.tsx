@@ -24,7 +24,7 @@ export function JobBasicsForm({ values, campaigns, errors, onChange }: JobBasics
     <Card title="Wie soll der Test heißen?">
       <Field
         id="job-name"
-        label="Job-Name"
+        label="Name des Tests"
         hint="Vorgeschlagen aus Website und Ziel; du kannst ihn ändern. So heißt der Test in der Liste und im Report."
         error={errors.name}
       >

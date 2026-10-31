@@ -29,7 +29,7 @@ test.describe('App shell', () => {
       .toBe('pointer');
     await expect.poll(() => cursor(page.getByRole('combobox').first())).toBe('pointer');
     await expect
-      .poll(() => cursor(page.getByRole('link', { name: 'Läufe', exact: true })))
+      .poll(() => cursor(page.getByRole('link', { name: 'Durchläufe', exact: true })))
       .toBe('pointer');
 
     // The demo project has jobs: it cannot be deleted.

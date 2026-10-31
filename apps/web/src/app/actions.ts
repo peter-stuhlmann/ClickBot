@@ -99,7 +99,7 @@ export async function createJobAction(draft: WizardDraft): Promise<CreateJobResu
 
 export type UpdateJobResult = { issues: Issue[] };
 
-const GONE: Issue = { path: 'job', message: 'Diesen Job gibt es nicht mehr.' };
+const GONE: Issue = { path: 'job', message: 'Diesen Test gibt es nicht mehr.' };
 
 /**
  * Saves the editor's draft. Starts in the past are only accepted if they were already stored,
@@ -238,7 +238,10 @@ export async function startRecordingAction(startUrl: string): ReturnType<StartRe
   const db = getDb();
   const now = new Date();
   if (!(await getWorkerStatus(db, now)).online) {
-    return { ok: false, message: 'Der Worker ist offline. Ohne ihn gibt es keinen Live-Browser.' };
+    return {
+      ok: false,
+      message: 'Das Testsystem ist nicht verbunden. Ohne es gibt es keinen Live-Browser.',
+    };
   }
   const { token } = await createRecordingSession(db, { userId: user.id, startUrl: url }, now);
   const base = (process.env.LIVE_URL ?? 'ws://localhost:4200').replace(/\/+$/, '');
@@ -468,13 +471,14 @@ export async function saveJobAsTemplateAction(
   try {
     job = await getJob(db, field(formData, 'jobId'));
   } catch (error) {
-    if (error instanceof NotFoundError) return { error: 'Diesen Job gibt es nicht mehr.', values };
+    if (error instanceof NotFoundError) return { error: 'Diesen Test gibt es nicht mehr.', values };
     throw error;
   }
   const flow = toTemplateFlow(job.flow, job.startUrl);
   if (flow.steps.length === 0) {
     return {
-      error: 'Der Ablauf hat außer dem Öffnen der Start-URL keine Schritte für eine Vorlage.',
+      error:
+        'Der Ablauf hat außer dem Öffnen der Adresse der Website keine Schritte für eine Vorlage.',
       values,
     };
   }

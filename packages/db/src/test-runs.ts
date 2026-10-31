@@ -16,7 +16,7 @@ export async function queueTestRun(
   jobId: string,
   now: Date,
 ): Promise<{ runId: string; existing: boolean }> {
-  if (!isUuid(jobId)) throw new NotFoundError('Job', jobId);
+  if (!isUuid(jobId)) throw new NotFoundError('Test', jobId);
   return db.transaction(async (tx) => {
     // Serialises concurrent clicks: the second one sees the run of the first.
     const [job] = await tx
@@ -24,7 +24,7 @@ export async function queueTestRun(
       .from(jobs)
       .where(eq(jobs.id, jobId))
       .for('update');
-    if (!job) throw new NotFoundError('Job', jobId);
+    if (!job) throw new NotFoundError('Test', jobId);
 
     const [open] = await tx
       .select({ id: runs.id })

@@ -161,7 +161,7 @@ export function JobEditor({
           title={header.title}
           description={header.description}
           status={header.status}
-          breadcrumb={[{ label: 'Jobs', href: '/' }, { label: header.title }]}
+          breadcrumb={[{ label: 'Tests', href: '/' }, { label: header.title }]}
         />
       }
       actions={
@@ -172,9 +172,9 @@ export function JobEditor({
             loading={testing}
             disabled={saving}
             onClick={testRun}
-            title={`Ein Bot auf ${deviceLabel(testTarget?.device ?? 'desktop')} in ${browserLabel(testTarget?.browser ?? 'chromium')}, sofort. Ungespeicherte Änderungen werden vorher gespeichert.`}
+            title={`Einmal auf ${deviceLabel(testTarget?.device ?? 'desktop')} in ${browserLabel(testTarget?.browser ?? 'chromium')}, sofort. Ungespeicherte Änderungen werden vorher gespeichert.`}
           >
-            Testlauf starten
+            Jetzt ausführen
           </Button>
           <Button
             icon={<Icon name="check" size={16} />}
@@ -199,7 +199,7 @@ export function JobEditor({
             role="status"
             className="rounded-input bg-success-soft px-3 py-2.5 text-body text-success"
           >
-            Gespeichert. Die Änderungen gelten ab dem nächsten Lauf.
+            Gespeichert. Die Änderungen gelten ab dem nächsten Durchlauf.
           </p>
         ) : null
       }
@@ -256,9 +256,9 @@ export function JobEditor({
             }
           />
           <DeleteSection
-            title="Job löschen"
-            description="Der Job verschwindet mit allen Läufen, Reports und Bildschirmfotos."
-            buttonLabel="Job löschen"
+            title="Test löschen"
+            description="Der Test verschwindet mit allen Durchläufen, Reports und Bildschirmfotos."
+            buttonLabel="Test löschen"
             fields={{ id: jobId }}
             action={deleteAction}
           />

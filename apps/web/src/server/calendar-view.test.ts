@@ -81,11 +81,11 @@ describe('toCalendarView', () => {
     expect(load.overloads).toEqual([
       {
         key: '2026-11-05T12:38:00.000Z',
-        title: '13:38 Uhr: 12 Läufe für 6 Browser',
-        text: expect.stringContaining('„Kontakt“ (6 Läufe) und „Newsletter“ (6 Läufe)'),
+        title: '13:38 Uhr: 12 Durchläufe für 6 Browser',
+        text: expect.stringContaining('„Kontakt“ (6 Durchläufe) und „Newsletter“ (6 Durchläufe)'),
         suggestion: {
           title: 'Vorschlag: „Newsletter“ auf 13:39 verschieben',
-          text: 'Dann laufen höchstens 6 von 6 Browsern gleichzeitig, und alle Läufe starten pünktlich.',
+          text: 'Dann laufen höchstens 6 von 6 Browsern gleichzeitig, und alle Durchläufe starten pünktlich.',
           fields: {
             jobId: 'Newsletter',
             slotIndex: '0',

@@ -79,7 +79,7 @@ function renderEditor({
       header={{
         title: 'Kontaktformular-Test',
         status: { tone: 'success', label: 'Aktiv' },
-        description: 'alle 15 Min. · max. 20 Läufe · Desktop',
+        description: 'alle 15 Min. · max. 20 Durchläufe · Desktop',
       }}
       initial={initial}
       now={NOW}
@@ -111,7 +111,7 @@ describe('JobEditor', () => {
   it('offers to delete the job, after one more question', async () => {
     const user = userEvent.setup();
     renderEditor();
-    await user.click(screen.getByRole('button', { name: 'Job löschen' }));
+    await user.click(screen.getByRole('button', { name: 'Test löschen' }));
     expect(screen.getByRole('button', { name: 'Endgültig löschen' })).toBeVisible();
   });
 
@@ -124,7 +124,7 @@ describe('JobEditor', () => {
     );
     expect(saveTemplate()).toBeEnabled();
 
-    await user.type(screen.getByRole('textbox', { name: 'Job-Name' }), '!');
+    await user.type(screen.getByRole('textbox', { name: 'Name des Tests' }), '!');
     expect(saveTemplate()).toBeDisabled();
     expect(screen.getByText(/Erst die Änderungen speichern/)).toBeInTheDocument();
   });
@@ -132,7 +132,9 @@ describe('JobEditor', () => {
   it('shows the stored job and has nothing to save yet', () => {
     renderEditor();
     expect(screen.getByRole('heading', { level: 1, name: 'Kontaktformular-Test' })).toBeVisible();
-    expect(screen.getByRole('textbox', { name: 'Job-Name' })).toHaveValue('Kontaktformular-Test');
+    expect(screen.getByRole('textbox', { name: 'Name des Tests' })).toHaveValue(
+      'Kontaktformular-Test',
+    );
     expect(screen.getByRole('textbox', { name: 'Alle (Minuten)' })).toHaveValue('15');
     expect(screen.getByRole('button', { name: /^Schritt 1: Öffne/ })).toHaveAttribute(
       'aria-pressed',
@@ -145,7 +147,7 @@ describe('JobEditor', () => {
     const user = userEvent.setup();
     const { saveAction } = renderEditor();
 
-    fireEvent.change(screen.getByRole('textbox', { name: 'Job-Name' }), {
+    fireEvent.change(screen.getByRole('textbox', { name: 'Name des Tests' }), {
       target: { value: 'Kontakt neu' },
     });
     await user.click(screen.getByRole('button', { name: /iPhone 15/ }));
@@ -160,7 +162,7 @@ describe('JobEditor', () => {
     expect(await screen.findByRole('status')).toHaveTextContent('Gespeichert.');
     expect(saveButton()).toBeDisabled();
 
-    fireEvent.change(screen.getByRole('textbox', { name: 'Job-Name' }), {
+    fireEvent.change(screen.getByRole('textbox', { name: 'Name des Tests' }), {
       target: { value: 'Kontakt neuer' },
     });
     expect(screen.queryByRole('status')).not.toBeInTheDocument();
@@ -208,7 +210,7 @@ describe('JobEditor', () => {
     const user = userEvent.setup();
     const { saveAction } = renderEditor();
 
-    fireEvent.change(screen.getByRole('textbox', { name: 'Job-Name' }), {
+    fireEvent.change(screen.getByRole('textbox', { name: 'Name des Tests' }), {
       target: { value: ' ' },
     });
     await user.click(saveButton());
@@ -217,7 +219,7 @@ describe('JobEditor', () => {
     expect(screen.getByRole('alert')).toHaveTextContent(
       'Nicht gespeichert: Bitte die markierten Angaben prüfen.',
     );
-    expect(screen.getByRole('textbox', { name: 'Job-Name' })).toHaveAccessibleDescription(
+    expect(screen.getByRole('textbox', { name: 'Name des Tests' })).toHaveAccessibleDescription(
       'Name fehlt.',
     );
     // The stored start (10:00 today) is in the past and still accepted.
@@ -231,7 +233,7 @@ describe('JobEditor', () => {
         issues: [{ path: 'flow.steps.1.target.name', message: 'Bitte ausfüllen.' }],
       })),
     });
-    fireEvent.change(screen.getByRole('textbox', { name: 'Job-Name' }), {
+    fireEvent.change(screen.getByRole('textbox', { name: 'Name des Tests' }), {
       target: { value: 'Kontakt neu' },
     });
     await user.click(saveButton());
@@ -246,15 +248,15 @@ describe('JobEditor', () => {
     const user = userEvent.setup();
     renderEditor({
       saveAction: vi.fn<SaveAction>(async () => ({
-        issues: [{ path: 'job', message: 'Diesen Job gibt es nicht mehr.' }],
+        issues: [{ path: 'job', message: 'Diesen Test gibt es nicht mehr.' }],
       })),
     });
-    fireEvent.change(screen.getByRole('textbox', { name: 'Job-Name' }), {
+    fireEvent.change(screen.getByRole('textbox', { name: 'Name des Tests' }), {
       target: { value: 'Kontakt neu' },
     });
     await user.click(saveButton());
     expect(await screen.findByRole('alert')).toHaveTextContent(
-      'Nicht gespeichert: Diesen Job gibt es nicht mehr.',
+      'Nicht gespeichert: Diesen Test gibt es nicht mehr.',
     );
   });
 
@@ -301,8 +303,8 @@ describe('JobEditor', () => {
     expect(saveButton()).toBeEnabled();
   });
 
-  describe('Testlauf starten', () => {
-    const testButton = () => screen.getByRole('button', { name: 'Testlauf starten' });
+  describe('Jetzt ausführen', () => {
+    const testButton = () => screen.getByRole('button', { name: 'Jetzt ausführen' });
 
     it('starts the stored job and opens the report of the run', async () => {
       const user = userEvent.setup();
@@ -317,7 +319,7 @@ describe('JobEditor', () => {
     it('saves unsaved changes first, because the worker runs the stored job', async () => {
       const user = userEvent.setup();
       const { testRunAction } = renderEditor();
-      fireEvent.change(screen.getByRole('textbox', { name: 'Job-Name' }), {
+      fireEvent.change(screen.getByRole('textbox', { name: 'Name des Tests' }), {
         target: { value: 'Kontakt neu' },
       });
 
@@ -331,7 +333,7 @@ describe('JobEditor', () => {
     it('starts nothing while the changes are invalid', async () => {
       const user = userEvent.setup();
       const { testRunAction } = renderEditor();
-      fireEvent.change(screen.getByRole('textbox', { name: 'Job-Name' }), {
+      fireEvent.change(screen.getByRole('textbox', { name: 'Name des Tests' }), {
         target: { value: '' },
       });
 
@@ -345,13 +347,13 @@ describe('JobEditor', () => {
       const user = userEvent.setup();
       renderEditor({
         testRunAction: vi.fn<TestRunAction>(async () => ({
-          issues: [{ path: 'job', message: 'Diesen Job gibt es nicht mehr.' }],
+          issues: [{ path: 'job', message: 'Diesen Test gibt es nicht mehr.' }],
         })),
       });
 
       await user.click(testButton());
 
-      expect(await screen.findByRole('alert')).toHaveTextContent('Diesen Job gibt es nicht mehr.');
+      expect(await screen.findByRole('alert')).toHaveTextContent('Diesen Test gibt es nicht mehr.');
       expect(push).not.toHaveBeenCalled();
     });
 
@@ -359,7 +361,7 @@ describe('JobEditor', () => {
       renderEditor();
       expect(testButton()).toHaveAttribute(
         'title',
-        expect.stringContaining('Ein Bot auf Desktop in Chrome'),
+        expect.stringContaining('Einmal auf Desktop in Chrome'),
       );
     });
   });

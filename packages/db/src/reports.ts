@@ -32,7 +32,7 @@ export type RunReport = {
 /** Everything the run report (screen 03) shows about one run. */
 export async function getRunReport(db: Database, runId: string): Promise<RunReport> {
   const run = isUuid(runId) ? await db.query.runs.findFirst({ where: eq(runs.id, runId) }) : null;
-  if (!run) throw new NotFoundError('Lauf', runId);
+  if (!run) throw new NotFoundError('Durchlauf', runId);
 
   const [job, steps, [average]] = await Promise.all([
     getJob(db, run.jobId),

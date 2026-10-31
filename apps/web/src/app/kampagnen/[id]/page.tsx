@@ -60,7 +60,7 @@ export default async function CampaignPage({ params }: Props) {
               description={
                 rows.length === 0
                   ? 'Die Kampagne verschwindet aus dem Projekt.'
-                  : `Die Kampagne verschwindet aus dem Projekt, mit ${rows.length === 1 ? 'ihrem Job' : `ihren ${rows.length} Jobs`} und allen Läufen und Reports. Jobs, die bleiben sollen, vorher im Editor in eine andere Kampagne verschieben.`
+                  : `Die Kampagne verschwindet aus dem Projekt, mit ${rows.length === 1 ? 'ihrem Test' : `ihren ${rows.length} Tests`} und allen Durchläufen und Reports. Tests, die bleiben sollen, vorher im Editor in eine andere Kampagne verschieben.`
               }
               buttonLabel="Kampagne löschen"
               fields={{ id: campaign.id }}
@@ -73,7 +73,7 @@ export default async function CampaignPage({ params }: Props) {
         breadcrumb={[{ label: 'Kampagnen', href: '/kampagnen' }, { label: campaign.name }]}
         actions={
           <Button href="/jobs/neu" icon={<Icon name="plus" size={16} />}>
-            Neuer Job
+            Neuer Test
           </Button>
         }
       />

@@ -48,7 +48,7 @@ describe('createBrowserManager', () => {
     expect(second.isConnected()).toBe(true);
     expect(launched).toHaveLength(2);
     expect(messages).toEqual([
-      'Browser beendet oder abgestürzt. Der nächste Lauf startet einen neuen.',
+      'Browser beendet oder abgestürzt. Der nächste Durchlauf startet einen neuen.',
     ]);
   });
 

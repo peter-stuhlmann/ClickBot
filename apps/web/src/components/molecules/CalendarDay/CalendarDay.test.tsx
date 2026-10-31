@@ -36,12 +36,12 @@ describe('CalendarDay', () => {
     const region = screen.getByRole('region', { name: 'Do 05.11.' });
     const links = within(region).getAllByRole('listitem');
     expect(links).toHaveLength(2);
-    expect(screen.getByRole('link', { name: '13:24 Kontakt, 1 Lauf' })).toHaveAttribute(
+    expect(screen.getByRole('link', { name: '13:24 Kontakt, 1 Durchlauf' })).toHaveAttribute(
       'href',
       '/jobs/a',
     );
     const busy = screen.getByRole('link', {
-      name: '13:38 Newsletter, 6 Läufe, Limit überschritten',
+      name: '13:38 Newsletter, 6 Durchläufe, Limit überschritten',
     });
     expect(busy).toHaveTextContent('×6');
   });

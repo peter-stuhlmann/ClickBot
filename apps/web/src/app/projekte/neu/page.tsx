@@ -17,7 +17,7 @@ export default async function NewCustomerPage() {
     <AppShell active="kampagnen" {...shell} selectProject={selectProjectAction}>
       <PageHeader
         title="Projekt anlegen"
-        description="Ein Projekt fasst Kampagnen und Jobs eines Kunden oder einer Website zusammen. Es startet mit der Kampagne „Allgemein“."
+        description="Ein Projekt fasst Kampagnen und Tests eines Kunden oder einer Website zusammen. Es startet mit der Kampagne „Allgemein“."
       />
       <CustomerForm action={createCustomerAction} />
     </AppShell>

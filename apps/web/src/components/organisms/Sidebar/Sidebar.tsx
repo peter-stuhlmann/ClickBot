@@ -10,10 +10,10 @@ import { WorkerStatus, type WorkerStatusProps } from '@/components/molecules/Wor
 import { cn } from '@/lib/cn';
 
 export const NAVIGATION = [
-  { key: 'kampagnen', href: '/kampagnen', label: 'Kampagnen', icon: 'megaphone' },
-  { key: 'jobs', href: '/', label: 'Jobs', icon: 'bot' },
+  { key: 'jobs', href: '/', label: 'Tests', icon: 'play' },
+  { key: 'laeufe', href: '/laeufe', label: 'Durchläufe', icon: 'history' },
   { key: 'kalender', href: '/kalender', label: 'Kalender', icon: 'calendar' },
-  { key: 'laeufe', href: '/laeufe', label: 'Läufe', icon: 'history' },
+  { key: 'kampagnen', href: '/kampagnen', label: 'Kampagnen', icon: 'megaphone' },
   { key: 'vorlagen', href: '/vorlagen', label: 'Vorlagen', icon: 'copy' },
   { key: 'einstellungen', href: '/einstellungen', label: 'Einstellungen', icon: 'sliders' },
 ] as const satisfies (Omit<NavItemProps, 'active'> & { key: string })[];

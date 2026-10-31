@@ -74,7 +74,7 @@ const liveServer = await startLiveServer(Number(process.env.LIVE_PORT ?? 4200), 
 
 const orphaned = await recoverStaleRuns(connection.db, { now: new Date(), staleAfterMs: 0 });
 if (orphaned > 0)
-  log(`${orphaned} abgebrochene Läufe vom letzten Start als fehlgeschlagen markiert.`);
+  log(`${orphaned} abgebrochene Durchläufe vom letzten Start als fehlgeschlagen markiert.`);
 
 let ticking = false;
 const tick = async () => {
@@ -83,7 +83,7 @@ const tick = async () => {
   try {
     const started = await worker.tick();
     if (started.length > 0) {
-      const runs = started.length === 1 ? '1 Lauf' : `${started.length} Läufe`;
+      const runs = started.length === 1 ? '1 Durchlauf' : `${started.length} Durchläufe`;
       log(`${runs} gestartet, aktiv: ${worker.activeRuns()}`);
     }
   } catch (error) {
@@ -111,7 +111,7 @@ log(
 );
 
 async function shutdown(signal: string) {
-  log(`${signal} empfangen, warte auf laufende Läufe …`);
+  log(`${signal} empfangen, warte auf laufende Durchläufe …`);
   timers.forEach(clearInterval);
   await liveServer.close();
   await worker.stop();

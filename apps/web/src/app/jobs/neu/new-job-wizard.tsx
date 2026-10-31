@@ -69,7 +69,7 @@ export type NewJobWizardProps = {
 };
 
 const NOT_SAVED =
-  'Gespeichert wird erst am Ende. Bis dahin ist der Job ein Entwurf und läuft nicht.';
+  'Gespeichert wird erst am Ende. Bis dahin ist der Test ein Entwurf und läuft nicht.';
 
 /** State and navigation of the "Neuer Job" wizard (screens 05 and 05b). */
 export function NewJobWizard({
@@ -359,7 +359,7 @@ export function NewJobWizard({
 
   return (
     <WizardLayout
-      title="Neuer Job"
+      title="Neuer Test"
       subtitle={`Schritt ${current + 1} von ${WIZARD_STEPS.length} · ${step.question}`}
       actions={
         <>
@@ -378,7 +378,7 @@ export function NewJobWizard({
           )}
           {isLast ? (
             <Button icon={<Icon name="check" size={16} />} loading={saving} onClick={next}>
-              Job anlegen
+              Test anlegen
             </Button>
           ) : (
             <Button onClick={next}>
@@ -394,7 +394,7 @@ export function NewJobWizard({
           rows={summarise(draft, campaigns, renderedAt)}
           note={
             current === DEVICES_STEP && runTotal
-              ? `${runTotal}. Der Job startet direkt nach dem Anlegen.`
+              ? `${runTotal}. Der Test startet direkt nach dem Anlegen.`
               : NOT_SAVED
           }
         />

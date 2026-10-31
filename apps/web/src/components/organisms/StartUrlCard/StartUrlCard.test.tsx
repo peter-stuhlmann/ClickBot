@@ -6,7 +6,7 @@ describe('StartUrlCard', () => {
   it('asks where the test starts and reports what is typed', () => {
     const onChange = vi.fn();
     render(<StartUrlCard value="" onChange={onChange} />);
-    fireEvent.change(screen.getByRole('textbox', { name: 'Website (Start-URL)' }), {
+    fireEvent.change(screen.getByRole('textbox', { name: 'Adresse der Website' }), {
       target: { value: 'beispiel.de' },
     });
     expect(onChange).toHaveBeenCalledWith('beispiel.de');
@@ -16,11 +16,11 @@ describe('StartUrlCard', () => {
     render(
       <StartUrlCard
         value="ftp://x"
-        error="Start-URL muss mit http:// oder https:// beginnen."
+        error="Die Adresse muss mit http:// oder https:// beginnen."
         onChange={vi.fn()}
       />,
     );
-    expect(screen.getByRole('textbox', { name: 'Website (Start-URL)' })).toBeInvalid();
-    expect(screen.getByText('Start-URL muss mit http:// oder https:// beginnen.')).toBeVisible();
+    expect(screen.getByRole('textbox', { name: 'Adresse der Website' })).toBeInvalid();
+    expect(screen.getByText('Die Adresse muss mit http:// oder https:// beginnen.')).toBeVisible();
   });
 });

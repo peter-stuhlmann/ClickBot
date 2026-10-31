@@ -151,7 +151,7 @@ export const randomScheduleSchema = z
       ctx.addIssue({
         code: 'custom',
         path: ['runs'],
-        message: `Es sind schon ${plan.kept.length} Starts gelaufen; mindestens so viele Läufe.`,
+        message: `Es sind schon ${plan.kept.length} Starts gelaufen; mindestens so viele Durchläufe.`,
       });
       return;
     }

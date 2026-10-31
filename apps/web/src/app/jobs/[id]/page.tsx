@@ -19,7 +19,7 @@ import { JobEditor } from './job-editor';
 
 export const dynamic = 'force-dynamic';
 
-export const metadata: Metadata = { title: 'Job bearbeiten · Click-Bot' };
+export const metadata: Metadata = { title: 'Test bearbeiten · Click-Bot' };
 
 type Props = { params: Promise<{ id: string }> };
 
@@ -64,7 +64,7 @@ export default async function JobEditorPage({ params }: Props) {
             title={header.title}
             description={header.description}
             status={header.status}
-            breadcrumb={[{ label: 'Jobs', href: '/' }, { label: header.title }]}
+            breadcrumb={[{ label: 'Tests', href: '/' }, { label: header.title }]}
           />
           <Notice tone="warning" title="Bearbeiten nicht möglich">
             {loaded.notEditable}

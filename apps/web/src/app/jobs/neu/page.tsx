@@ -9,7 +9,7 @@ import { NewJobWizard } from './new-job-wizard';
 
 export const dynamic = 'force-dynamic';
 
-export const metadata: Metadata = { title: 'Neuer Job · Click-Bot' };
+export const metadata: Metadata = { title: 'Neuer Test · Click-Bot' };
 
 /** Screen 05 "Neuer Job", in a campaign of the current project. */
 export default async function NewJobPage() {

@@ -2,7 +2,7 @@ import { expect, test } from '@playwright/test';
 import { chooseOption } from './select';
 
 // Changes only the flow of "Newsletter-Anmeldung": the other specs rely on names and figures.
-test.describe('Job-Editor', () => {
+test.describe('Test-Editor', () => {
   test('adds a step to a job and keeps it after reloading', async ({ page }) => {
     await page.goto('/');
     await page.getByRole('link', { name: 'Newsletter-Anmeldung', exact: true }).click();
@@ -66,12 +66,12 @@ test.describe('Job-Editor', () => {
   test('does not save an invalid job', async ({ page }) => {
     await page.goto('/');
     await page.getByRole('link', { name: 'Newsletter-Anmeldung', exact: true }).click();
-    await page.getByRole('textbox', { name: 'Job-Name' }).fill('');
+    await page.getByRole('textbox', { name: 'Name des Tests' }).fill('');
     await page.getByRole('button', { name: 'Speichern' }).click();
 
     await expect(page.getByRole('alert').filter({ hasText: 'Nicht gespeichert' })).toBeVisible();
     await page.reload();
-    await expect(page.getByRole('textbox', { name: 'Job-Name' })).toHaveValue(
+    await expect(page.getByRole('textbox', { name: 'Name des Tests' })).toHaveValue(
       'Newsletter-Anmeldung',
     );
   });
@@ -86,22 +86,23 @@ test.describe('Job-Editor', () => {
   }) => {
     await page.goto('/');
     await page.getByRole('link', { name: 'Newsletter-Anmeldung', exact: true }).click();
-    await page.getByRole('button', { name: 'Testlauf starten' }).click();
+    await page.getByRole('button', { name: 'Jetzt ausführen' }).click();
 
     await expect(page).toHaveURL(/\/laeufe\//);
     const reportUrl = page.url();
-    await expect(page.getByRole('heading', { level: 1, name: /^Lauf #\d+/ })).toBeVisible();
-    await expect(page.getByText('manuell gestartet', { exact: false })).toBeVisible();
+    await expect(
+      page.getByRole('heading', { level: 1, name: /^Durchlauf \d+ · manuell gestartet/ }),
+    ).toBeVisible();
     // No worker runs during the e2e tests.
     await expect(
-      page.getByRole('status').filter({ hasText: 'Der Worker ist offline.' }),
+      page.getByRole('status').filter({ hasText: 'Das Testsystem ist nicht verbunden.' }),
     ).toBeVisible();
 
     await page
       .getByRole('navigation', { name: 'Pfad' })
       .getByRole('link', { name: 'Newsletter-Anmeldung' })
       .click();
-    await page.getByRole('button', { name: 'Testlauf starten' }).click();
+    await page.getByRole('button', { name: 'Jetzt ausführen' }).click();
     await expect(page).toHaveURL(reportUrl);
   });
 
@@ -110,13 +111,13 @@ test.describe('Job-Editor', () => {
     await page.getByRole('link', { name: 'Kontaktformular-Test', exact: true }).click();
     // Technical settings wait behind "Erweiterte Einstellungen".
     await page.getByRole('button', { name: 'Erweiterte Einstellungen' }).click();
-    const main = page.getByRole('switch', { name: 'Bot-Läufe in GA4 markieren' });
+    const main = page.getByRole('switch', { name: 'Testdurchläufe in GA4 markieren' });
     await expect(main).toBeChecked();
 
     await main.click();
     await expect(page.getByRole('switch', { name: 'Debug-Modus' })).not.toBeChecked();
     await expect(
-      page.getByRole('region', { name: 'Bot-Läufe zählen in GA4 wie echte Besuche' }),
+      page.getByRole('region', { name: 'Testdurchläufe zählen in GA4 wie echte Besuche' }),
     ).toBeVisible();
 
     await page.getByRole('switch', { name: 'Bot-Kennung' }).click();

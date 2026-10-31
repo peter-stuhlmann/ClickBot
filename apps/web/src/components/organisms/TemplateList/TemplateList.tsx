@@ -17,8 +17,8 @@ export function TemplateList({ templates }: TemplateListProps) {
       <Card title="Noch keine Vorlagen">
         <p className="text-body text-text-muted">
           Eine Vorlage ist ein Ablauf für jede Website, z. B. „Kontaktformular absenden“. Lege sie
-          hier an oder speichere im Editor eines Jobs seinen Ablauf als Vorlage. Im Assistenten
-          „Neuer Job“ übernimmst du sie mit „Aus Vorlage“.
+          hier an oder speichere im Editor eines Tests seinen Ablauf als Vorlage. Im Assistenten
+          „Neuer Test“ übernimmst du sie mit „Aus Vorlage“.
         </p>
         <div>
           <Button href="/vorlagen/neu" icon={<Icon name="plus" size={16} />}>

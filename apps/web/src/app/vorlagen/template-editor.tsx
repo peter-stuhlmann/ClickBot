@@ -97,7 +97,7 @@ export function TemplateEditor({
       header={
         <PageHeader
           title={title}
-          description="Ein Ablauf für jede Website. Im Assistenten „Neuer Job“ unter „Aus Vorlage“."
+          description="Ein Ablauf für jede Website. Im Assistenten „Neuer Test“ unter „Aus Vorlage“."
           breadcrumb={[{ label: 'Vorlagen', href: '/vorlagen' }, { label: title }]}
         />
       }
@@ -129,7 +129,7 @@ export function TemplateEditor({
             role="status"
             className="rounded-input bg-success-soft px-3 py-2.5 text-body text-success"
           >
-            Gespeichert. Jobs, die schon aus der Vorlage entstanden sind, behalten ihre Schritte.
+            Gespeichert. Tests, die schon aus der Vorlage entstanden sind, behalten ihre Schritte.
           </p>
         ) : null
       }
@@ -139,7 +139,7 @@ export function TemplateEditor({
           {templateId && deleteAction && (
             <DeleteSection
               title="Vorlage löschen"
-              description="Jobs, die aus der Vorlage entstanden sind, behalten ihre Schritte."
+              description="Tests, die aus der Vorlage entstanden sind, behalten ihre Schritte."
               buttonLabel="Vorlage löschen"
               fields={{ id: templateId }}
               action={deleteAction}

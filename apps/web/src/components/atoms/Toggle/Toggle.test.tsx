@@ -5,22 +5,22 @@ import { Toggle } from './Toggle';
 
 describe('Toggle', () => {
   it('is a switch with its state and name', () => {
-    render(<Toggle checked label="Job pausieren" />);
-    expect(screen.getByRole('switch', { name: 'Job pausieren' })).toHaveAttribute(
+    render(<Toggle checked label="Test pausieren" />);
+    expect(screen.getByRole('switch', { name: 'Test pausieren' })).toHaveAttribute(
       'aria-checked',
       'true',
     );
   });
 
   it('reports the off state', () => {
-    render(<Toggle checked={false} label="Job fortsetzen" />);
+    render(<Toggle checked={false} label="Test fortsetzen" />);
     expect(screen.getByRole('switch')).toHaveAttribute('aria-checked', 'false');
   });
 
   it('reacts to click and keyboard', async () => {
     const user = userEvent.setup();
     const onClick = vi.fn();
-    render(<Toggle checked label="Job pausieren" onClick={onClick} />);
+    render(<Toggle checked label="Test pausieren" onClick={onClick} />);
 
     await user.click(screen.getByRole('switch'));
     await user.keyboard(' ');
@@ -43,7 +43,7 @@ describe('Toggle', () => {
     const onSubmit = vi.fn((event: SubmitEvent) => event.preventDefault());
     render(
       <form onSubmit={(event) => onSubmit(event.nativeEvent as SubmitEvent)}>
-        <Toggle checked type="submit" label="Job pausieren" />
+        <Toggle checked type="submit" label="Test pausieren" />
       </form>,
     );
 
@@ -53,7 +53,7 @@ describe('Toggle', () => {
   });
 
   it('is a plain button by default, so it never submits by accident', () => {
-    render(<Toggle checked label="Job pausieren" />);
+    render(<Toggle checked label="Test pausieren" />);
     expect(screen.getByRole('switch')).toHaveAttribute('type', 'button');
   });
 });

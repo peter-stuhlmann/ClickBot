@@ -53,7 +53,7 @@ test.describe('Auf dem Handy', () => {
   test('every page fits the width of a phone', async ({ page }) => {
     await page.goto('/');
     const job = await hrefOf(page, 'Login & Bestellstatus');
-    const run = await hrefOf(page, /^Letzter Lauf von Login & Bestellstatus/);
+    const run = await hrefOf(page, /^Letzter Durchlauf von Login & Bestellstatus/);
 
     for (const path of [
       '/',
@@ -93,7 +93,7 @@ test.describe('Auf dem Handy', () => {
     await page.mouse.wheel(0, 10_000);
     await expect.poll(() => page.evaluate(() => window.scrollY)).toBeGreaterThan(0);
     await expect(page.getByRole('button', { name: 'Speichern' })).toBeInViewport();
-    await expect(page.getByRole('button', { name: 'Testlauf starten' })).toBeInViewport();
+    await expect(page.getByRole('button', { name: 'Jetzt ausführen' })).toBeInViewport();
   });
 
   test('every step of the new-job wizard fits', async ({ page }) => {
@@ -101,7 +101,7 @@ test.describe('Auf dem Handy', () => {
     await expectFits(page);
     // The start address is asked for with the flow.
     await page
-      .getByRole('textbox', { name: 'Website (Start-URL)' })
+      .getByRole('textbox', { name: 'Adresse der Website' })
       .fill('http://127.0.0.1:4100/kontakt.html');
 
     // A fixed flow starts with the live browser; a free one asks for the goal.
@@ -142,9 +142,9 @@ test.describe('Auf dem Handy', () => {
     await expect(navigation).toBeInViewport();
     await expect(page.getByRole('button', { name: 'Abmelden' })).toBeInViewport();
 
-    await navigation.getByRole('link', { name: 'Läufe' }).click();
+    await navigation.getByRole('link', { name: 'Durchläufe' }).click();
     await expect(page).toHaveURL('/laeufe');
-    await expect(page.getByRole('heading', { level: 1, name: 'Läufe' })).toBeVisible();
+    await expect(page.getByRole('heading', { level: 1, name: 'Durchläufe' })).toBeVisible();
     await expect(navigation).toBeHidden();
     await expect(menu).toHaveAttribute('aria-expanded', 'false');
   });

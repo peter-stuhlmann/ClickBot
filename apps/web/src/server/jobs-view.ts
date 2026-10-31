@@ -35,7 +35,7 @@ export function toJobRow(row: JobOverviewRow, now: Date): JobRowView {
     campaign: row.campaignName,
     url: displayUrl(row.startUrl),
     schedule: describeSchedule(row.schedule),
-    progress: { label: `${row.runsDone} / ${row.runsPlanned} Läufe`, value: progress },
+    progress: { label: `${row.runsDone} / ${row.runsPlanned} Durchläufe`, value: progress },
     lastRun: row.lastRun
       ? {
           ...RUN_BADGE[row.lastRun.status],
@@ -67,15 +67,15 @@ export function toStatCards(stats: DashboardStats): StatCardView[] {
   const { successful, finished } = stats.successRate7d;
   return [
     {
-      label: 'Aktive Jobs',
+      label: 'Aktive Tests',
       value: String(stats.activeJobs),
       hint:
         stats.finishedJobs > 0
-          ? `${plural(stats.finishedJobs, 'Job', 'Jobs')} beendet`
-          : 'keine beendeten Jobs',
+          ? `${plural(stats.finishedJobs, 'Test', 'Tests')} beendet`
+          : 'keine beendeten Tests',
     },
     {
-      label: 'Läufe heute',
+      label: 'Durchläufe heute',
       value: stats.runsToday.toLocaleString('de-DE'),
       hint: difference(stats.runsToday, stats.runsYesterday),
     },
@@ -84,8 +84,8 @@ export function toStatCards(stats: DashboardStats): StatCardView[] {
       value: finished > 0 ? formatPercent(successful / finished) : '–',
       hint:
         finished > 0
-          ? `${successful} von ${plural(finished, 'Lauf', 'Läufen')}`
-          : 'noch keine Läufe',
+          ? `${successful} von ${plural(finished, 'Durchlauf', 'Durchläufen')}`
+          : 'noch keine Durchläufe',
     },
     {
       label: 'Fehler (24 Std.)',

@@ -22,7 +22,7 @@ describe('SlotRow', () => {
     );
     expect(screen.getByLabelText('Datum Termin 1')).toHaveValue('2026-11-05');
     expect(screen.getByLabelText('Uhrzeit Termin 1')).toHaveValue('13:24');
-    expect(screen.getByText('3')).toHaveTextContent('3 Bots');
+    expect(screen.getByText('3')).toHaveTextContent('3 Browser');
   });
 
   it('reports a changed date and time', () => {
@@ -49,8 +49,8 @@ describe('SlotRow', () => {
       </SlotRow>,
     );
 
-    await user.click(screen.getByRole('button', { name: 'Ein Bot mehr (Termin 2)' }));
-    await user.click(screen.getByRole('button', { name: 'Ein Bot weniger (Termin 2)' }));
+    await user.click(screen.getByRole('button', { name: 'Einer mehr (Termin 2)' }));
+    await user.click(screen.getByRole('button', { name: 'Einer weniger (Termin 2)' }));
 
     expect(onChange).toHaveBeenNthCalledWith(1, { ...slot, bots: 4 });
     expect(onChange).toHaveBeenNthCalledWith(2, { ...slot, bots: 2 });
@@ -62,15 +62,15 @@ describe('SlotRow', () => {
         {dateField}
       </SlotRow>,
     );
-    expect(screen.getByRole('button', { name: /Ein Bot weniger/ })).toBeDisabled();
-    expect(screen.getByText('1')).toHaveTextContent('1 Bot');
+    expect(screen.getByRole('button', { name: /Einer weniger/ })).toBeDisabled();
+    expect(screen.getByText('1')).toHaveTextContent('1 Browser');
 
     rerender(
       <SlotRow index={0} slot={{ ...slot, bots: 50 }} onChange={vi.fn()}>
         {dateField}
       </SlotRow>,
     );
-    expect(screen.getByRole('button', { name: /Ein Bot mehr/ })).toBeDisabled();
+    expect(screen.getByRole('button', { name: /Einer mehr/ })).toBeDisabled();
   });
 
   it('can be removed unless it is the only slot', async () => {
@@ -117,7 +117,7 @@ describe('SlotRow', () => {
     expect(screen.getByLabelText('Datum Termin 1')).toBeDisabled();
     expect(screen.getByLabelText('Uhrzeit Termin 1')).toBeDisabled();
     expect(screen.getByRole('button', { name: 'Termin 1 entfernen' })).toBeDisabled();
-    expect(screen.getByRole('button', { name: /Ein Bot mehr/ })).toBeEnabled();
-    expect(screen.getByText(/Hat schon Läufe/)).toBeVisible();
+    expect(screen.getByRole('button', { name: /Einer mehr/ })).toBeEnabled();
+    expect(screen.getByText(/Hat schon Durchläufe/)).toBeVisible();
   });
 });

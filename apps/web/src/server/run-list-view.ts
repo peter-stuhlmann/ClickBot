@@ -12,7 +12,7 @@ export function toRunListRow(row: RunListRow): RunListRowView {
     id: row.id,
     href: `/laeufe/${row.id}`,
     jobName: row.jobName,
-    detail: `Lauf #${row.runNr} · ${deviceLabel(row.device)} · ${browserLabel(row.browser)} · Bot ${row.botNr}`,
+    detail: `Durchlauf ${row.runNr} · ${deviceLabel(row.device)} · ${browserLabel(row.browser)} · Browser ${row.botNr}`,
     testRun: row.slotIndex === null,
     campaign: row.campaignName,
     when: formatShortDateTime(startedOrPlanned),

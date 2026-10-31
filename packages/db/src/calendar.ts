@@ -86,11 +86,11 @@ export async function moveSlot(
   move: SlotMove,
   now: Date,
 ): Promise<void> {
-  if (!isUuid(jobId)) throw new NotFoundError('Job', jobId);
+  if (!isUuid(jobId)) throw new NotFoundError('Test', jobId);
   await db.transaction(async (tx) => {
     // Same row lock as the planner: no start is planned from a half-changed schedule.
     const [job] = await tx.select().from(jobs).where(eq(jobs.id, jobId)).for('update');
-    if (!job) throw new NotFoundError('Job', jobId);
+    if (!job) throw new NotFoundError('Test', jobId);
     const { schedule } = job;
     const path = `schedule.slots.${move.slotIndex}`;
     if (schedule.type !== 'times') {

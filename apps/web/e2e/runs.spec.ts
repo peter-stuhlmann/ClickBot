@@ -1,16 +1,16 @@
 import { expect, test } from '@playwright/test';
 import { chooseOption } from './select';
 
-test.describe('Läufe', () => {
+test.describe('Durchläufe', () => {
   test('lists the runs of all jobs, newest first, in pages of 50', async ({ page }) => {
     await page.goto('/');
     await page
       .getByRole('navigation', { name: 'Hauptnavigation' })
-      .getByRole('link', { name: 'Läufe' })
+      .getByRole('link', { name: 'Durchläufe' })
       .click();
 
-    await expect(page.getByRole('heading', { level: 1, name: 'Läufe' })).toBeVisible();
-    const table = page.getByRole('region', { name: 'Läufe' });
+    await expect(page.getByRole('heading', { level: 1, name: 'Durchläufe' })).toBeVisible();
+    const table = page.getByRole('region', { name: 'Durchläufe' });
     // The demo data has more than 50 runs in the last 7 days.
     await expect(table).toContainText(/1–50 von \d+ · neueste zuerst/);
     await expect(table.getByRole('row')).toHaveCount(51);
@@ -29,7 +29,7 @@ test.describe('Läufe', () => {
     // A plain GET form also sends the empty fields.
     await expect(page).toHaveURL(/[?&]ergebnis=fehlgeschlagen(&|$)/);
     await expect(page.getByRole('combobox', { name: 'Ergebnis' })).toHaveText('Fehlgeschlagen');
-    const rows = page.getByRole('region', { name: 'Läufe' }).getByRole('row');
+    const rows = page.getByRole('region', { name: 'Durchläufe' }).getByRole('row');
     const count = await rows.count();
     expect(count).toBeGreaterThan(1);
     for (let index = 1; index < count; index++) {
@@ -38,12 +38,12 @@ test.describe('Läufe', () => {
 
     await rows.nth(1).getByRole('link').click();
     await expect(page).toHaveURL(/\/laeufe\/[0-9a-f-]{36}$/);
-    await expect(page.getByRole('heading', { level: 1, name: /^Lauf #\d+/ })).toBeVisible();
+    await expect(page.getByRole('heading', { level: 1, name: /^Durchlauf \d+/ })).toBeVisible();
   });
 
   test('says so when no run matches, and resets the filters', async ({ page }) => {
     await page.goto('/laeufe?geraet=ipad');
-    await expect(page.getByText('Keine Läufe für diese Filter.')).toBeVisible();
+    await expect(page.getByText('Keine Durchläufe für diese Filter.')).toBeVisible();
 
     await page.getByRole('link', { name: 'Filter zurücksetzen' }).click();
     await expect(page).toHaveURL('/laeufe');
@@ -54,7 +54,9 @@ test.describe('Läufe', () => {
     await page.goto('/laeufe');
     await page.mouse.wheel(0, 3000);
     await expect.poll(() => page.evaluate(() => window.scrollY)).toBeGreaterThan(1000);
-    await expect(page.getByRole('form', { name: 'Läufe filtern' })).toBeInViewport({ ratio: 1 });
+    await expect(page.getByRole('form', { name: 'Durchläufe filtern' })).toBeInViewport({
+      ratio: 1,
+    });
   });
 
   test('never wraps a value of a run in the middle, also on a small laptop', async ({ page }) => {

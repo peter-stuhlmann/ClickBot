@@ -26,7 +26,7 @@ export function SaveTemplateCard({ jobId, defaultName, action, blocked }: SaveTe
   return (
     <Card
       title="Als Vorlage speichern"
-      description="Der Ablauf wird zur Vorlage für andere Jobs: ohne das Öffnen der Start-URL und ohne Passwortschutz, Seiten dieser Website als Pfad."
+      description="Der Ablauf wird zur Vorlage für andere Tests: ohne das Öffnen der Adresse der Website und ohne Passwortschutz, Seiten dieser Website als Pfad."
     >
       <form action={formAction} className="flex flex-col gap-4">
         <input type="hidden" name="jobId" value={jobId} />

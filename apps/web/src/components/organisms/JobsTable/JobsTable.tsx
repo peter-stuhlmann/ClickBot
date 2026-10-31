@@ -14,10 +14,10 @@ const RATE_COLOUR: Record<Tone, string> = {
 // Column widths close to the Figma table (320/160/190/190/110/110 of 1080 px), with more room
 // for the status, so toggle and "Beendet" still fit at 1280 px.
 const COLUMNS = [
-  { label: 'Job', width: 'w-1/4' },
+  { label: 'Test', width: 'w-1/4' },
   { label: 'Zeitplan', width: 'w-7/50' },
   { label: 'Fortschritt', width: 'w-9/50' },
-  { label: 'Letzter Lauf', width: 'w-17/100' },
+  { label: 'Letzter Durchlauf', width: 'w-17/100' },
   { label: 'Erfolgsquote', width: 'w-3/25' },
   { label: 'Status', width: 'w-7/50' },
 ];
@@ -110,7 +110,7 @@ export function JobsTable({ rows, toggleAction }: JobsTableProps) {
                 colSpan={COLUMNS.length}
                 className="block px-5 py-10 text-center text-text-muted xl:table-cell"
               >
-                Noch keine Jobs. Lege den ersten Job an, um eine Website automatisch zu testen.
+                Noch keine Tests. Lege den ersten Test an, um eine Website automatisch zu testen.
               </td>
             </tr>
           )}
@@ -147,11 +147,11 @@ export function JobsTable({ rows, toggleAction }: JobsTableProps) {
                 </div>
               </td>
               <td role="cell" className="xl:py-3.5">
-                <CellLabel>Letzter Lauf</CellLabel>
+                <CellLabel>Letzter Durchlauf</CellLabel>
                 {row.lastRun ? (
                   <Link
                     href={row.lastRun.href}
-                    aria-label={`Letzter Lauf von ${row.name}: ${row.lastRun.label}, ${row.lastRun.when}`}
+                    aria-label={`Letzter Durchlauf von ${row.name}: ${row.lastRun.label}, ${row.lastRun.when}`}
                     className="group inline-flex flex-col items-start rounded-input focus-visible:outline-2 focus-visible:outline-primary"
                   >
                     <Badge tone={row.lastRun.tone}>{row.lastRun.label}</Badge>
@@ -160,7 +160,7 @@ export function JobsTable({ rows, toggleAction }: JobsTableProps) {
                     </span>
                   </Link>
                 ) : (
-                  <span className="text-small text-text-muted">noch kein Lauf</span>
+                  <span className="text-small text-text-muted">noch kein Durchlauf</span>
                 )}
               </td>
               <td role="cell" className="xl:py-3.5">

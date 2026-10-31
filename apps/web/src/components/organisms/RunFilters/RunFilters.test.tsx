@@ -19,7 +19,7 @@ const props = {
 describe('RunFilters', () => {
   it('is a GET form for the run list, so the filters end up in the address', () => {
     render(<RunFilters {...props} />);
-    const form = screen.getByRole('form', { name: 'Läufe filtern' });
+    const form = screen.getByRole('form', { name: 'Durchläufe filtern' });
     expect(form).toHaveAttribute('method', 'get');
     expect(form).toHaveAttribute('action', '/laeufe');
     expect(Object.fromEntries(new FormData(form as HTMLFormElement))).toEqual({

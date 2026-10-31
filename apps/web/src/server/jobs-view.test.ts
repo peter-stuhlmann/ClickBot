@@ -27,8 +27,8 @@ describe('toJobRow', () => {
       name: 'Kontaktformular-Test',
       campaign: 'Black Friday',
       url: 'beispiel.de/kontakt',
-      schedule: { primary: 'alle 15 Min.', secondary: 'max. 20 Läufe' },
-      progress: { label: '7 / 20 Läufe', value: 0.35 },
+      schedule: { primary: 'alle 15 Min.', secondary: 'max. 20 Durchläufe' },
+      progress: { label: '7 / 20 Durchläufe', value: 0.35 },
       lastRun: {
         tone: 'success',
         label: 'Erfolgreich',
@@ -62,7 +62,7 @@ describe('toJobRow', () => {
   it('shows no last run and no rate for a job that never ran', () => {
     const view = toJobRow(row({ runsDone: 0, lastRun: null, successRate: null }), now);
     expect(view).toMatchObject({ lastRun: null, successRate: null });
-    expect(view.progress).toEqual({ label: '0 / 20 Läufe', value: 0 });
+    expect(view.progress).toEqual({ label: '0 / 20 Durchläufe', value: 0 });
   });
 
   it('keeps progress between 0 and 1, also without planned runs', () => {
@@ -92,9 +92,9 @@ describe('toStatCards', () => {
 
   it('builds the four cards of the design', () => {
     expect(toStatCards(stats)).toEqual([
-      { label: 'Aktive Jobs', value: '3', hint: '1 Job beendet' },
-      { label: 'Läufe heute', value: '42', hint: '+8 gegenüber gestern' },
-      { label: 'Erfolgsquote (7 Tage)', value: '95,1 %', hint: '312 von 328 Läufen' },
+      { label: 'Aktive Tests', value: '3', hint: '1 Test beendet' },
+      { label: 'Durchläufe heute', value: '42', hint: '+8 gegenüber gestern' },
+      { label: 'Erfolgsquote (7 Tage)', value: '95,1 %', hint: '312 von 328 Durchläufen' },
       { label: 'Fehler (24 Std.)', value: '2', hint: 'Login & Bestellstatus' },
     ]);
   });
@@ -109,9 +109,9 @@ describe('toStatCards', () => {
       failures24h: { count: 0, jobNames: [] },
     });
     expect(cards.map((card) => [card.value, card.hint])).toEqual([
-      ['0', 'keine beendeten Jobs'],
+      ['0', 'keine beendeten Tests'],
       ['0', 'wie gestern'],
-      ['–', 'noch keine Läufe'],
+      ['–', 'noch keine Durchläufe'],
       ['0', 'keine Fehler'],
     ]);
   });

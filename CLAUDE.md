@@ -107,6 +107,26 @@ Projekte, die Anmeldung, das Profil und die Einstellungen der KI-Anbieter stehen
 
 Was als „geplant“ markiert ist, existiert noch nicht.
 
+## Begriffe in der Oberfläche
+
+Die Oberfläche spricht Alltagsdeutsch, Code, Datenbank und diese Datei behalten die
+Fachbegriffe. Wer UI-Texte schreibt, nutzt die linke Spalte:
+
+| Oberfläche             | Code / Datenbank / hier            |
+| ---------------------- | ---------------------------------- |
+| Test, Tests            | Job, `jobs`                        |
+| Durchlauf, Durchläufe  | Lauf, Run, `runs`                  |
+| „Jetzt ausführen“      | Testlauf (`queueTestRun`)          |
+| „manuell gestartet“    | Testlauf im Report, Chip „Manuell“ |
+| Testsystem             | Worker                             |
+| Adresse der Website    | Start-URL (`start_url`)            |
+| Browser 1, Browser 2 … | Bot 1, Bot 2 (`bot_nr`)            |
+| Projekt                | Kunde, `customer`                  |
+
+„Bot“ kommt in der Oberfläche nur noch im Produktnamen Click-Bot und in GA4-Begriffen wie
+„Bot-Kennung“ vor. Die Umbenennung lief über ein Skript, das nur Strings, Template-Strings,
+JSX-Text und reguläre Ausdrücke anfasst, nie Bezeichner oder Pfade (`/jobs`, `/laeufe` bleiben).
+
 ## Produktregeln (nicht verhandelbar)
 
 - Nur für eigene oder vom Kunden freigegebene Websites. Das Tool ist ein Testwerkzeug.

@@ -42,7 +42,7 @@ export function describeSchedule(schedule: Schedule): { primary: string; seconda
   if (schedule.type === 'random') {
     return {
       primary: `zufällig ${formatGermanDate(schedule.from)}–${formatGermanDate(schedule.to)}`,
-      secondary: plural(schedule.runs, 'Lauf', 'Läufe'),
+      secondary: plural(schedule.runs, 'Durchlauf', 'Durchläufe'),
     };
   }
   if (schedule.type === 'interval') {
@@ -51,12 +51,12 @@ export function describeSchedule(schedule: Schedule): { primary: string; seconda
       everyMinutes >= 120 && everyMinutes % 60 === 0
         ? `alle ${everyMinutes / 60} Std.`
         : `alle ${everyMinutes} Min.`;
-    return { primary, secondary: `max. ${plural(schedule.maxRuns, 'Lauf', 'Läufe')}` };
+    return { primary, secondary: `max. ${plural(schedule.maxRuns, 'Durchlauf', 'Durchläufe')}` };
   }
   const bots = schedule.slots.reduce((sum, slot) => sum + slot.bots, 0);
   return {
     primary: plural(schedule.slots.length, 'Termin', 'Termine'),
-    secondary: plural(bots, 'Bot', 'Bots'),
+    secondary: plural(bots, 'Browser', 'Browser'),
   };
 }
 

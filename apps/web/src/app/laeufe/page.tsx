@@ -22,7 +22,7 @@ import { selectProjectAction } from '../actions';
 
 export const dynamic = 'force-dynamic';
 
-export const metadata: Metadata = { title: 'Läufe · Click-Bot' };
+export const metadata: Metadata = { title: 'Durchläufe · Click-Bot' };
 
 type Props = { searchParams: Promise<Record<string, string | string[] | undefined>> };
 
@@ -44,8 +44,8 @@ export default async function RunsPage({ searchParams }: Props) {
       <ReportLayout
         header={
           <PageHeader
-            title="Läufe"
-            description={`${shell.project?.name ?? 'Kein Projekt'} · Alle Läufe, neueste zuerst. Ein Klick öffnet den Report.`}
+            title="Durchläufe"
+            description={`${shell.project?.name ?? 'Kein Projekt'} · Alle Durchläufe, neueste zuerst. Ein Klick öffnet den Report.`}
           />
         }
         stats={null}

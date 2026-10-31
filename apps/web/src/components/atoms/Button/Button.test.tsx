@@ -17,7 +17,7 @@ describe('Button', () => {
   it('calls onClick on click and on keyboard activation', async () => {
     const user = userEvent.setup();
     const onClick = vi.fn();
-    render(<Button onClick={onClick}>Testlauf starten</Button>);
+    render(<Button onClick={onClick}>Jetzt ausführen</Button>);
 
     await user.click(screen.getByRole('button'));
     screen.getByRole('button').focus();
@@ -74,8 +74,8 @@ describe('Button', () => {
   });
 
   it('renders leading icon content without changing the accessible name', () => {
-    render(<Button icon={<svg aria-hidden="true" />}>Neuer Job</Button>);
-    expect(screen.getByRole('button', { name: 'Neuer Job' })).toBeInTheDocument();
+    render(<Button icon={<svg aria-hidden="true" />}>Neuer Test</Button>);
+    expect(screen.getByRole('button', { name: 'Neuer Test' })).toBeInTheDocument();
   });
 
   it('lets a caller override spacing without duplicate padding classes', () => {

@@ -11,14 +11,14 @@ const METHODS: { key: FlowMethod; icon: IconName; title: string; description: st
     icon: 'record',
     title: 'Fester Ablauf',
     description:
-      'Du klickst dich einmal im Browser durch die Seite. Jeder Lauf wiederholt genau diese Schritte.',
+      'Du klickst dich einmal im Browser durch die Seite. Jeder Durchlauf wiederholt genau diese Schritte.',
   },
   {
     key: 'free',
     icon: 'sparkles',
     title: 'Frei mit KI',
     description:
-      'Du beschreibst das Ziel. Die KI sucht den Weg in jedem Lauf selbst und bewertet jedes Teilziel.',
+      'Du beschreibst das Ziel. Die KI sucht den Weg in jedem Durchlauf selbst und bewertet jedes Teilziel.',
   },
 ];
 

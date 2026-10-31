@@ -145,7 +145,7 @@ export async function deleteCampaign(
     const owned = await tx.select({ id: jobs.id }).from(jobs).where(eq(jobs.campaignId, id));
     const phrase = campaignDeletePhrase(campaign.name);
     if (owned.length > 0 && confirmation.trim() !== phrase) {
-      const count = owned.length === 1 ? '1 Job' : `${owned.length} Jobs`;
+      const count = owned.length === 1 ? '1 Test' : `${owned.length} Tests`;
       throw new ValidationError([
         {
           path: 'confirm',

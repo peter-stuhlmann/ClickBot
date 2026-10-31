@@ -21,11 +21,13 @@ describe('JobSettingsForm', () => {
       <JobSettingsForm values={values} campaigns={campaigns} errors={{}} onChange={onChange} />,
     );
 
-    expect(screen.getByRole('textbox', { name: 'Job-Name' })).toHaveValue('Kontaktformular-Test');
-    fireEvent.change(screen.getByRole('textbox', { name: 'Job-Name' }), {
+    expect(screen.getByRole('textbox', { name: 'Name des Tests' })).toHaveValue(
+      'Kontaktformular-Test',
+    );
+    fireEvent.change(screen.getByRole('textbox', { name: 'Name des Tests' }), {
       target: { value: 'Kontakt neu' },
     });
-    fireEvent.change(screen.getByRole('textbox', { name: 'Website (Start-URL)' }), {
+    fireEvent.change(screen.getByRole('textbox', { name: 'Adresse der Website' }), {
       target: { value: 'https://beispiel.de/neu' },
     });
 
@@ -42,15 +44,15 @@ describe('JobSettingsForm', () => {
         campaigns={campaigns}
         errors={{
           name: 'Name fehlt.',
-          startUrl: 'Start-URL muss mit http:// oder https:// beginnen.',
+          startUrl: 'Die Adresse muss mit http:// oder https:// beginnen.',
         }}
         onChange={vi.fn()}
       />,
     );
-    expect(screen.getByRole('textbox', { name: 'Job-Name' })).toHaveAccessibleDescription(
+    expect(screen.getByRole('textbox', { name: 'Name des Tests' })).toHaveAccessibleDescription(
       'Name fehlt.',
     );
-    expect(screen.getByRole('textbox', { name: 'Website (Start-URL)' })).toBeInvalid();
+    expect(screen.getByRole('textbox', { name: 'Adresse der Website' })).toBeInvalid();
   });
 
   it('moves the job to another campaign of its project', async () => {

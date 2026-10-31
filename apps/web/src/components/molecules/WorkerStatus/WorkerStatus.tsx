@@ -18,8 +18,8 @@ export function WorkerStatus({ online, activeRuns }: WorkerStatusProps) {
         className={cn('size-2 shrink-0 rounded-full', online ? 'bg-online' : 'bg-sidebar-muted')}
       />
       {online
-        ? `Worker online · ${plural(activeRuns, 'Lauf', 'Läufe')} aktiv`
-        : 'Worker offline – Läufe warten'}
+        ? `Testsystem bereit · ${plural(activeRuns, 'Durchlauf', 'Durchläufe')} aktiv`
+        : 'Testsystem nicht verbunden – Durchläufe warten'}
     </div>
   );
 }

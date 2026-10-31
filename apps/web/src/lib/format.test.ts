@@ -62,10 +62,10 @@ describe('describeSchedule', () => {
   });
 
   it.each([
-    [15, 20, 'alle 15 Min.', 'max. 20 Läufe'],
-    [60, 24, 'alle 60 Min.', 'max. 24 Läufe'],
-    [120, 10, 'alle 2 Std.', 'max. 10 Läufe'],
-    [90, 1, 'alle 90 Min.', 'max. 1 Lauf'],
+    [15, 20, 'alle 15 Min.', 'max. 20 Durchläufe'],
+    [60, 24, 'alle 60 Min.', 'max. 24 Durchläufe'],
+    [120, 10, 'alle 2 Std.', 'max. 10 Durchläufe'],
+    [90, 1, 'alle 90 Min.', 'max. 1 Durchlauf'],
   ])('describes every %i min, %i runs', (every, max, primary, secondary) => {
     expect(describeSchedule(interval(every, max))).toEqual({ primary, secondary });
   });
@@ -82,7 +82,7 @@ describe('describeSchedule', () => {
         kept: [],
         timezone: 'Europe/Berlin',
       }),
-    ).toEqual({ primary: 'zufällig 01.11.2026–30.11.2026', secondary: '100 Läufe' });
+    ).toEqual({ primary: 'zufällig 01.11.2026–30.11.2026', secondary: '100 Durchläufe' });
   });
 
   it('describes a schedule by dates with its number of bots', () => {
@@ -97,7 +97,7 @@ describe('describeSchedule', () => {
         staggerSeconds: 5,
         timezone: 'Europe/Berlin',
       }),
-    ).toEqual({ primary: '3 Termine', secondary: '10 Bots' });
+    ).toEqual({ primary: '3 Termine', secondary: '10 Browser' });
   });
 
   it('uses the singular for one slot with one bot', () => {
@@ -108,7 +108,7 @@ describe('describeSchedule', () => {
         staggerSeconds: 5,
         timezone: 'Europe/Berlin',
       }),
-    ).toEqual({ primary: '1 Termin', secondary: '1 Bot' });
+    ).toEqual({ primary: '1 Termin', secondary: '1 Browser' });
   });
 });
 

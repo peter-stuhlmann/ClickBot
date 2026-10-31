@@ -29,7 +29,7 @@ export function RunFilters({ values, campaigns, results, periods, devices }: Run
         key={JSON.stringify(values)}
         method="get"
         action="/laeufe"
-        aria-label="Läufe filtern"
+        aria-label="Durchläufe filtern"
         // Two or four columns above the table; from xl one row with the buttons at the end.
         className="grid grid-cols-2 gap-3 sm:gap-4 md:grid-cols-4 xl:flex xl:items-end"
       >

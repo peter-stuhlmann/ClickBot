@@ -9,7 +9,7 @@ import type { RunListRowView } from '@/lib/views';
 // "Standort" from the design is left out until location profiles exist; the device sits below
 // the job, so the job column keeps its width next to the filters.
 const COLUMNS = [
-  { label: 'Job · Lauf', width: 'w-auto' },
+  { label: 'Test · Durchlauf', width: 'w-auto' },
   { label: 'Kampagne', width: 'w-32' },
   // Time and duration on one line; wide enough for "29.10. 21:11 · 14:59 min".
   { label: 'Zeitpunkt · Dauer', width: 'w-48' },
@@ -31,7 +31,7 @@ export type RunsTableProps = {
 export function RunsTable({ rows, summary, pager }: RunsTableProps) {
   return (
     <Card
-      title="Läufe"
+      title="Durchläufe"
       aside={<span className="shrink-0 text-meta text-text-muted">{summary}</span>}
     >
       <table
@@ -60,7 +60,7 @@ export function RunsTable({ rows, summary, pager }: RunsTableProps) {
                 colSpan={COLUMNS.length}
                 className="block py-10 text-center text-text-muted md:table-cell"
               >
-                Keine Läufe für diese Filter.
+                Keine Durchläufe für diese Filter.
               </td>
             </tr>
           )}
@@ -85,7 +85,7 @@ export function RunsTable({ rows, summary, pager }: RunsTableProps) {
                     </span>{' '}
                     {row.testRun && (
                       <span className="shrink-0 rounded-chip bg-primary-soft px-1.5 py-0.5 text-small text-primary">
-                        Testlauf
+                        Manuell
                       </span>
                     )}
                   </span>{' '}

@@ -29,12 +29,12 @@ const SWITCHES: { key: MarkingKey; label: string; description: string }[] = [
   {
     key: 'botFlag',
     label: 'Bot-Kennung',
-    description: 'Macht Bot-Ereignisse in GA4 und BigQuery herausfilterbar (click_bot=1).',
+    description: 'Macht Test-Ereignisse in GA4 und BigQuery herausfilterbar (click_bot=1).',
   },
   {
     key: 'runNumber',
     label: 'Laufnummer',
-    description: 'Zeigt, von welchem Lauf ein Ereignis stammt (click_bot_run).',
+    description: 'Zeigt, von welchem Durchlauf ein Ereignis stammt (click_bot_run).',
   },
 ];
 
@@ -54,10 +54,10 @@ export function AnalyticsMarkingForm({ marking, onChange }: AnalyticsMarkingForm
   return (
     <Card
       title="Markierung in GA4"
-      description="Bot-Läufe sollen keine Kennzahlen verfälschen. Click-Bot markiert deshalb jede GA4-Anfrage eines Laufs."
+      description="Testdurchläufe sollen keine Kennzahlen verfälschen. Click-Bot markiert deshalb jede GA4-Anfrage eines Durchlaufs."
     >
       <SwitchRow
-        label="Bot-Läufe in GA4 markieren"
+        label="Testdurchläufe in GA4 markieren"
         description="Schaltet alle vier Markierungen gemeinsam. Empfohlen: an."
         checked={state === 'on'}
         onToggle={() => onChange(state === 'on' ? ALL_OFF : ALL_MARKINGS_ON)}
@@ -74,10 +74,10 @@ export function AnalyticsMarkingForm({ marking, onChange }: AnalyticsMarkingForm
         ))}
       </div>
       {state === 'off' && (
-        <Notice tone="danger" title="Bot-Läufe zählen in GA4 wie echte Besuche">
-          Ohne Markierung sind die Läufe dieses Jobs nicht von echten Besuchern zu unterscheiden und
-          verändern die Kennzahlen. Nur für eigene Websites oder mit Zustimmung des Kunden. Jeder
-          Report vermerkt es.
+        <Notice tone="danger" title="Testdurchläufe zählen in GA4 wie echte Besuche">
+          Ohne Markierung sind die Durchläufe dieses Tests nicht von echten Besuchern zu
+          unterscheiden und verändern die Kennzahlen. Nur für eigene Websites oder mit Zustimmung
+          des Kunden. Jeder Report vermerkt es.
         </Notice>
       )}
       {state === 'partial' && (

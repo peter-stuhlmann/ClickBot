@@ -69,25 +69,27 @@ test.describe('Kalender', () => {
 
     const thursday = page.getByRole('region', { name: `Do ${label(THURSDAY)}` });
     await expect(
-      thursday.getByRole('link', { name: '13:38 Kalender A, 4 Läufe, Limit überschritten' }),
+      thursday.getByRole('link', { name: '13:38 Kalender A, 4 Durchläufe, Limit überschritten' }),
     ).toBeVisible();
     // Without a worker the limit comes from MAX_CONCURRENT_BROWSERS, 6 in .env.example.
     const load = page.getByRole('region', { name: `Auslastung Do, ${label(THURSDAY)}` });
-    await expect(load).toContainText('13:38 Uhr: 8 Läufe für 6 Browser');
-    await expect(load).toContainText('2 Läufe warten in der Warteschlange');
+    await expect(load).toContainText('13:38 Uhr: 8 Durchläufe für 6 Browser');
+    await expect(load).toContainText('2 Durchläufe warten in der Warteschlange');
 
     const suggestion = load.getByRole('form', {
       name: 'Vorschlag: „Kalender B“ auf 13:39 verschieben',
     });
     await suggestion.getByRole('button', { name: 'Übernehmen' }).click();
 
-    await expect(thursday.getByRole('link', { name: '13:39 Kalender B, 4 Läufe' })).toBeVisible();
+    await expect(
+      thursday.getByRole('link', { name: '13:39 Kalender B, 4 Durchläufe' }),
+    ).toBeVisible();
     await expect(load).toContainText(
       'Keine Engpässe: höchstens 4 von 6 Browsern gleichzeitig belegt.',
     );
 
     // The entry leads to the job, where the date has moved.
-    await thursday.getByRole('link', { name: '13:39 Kalender B, 4 Läufe' }).click();
+    await thursday.getByRole('link', { name: '13:39 Kalender B, 4 Durchläufe' }).click();
     await expect(page.getByRole('heading', { level: 1, name: 'Kalender B' })).toBeVisible();
   });
 

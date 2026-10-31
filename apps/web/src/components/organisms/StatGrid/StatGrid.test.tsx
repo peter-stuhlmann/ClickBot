@@ -7,14 +7,14 @@ describe('StatGrid', () => {
     render(
       <StatGrid
         cards={[
-          { label: 'Aktive Jobs', value: '3', hint: '1 Job beendet' },
-          { label: 'Läufe heute', value: '42', hint: '+8 gegenüber gestern' },
+          { label: 'Aktive Tests', value: '3', hint: '1 Test beendet' },
+          { label: 'Durchläufe heute', value: '42', hint: '+8 gegenüber gestern' },
         ]}
       />,
     );
     expect(screen.getAllByRole('region').map((card) => card.getAttribute('aria-label'))).toEqual([
-      'Aktive Jobs',
-      'Läufe heute',
+      'Aktive Tests',
+      'Durchläufe heute',
     ]);
   });
 });

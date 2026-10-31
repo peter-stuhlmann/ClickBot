@@ -114,6 +114,6 @@ function toLoadView(
         : load.peak === 0
           ? 'An diesem Tag läuft nichts.'
           : `Keine Engpässe: höchstens ${load.peak} von ${limit} Browsern gleichzeitig belegt.`,
-    note: `Der Worker hat ${limit} Browser, die sich alle Projekte teilen. Wie lange ein Lauf einen Browser belegt, schätzt der Kalender aus den Läufen der letzten 30 Tage; für Jobs ohne Läufe nimmt er eine Minute an.`,
+    note: `Das Testsystem hat ${limit} Browser, die sich alle Projekte teilen. Wie lange ein Durchlauf einen Browser belegt, schätzt der Kalender aus den Durchläufen der letzten 30 Tage; für Tests ohne Durchläufe nimmt er eine Minute an.`,
   };
 }

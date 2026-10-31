@@ -20,7 +20,7 @@ describe('toJobHeader', () => {
     expect(toJobHeader(job)).toEqual({
       title: 'Kontaktformular-Test',
       status: { tone: 'success', label: 'Aktiv' },
-      description: 'alle 15 Min. · max. 20 Läufe · Desktop (Chrome), iPhone 15 (Safari)',
+      description: 'alle 15 Min. · max. 20 Durchläufe · Desktop (Chrome), iPhone 15 (Safari)',
     });
   });
 

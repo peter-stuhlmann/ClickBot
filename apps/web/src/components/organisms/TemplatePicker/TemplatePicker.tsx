@@ -24,7 +24,7 @@ export function TemplatePicker({ templates, onApply }: TemplatePickerProps) {
       <Card title="Vorlage wählen">
         <p className="text-body text-text-muted">
           Es gibt noch keine Vorlagen. Lege sie unter „Vorlagen“ an oder speichere im Editor eines
-          Jobs seinen Ablauf als Vorlage.
+          Tests seinen Ablauf als Vorlage.
         </p>
         <div>
           <Button variant="secondary" href="/vorlagen">
@@ -38,7 +38,7 @@ export function TemplatePicker({ templates, onApply }: TemplatePickerProps) {
   return (
     <Card
       title="Vorlage wählen"
-      description="Die Schritte kommen in diesen Job; ändern kannst du sie danach hier. Die Vorlage selbst bleibt, wie sie ist."
+      description="Die Schritte kommen in diesen Test; ändern kannst du sie danach hier. Die Vorlage selbst bleibt, wie sie ist."
     >
       <ul aria-label="Vorlagen" className="flex flex-col gap-2">
         {templates.map((template) => {

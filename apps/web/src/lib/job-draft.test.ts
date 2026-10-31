@@ -317,7 +317,7 @@ describe('validateWizardStep', () => {
   it('needs the start address together with the flow', () => {
     expect(validateWizardStep(draft({ startUrl: 'ftp://x' }), 'test', now)).toContainEqual({
       path: 'startUrl',
-      message: 'Start-URL muss mit http:// oder https:// beginnen.',
+      message: 'Die Adresse muss mit http:// oder https:// beginnen.',
     });
   });
 
@@ -586,13 +586,13 @@ describe('scheduleErrors', () => {
       { path: 'schedule.startAt', message: 'B' },
       { path: 'schedule.slots', message: 'C' },
       { path: 'schedule.slots.1', message: 'Doppelt' },
-      { path: 'schedule.slots.2.bots', message: 'Bots' },
+      { path: 'schedule.slots.2.bots', message: 'Browser' },
       { path: 'schedule.slots.2.time', message: 'ignored, row has a message' },
       { path: 'flow.steps', message: 'not a schedule issue' },
     ]);
     expect(errors).toEqual({
       fields: { everyMinutes: 'A', startAt: 'B', slots: 'C' },
-      slots: { 1: 'Doppelt', 2: 'Bots' },
+      slots: { 1: 'Doppelt', 2: 'Browser' },
     });
   });
 });
@@ -604,7 +604,7 @@ describe('summarise', () => {
     expect(summarise(emptyDraft(now), campaigns, now)).toEqual([
       { label: 'Website', value: '–' },
       { label: 'Test', value: '–' },
-      { label: 'Zeitplan', value: 'alle 60 Min. · max. 24 Läufe' },
+      { label: 'Zeitplan', value: 'alle 60 Min. · max. 24 Durchläufe' },
       { label: 'Geräte', value: 'Desktop (Chrome)' },
       { label: 'Name', value: '–' },
     ]);
@@ -656,7 +656,7 @@ describe('summarise', () => {
     expect(rows).toEqual([
       { label: 'Website', value: 'beispiel.de/kontakt' },
       { label: 'Test', value: 'Fester Ablauf · 2 Schritte' },
-      { label: 'Zeitplan', value: '2 Termine · 10 Bots' },
+      { label: 'Zeitplan', value: '2 Termine · 10 Browser' },
       { label: 'Geräte', value: 'Desktop (Chrome), iPhone 15 (Safari)' },
       { label: 'Name', value: 'Kontaktformular-Test' },
     ]);
@@ -676,11 +676,11 @@ describe('summarise', () => {
 describe('describeRunTotal', () => {
   it('multiplies the starts of the schedule by the devices', () => {
     expect(describeRunTotal(draft({ devices: ['desktop', 'iphone'] }), now)).toBe(
-      '24 Starts × 2 Geräte = 48 Läufe',
+      '24 Starts × 2 Geräte = 48 Durchläufe',
     );
     const fresh = emptyDraft(now);
     const oneSlot = draft({ schedule: { ...fresh.schedule, type: 'times' } });
-    expect(describeRunTotal(oneSlot, now)).toBe('1 Start × 1 Gerät = 1 Lauf');
+    expect(describeRunTotal(oneSlot, now)).toBe('1 Start × 1 Gerät = 1 Durchlauf');
   });
 
   it('counts every device in each of its browsers, iPhone once in Safari', () => {
@@ -692,7 +692,7 @@ describe('describeRunTotal', () => {
         }),
         now,
       ),
-    ).toBe('24 Starts × 3 Kombinationen = 72 Läufe');
+    ).toBe('24 Starts × 3 Kombinationen = 72 Durchläufe');
   });
 
   it('says nothing while the schedule is invalid or no device is chosen', () => {
@@ -852,7 +852,7 @@ describe('random plans in the wizard', () => {
 
   it('counts the runs of a random plan for every device', () => {
     expect(describeRunTotal(random({ randomRuns: '30' }), now)).toBe(
-      '30 Starts × 1 Gerät = 30 Läufe',
+      '30 Starts × 1 Gerät = 30 Durchläufe',
     );
   });
 });

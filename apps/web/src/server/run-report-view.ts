@@ -74,8 +74,8 @@ function startHint(scheduledAt: Date, startedAt: Date | null): string {
 
 /** "Lauf #7 von 20"; a test run is no part of the schedule and says so instead. */
 function runTitle(runNr: number, slotIndex: number | null, planned: number): string {
-  if (slotIndex === null) return `Lauf #${runNr} · Testlauf`;
-  return runNr <= planned ? `Lauf #${runNr} von ${planned}` : `Lauf #${runNr}`;
+  if (slotIndex === null) return `Durchlauf ${runNr} · manuell gestartet`;
+  return runNr <= planned ? `Durchlauf ${runNr} von ${planned}` : `Durchlauf ${runNr}`;
 }
 
 /** Report note when the run did not mark its GA4 requests completely (product rule). */
@@ -87,12 +87,12 @@ function markingNote(marking: AnalyticsMarking | null): RunReportView['marking']
     return {
       title: 'Ohne GA4-Markierung',
       message:
-        'Dieser Lauf war in GA4 nicht als Bot erkennbar. Seine Ereignisse zählen dort wie echte Besuche.',
+        'Dieser Durchlauf war in GA4 nicht als Browser erkennbar. Seine Ereignisse zählen dort wie echte Besuche.',
     };
   }
   const reports = marking.debugMode
-    ? 'Die GA4-Ereignisse dieses Laufs sind nur zum Teil gekennzeichnet.'
-    : 'Die GA4-Ereignisse dieses Laufs können in den normalen Berichten erscheinen.';
+    ? 'Die GA4-Ereignisse dieses Durchlaufs sind nur zum Teil gekennzeichnet.'
+    : 'Die GA4-Ereignisse dieses Durchlaufs können in den normalen Berichten erscheinen.';
   return {
     title: 'GA4-Markierung eingeschränkt',
     message: `${describeMarking(marking)}. ${reports}`,
@@ -105,7 +105,7 @@ function adsNote(adsBlocked: boolean | null): RunReportView['ads'] {
   return {
     title: 'Werbung nicht blockiert',
     message:
-      'Dieser Lauf hat Anzeigen geladen wie ein echter Besucher. Sie zählen beim Werbenetzwerk als Impressionen.',
+      'Dieser Durchlauf hat Anzeigen geladen wie ein echter Besucher. Sie zählen beim Werbenetzwerk als Impressionen.',
   };
 }
 
@@ -119,8 +119,8 @@ function liveHint(status: RunReport['run']['status'], workerOnline: boolean): st
   if (status === 'running') return 'Läuft gerade. Der Report aktualisiert sich selbst.';
   if (status !== 'queued') return null;
   return workerOnline
-    ? 'Wartet auf den Worker. Der Report aktualisiert sich selbst.'
-    : 'Der Worker ist offline. Der Lauf startet, sobald er wieder läuft.';
+    ? 'Wartet auf das Testsystem. Der Report aktualisiert sich selbst.'
+    : 'Das Testsystem ist nicht verbunden. Der Durchlauf startet, sobald er wieder läuft.';
 }
 
 /** Screen 03: one run with its steps, timing and, if it failed, where and why. */
@@ -148,7 +148,7 @@ export function toRunReportView(
       hint:
         report.averageDurationMs === null
           ? 'noch kein Vergleich'
-          : `Ø ${formatDuration(report.averageDurationMs)} bei diesem Job`,
+          : `Ø ${formatDuration(report.averageDurationMs)} bei diesem Test`,
     },
     {
       label: 'Start',
@@ -158,14 +158,14 @@ export function toRunReportView(
     {
       label: 'Gerät',
       value: deviceLabel(run.device),
-      hint: `Bot #${run.botNr} · ${browserLabel(run.browser)}`,
+      hint: `Browser ${run.botNr} · ${browserLabel(run.browser)}`,
     },
   ];
 
   return {
     jobName: job.name,
     jobHref: `/jobs/${job.id}`,
-    runLabel: `Lauf #${run.runNr}`,
+    runLabel: `Durchlauf ${run.runNr}`,
     title: runTitle(run.runNr, run.slotIndex, job.runsPlanned),
     status: RUN_BADGE[run.status],
     meta: [
@@ -186,7 +186,7 @@ export function toRunReportView(
         ? {
             title: failed
               ? `Schritt ${failed.stepIndex + 1} fehlgeschlagen`
-              : 'Lauf fehlgeschlagen',
+              : 'Durchlauf fehlgeschlagen',
             message: run.error,
           }
         : null,

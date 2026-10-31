@@ -35,8 +35,8 @@ describe('toCampaignRow', () => {
       id: 'k1',
       name: 'Black Friday',
       detail: '20.11.–30.11.2026 · beispiel.de · 2 Websites',
-      jobs: { primary: '4 Jobs', secondary: '3 aktiv · 1 beendet' },
-      runs: { label: '312 Läufe · 96,2 % ok', value: 300 / 312 },
+      jobs: { primary: '4 Tests', secondary: '3 aktiv · 1 beendet' },
+      runs: { label: '312 Durchläufe · 96,2 % ok', value: 300 / 312 },
       lastRun: {
         tone: 'success',
         label: 'Erfolgreich',
@@ -62,8 +62,8 @@ describe('toCampaignRow', () => {
       ),
     ).toMatchObject({
       detail: 'noch keine Website',
-      jobs: { primary: '0 Jobs', secondary: 'noch keine Jobs' },
-      runs: { label: 'keine Läufe', value: 0 },
+      jobs: { primary: '0 Tests', secondary: 'noch keine Tests' },
+      runs: { label: 'keine Durchläufe', value: 0 },
       lastRun: null,
       successRate: null,
     });
@@ -81,9 +81,9 @@ describe('toCampaignStatCards', () => {
     };
     expect(toCampaignStatCards(stats)).toEqual([
       { label: 'Kampagnen', value: '3', hint: 'in diesem Projekt' },
-      { label: 'Jobs gesamt', value: '5', hint: '4 aktiv · 1 beendet' },
-      { label: 'Läufe (30 Tage)', value: '120', hint: '+20 % zu den 30 Tagen davor' },
-      { label: 'Erfolgsquote (30 Tage)', value: '95 %', hint: '114 von 120 Läufen' },
+      { label: 'Tests gesamt', value: '5', hint: '4 aktiv · 1 beendet' },
+      { label: 'Durchläufe (30 Tage)', value: '120', hint: '+20 % zu den 30 Tagen davor' },
+      { label: 'Erfolgsquote (30 Tage)', value: '95 %', hint: '114 von 120 Durchläufen' },
     ]);
   });
 
@@ -99,7 +99,7 @@ describe('toCampaignStatCards', () => {
       'noch keine Kampagnen',
       '0 aktiv · 0 beendet',
       'kein Vergleich',
-      'noch keine Läufe',
+      'noch keine Durchläufe',
     ]);
   });
 });

@@ -18,7 +18,7 @@ test.describe('Projekte und Kampagnen', () => {
     await expect(switcher(page)).toHaveAccessibleName('Projekt: Beispiel GmbH');
     const row = page.getByRole('row', { name: /Allgemein/ });
     await expect(row).toContainText('127.0.0.1:4100 · 1 Website');
-    await expect(row).toContainText(/\d+ Jobs/);
+    await expect(row).toContainText(/\d+ Tests/);
   });
 
   test('sends old links to the project list on to the campaigns', async ({ page }) => {
@@ -56,7 +56,7 @@ test.describe('Projekte und Kampagnen', () => {
 
     // The wizard offers the campaigns of this project only, in its last step.
     await page.goto('/jobs/neu');
-    await page.getByRole('textbox', { name: 'Website (Start-URL)' }).fill('beispiel.de');
+    await page.getByRole('textbox', { name: 'Adresse der Website' }).fill('beispiel.de');
     await page.getByRole('button', { name: /Frei mit KI/ }).click();
     await page.getByRole('textbox', { name: 'Was soll auf der Website gelten?' }).fill('Lädt.');
     await page.getByRole('button', { name: 'Weiter' }).click();
@@ -120,7 +120,7 @@ test.describe('Projekte und Kampagnen', () => {
     await expect(switcher(page)).toHaveAccessibleName('Projekt: Beispiel GmbH');
     await page.getByRole('link', { name: 'Projekt bearbeiten' }).click();
     await expect(page.getByRole('button', { name: 'Projekt löschen' })).toBeDisabled();
-    await expect(page.getByText(/Das Projekt hat noch \d+ Jobs/)).toBeVisible();
+    await expect(page.getByText(/Das Projekt hat noch \d+ Tests/)).toBeVisible();
   });
 
   test('changes a campaign and deletes an empty one, one with jobs only after typing', async ({
@@ -188,7 +188,7 @@ test.describe('Projekte und Kampagnen', () => {
       if (!campaign) throw new Error('Die Kampagne fehlt.');
       await createJob(connection.db, {
         campaignId: campaign.id,
-        name: 'E2E Ausverkauf-Job',
+        name: 'E2E Ausverkauf-Test',
         startUrl: 'http://127.0.0.1:4100',
         flow: { version: 1, steps: [{ id: 'open', type: 'open', url: 'http://127.0.0.1:4100' }] },
         schedule: {
@@ -204,7 +204,7 @@ test.describe('Projekte und Kampagnen', () => {
 
     await page.getByRole('link', { name: 'E2E Ausverkauf' }).click();
     await page.getByRole('button', { name: 'Kampagne bearbeiten' }).click();
-    await expect(page.getByRole('dialog')).toContainText('mit ihrem Job und allen Läufen');
+    await expect(page.getByRole('dialog')).toContainText('mit ihrem Test und allen Durchläufen');
     await page.getByRole('button', { name: 'Kampagne löschen' }).click();
     await page
       .getByRole('textbox', { name: 'Zum Bestätigen „E2E Ausverkauf löschen“ eintippen' })
@@ -213,7 +213,7 @@ test.describe('Projekte und Kampagnen', () => {
     await expect(page).toHaveURL('/kampagnen');
     await expect(page.getByRole('row', { name: /E2E Ausverkauf/ })).toHaveCount(0);
     await page.goto('/');
-    await expect(page.getByText('E2E Ausverkauf-Job')).toHaveCount(0);
+    await expect(page.getByText('E2E Ausverkauf-Test')).toHaveCount(0);
   });
 
   test('opens the settings of a campaign as a dialog that fits a phone', async ({ page }) => {

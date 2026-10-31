@@ -13,10 +13,10 @@ describe('AppShell', () => {
         project={null}
         selectProject={() => {}}
       >
-        <h1>Jobs</h1>
+        <h1>Tests</h1>
       </AppShell>,
     );
     expect(screen.getByRole('navigation', { name: 'Hauptnavigation' })).toBeInTheDocument();
-    expect(screen.getByRole('main')).toHaveTextContent('Jobs');
+    expect(screen.getByRole('main')).toHaveTextContent('Tests');
   });
 });

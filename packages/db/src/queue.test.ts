@@ -384,7 +384,9 @@ describe('recoverStaleRuns', () => {
       [2, 'running'],
     ]);
     const [failed] = await allRuns();
-    expect(failed?.error).toBe('Lauf abgebrochen: Der Worker wurde während des Laufs beendet.');
+    expect(failed?.error).toBe(
+      'Durchlauf abgebrochen: Das Testsystem wurde während des Durchlaufs beendet.',
+    );
   });
 });
 

@@ -7,12 +7,12 @@ import { LoadPanel } from './LoadPanel';
 const busy: LoadView = {
   title: 'Auslastung Do, 05.11.',
   summary: null,
-  note: 'Der Worker hat 6 Browser.',
+  note: 'Das Testsystem hat 6 Browser.',
   overloads: [
     {
       key: 'a',
-      title: '13:38 Uhr: 12 Läufe für 6 Browser',
-      text: '6 Läufe warten in der Warteschlange.',
+      title: '13:38 Uhr: 12 Durchläufe für 6 Browser',
+      text: '6 Durchläufe warten in der Warteschlange.',
       suggestion: {
         title: 'Vorschlag: „Newsletter“ auf 13:39 verschieben',
         text: 'Dann laufen höchstens 6 von 6 Browsern gleichzeitig.',
@@ -29,9 +29,9 @@ describe('LoadPanel', () => {
     render(<LoadPanel {...busy} moveAction={moveAction} />);
 
     expect(screen.getByRole('region', { name: 'Auslastung Do, 05.11.' })).toHaveTextContent(
-      '13:38 Uhr: 12 Läufe für 6 Browser',
+      '13:38 Uhr: 12 Durchläufe für 6 Browser',
     );
-    expect(screen.getByText('Der Worker hat 6 Browser.')).toBeInTheDocument();
+    expect(screen.getByText('Das Testsystem hat 6 Browser.')).toBeInTheDocument();
     const form = screen.getByRole('form', {
       name: 'Vorschlag: „Newsletter“ auf 13:39 verschieben',
     });
