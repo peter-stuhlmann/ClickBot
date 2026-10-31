@@ -147,7 +147,8 @@ describe('startLiveSession', () => {
 
     await expect.poll(() => steps().length).toBe(4);
     expect(steps().slice(1)).toEqual([
-      { type: 'scroll', to: { kind: 'position', y: expect.any(Number) } },
+      // The page is wider than the window, so it keeps where it stands sideways as well.
+      { type: 'scroll', to: { kind: 'position', y: expect.any(Number), x: 0 } },
       { type: 'screenshot' },
       { type: 'press', key: 'Escape' },
     ]);

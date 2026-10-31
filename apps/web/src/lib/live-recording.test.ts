@@ -140,6 +140,13 @@ describe('addRecordedStep', () => {
     expect(steps.map((step) => [step.id, step.scrollY])).toEqual([['aufnahme-1', '1800']]);
   });
 
+  it('keeps where a wide page stands sideways', () => {
+    const steps = addRecordedStep([], { type: 'scroll', to: { kind: 'position', y: 0, x: 400 } });
+    expect(steps.map((step) => [step.scrollKind, step.scrollY, step.scrollX])).toEqual([
+      ['position', '0', '400'],
+    ]);
+  });
+
   it('ignores a step it cannot show', () => {
     expect(addRecordedStep([], { type: 'open', url: 'ftp://beispiel.de' })).toEqual([]);
   });

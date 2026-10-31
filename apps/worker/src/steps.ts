@@ -229,21 +229,48 @@ export async function executeStep(
         await onTarget(current, to.target, timeout, async (l, left) => {
           await l.waitFor({ state: 'visible', timeout: left });
           // Like scrollIntoViewIfNeeded: only if it is not in view yet, then to the middle.
+          // Sideways it is enough to see a part, as of a block wider than the window.
           await l.evaluate((element) => {
             const box = element.getBoundingClientRect();
-            if (box.top >= 0 && box.bottom <= window.innerHeight) return;
-            element.scrollIntoView({ block: 'center', behavior: 'instant' });
+            const vertical = box.top >= 0 && box.bottom <= window.innerHeight;
+            const horizontal = box.right > 0 && box.left < window.innerWidth;
+            if (vertical && horizontal) return;
+            element.scrollIntoView({
+              block: vertical ? 'nearest' : 'center',
+              inline: horizontal ? 'nearest' : 'center',
+              behavior: 'instant',
+            });
           });
         });
         return {};
       }
-      await page.evaluate(
-        (y) => {
-          const top = y ?? (document.scrollingElement ?? document.documentElement).scrollHeight;
-          window.scrollTo({ top, behavior: 'instant' });
-        },
-        to.kind === 'position' ? to.y : null,
-      );
+      await page.evaluate((to) => {
+        const root = document.scrollingElement ?? document.documentElement;
+        const by = { down: [0, 1], up: [0, -1], right: [1, 0], left: [-1, 0] } as const;
+        switch (to.kind) {
+          case 'by': {
+            const [x, y] = by[to.direction];
+            window.scrollBy({ left: x * to.distance, top: y * to.distance, behavior: 'instant' });
+            return;
+          }
+          case 'position':
+            // Without x the page keeps its horizontal position.
+            window.scrollTo({ top: to.y, left: to.x, behavior: 'instant' });
+            return;
+          case 'top':
+            window.scrollTo({ top: 0, behavior: 'instant' });
+            return;
+          case 'bottom':
+            window.scrollTo({ top: root.scrollHeight, behavior: 'instant' });
+            return;
+          case 'left':
+            window.scrollTo({ left: 0, behavior: 'instant' });
+            return;
+          case 'right':
+            window.scrollTo({ left: root.scrollWidth, behavior: 'instant' });
+            return;
+        }
+      }, to);
       return {};
     }
 

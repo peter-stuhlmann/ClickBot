@@ -255,7 +255,9 @@ Hochziehen erst, wenn beide Pakete die neue Version offiziell unterstützen.
 - **Ablauf:** wird als JSON-Schrittliste gespeichert, validiert mit Zod aus `packages/shared`.
   - Schritt-Typen: öffnen, klicken, ausfüllen, auswählen, Taste drücken (`press`, Taste oder
     Kombination wie `Control+a`, optional auf einem Element, keine F-Tasten: `KEY_PATTERN`),
-    scrollen (`scroll`: zu einer Position, bis ein Element zu sehen ist, ans Seitenende), prüfen,
+    scrollen (`scroll`: von der aktuellen Position aus um eine Strecke nach unten, oben, rechts
+    oder links; zu einer Position von oben und optional von links; bis ein Element zu sehen ist,
+    auch seitlich; bis zum Rand der Seite in jeder Richtung), prüfen,
     auslesen, warten, screenshot, analytics, Passwortschutz (.htaccess, `basicAuth`), KI-Schritt.
   - Variablen: `{{faker.*}}`, `{{run_nr}}`, `{{bot_nr}}`, `{{secret.name}}`.
 - **Vier Wege zum Ablauf:**
@@ -419,7 +421,8 @@ time, bots }]`, `stagger`) bilden die Bots eines Termins eine Welle.
     Enter im Formular und Enter/Leertaste auf Button oder Link (Klick), Tasten, die nur die Seite
     scrollen. Kopieren und Einfügen bleiben im eigenen Browser.
   - Scrollen: Scrollt der Nutzer selbst (Mausrad, Scroll-Tasten), wird die Position, an der die
-    Seite zur Ruhe kommt, ein Schritt „Scrollen“; weiteres Scrollen ändert diesen Schritt. Scrollt
+    Seite zur Ruhe kommt, ein Schritt „Scrollen“; weiteres Scrollen ändert diesen Schritt. Die
+    Position von links kommt nur dazu, wenn die Seite breiter als das Fenster ist. Scrollt
     die Seite von selbst (Anker nach einem Klick), entsteht kein Schritt.
   - Neue Tabs öffnen sich im selben Tab, PDFs mit dem Viewer von Chromium. Der aufgenommene
     Klick öffnet im Lauf den neuen Tab, in dem der Bot weitermacht.

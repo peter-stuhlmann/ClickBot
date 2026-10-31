@@ -14,6 +14,7 @@ import {
   type DeviceBrowsers,
   type Flow,
   type Schedule,
+  type ScrollDirection,
   type Step,
   type Target,
   type Weekday,
@@ -54,7 +55,8 @@ export type EditableStepType =
   | 'screenshot'
   | 'analytics'
   | 'basicAuth';
-export type ScrollKind = 'position' | 'element' | 'bottom';
+/** Edge: to the edge of the page in `scrollDirection`, stored as top, bottom, left or right. */
+export type ScrollKind = 'by' | 'position' | 'element' | 'edge';
 export type TargetBy = 'role' | 'label' | 'text' | 'css' | 'testId';
 export type AssertKind = 'textVisible' | 'urlContains' | 'titleContains' | 'elementVisible';
 export type WaitKind = 'duration' | 'element' | 'networkIdle';
@@ -74,9 +76,17 @@ export type StepDraft = {
   assertKind: AssertKind;
   waitKind: WaitKind;
   waitSeconds: string;
-  /** scroll: to a position (pixels from the top), until an element is in view, or to the end. */
+  /**
+   * scroll: from where the page stands, to a position (pixels from the top and the left), until
+   * an element is in view, or to an edge.
+   */
   scrollKind: ScrollKind;
   scrollY: string;
+  /** Empty: the page keeps its horizontal position. */
+  scrollX: string;
+  /** scroll "by" and "edge" */
+  scrollDirection: ScrollDirection;
+  scrollDistance: string;
   /** press: a key or combination, e.g. „Escape“ or „Control+a“. */
   key: string;
   /** press: on the element of the target fields, which gets the focus first. */
@@ -273,8 +283,11 @@ export function newStep(
     assertKind: 'textVisible',
     waitKind: 'duration',
     waitSeconds: '1',
-    scrollKind: 'position',
+    scrollKind: 'by',
     scrollY: '0',
+    scrollX: '',
+    scrollDirection: 'down',
+    scrollDistance: '500',
     key: '',
     pressOnElement: false,
     fullPage: false,
@@ -336,14 +349,36 @@ function toWait(step: StepDraft): Record<string, unknown> {
   }
 }
 
+const EDGES: Record<ScrollDirection, 'bottom' | 'top' | 'right' | 'left'> = {
+  down: 'bottom',
+  up: 'top',
+  right: 'right',
+  left: 'left',
+};
+
+const EDGE_DIRECTIONS = {
+  bottom: 'down',
+  top: 'up',
+  right: 'right',
+  left: 'left',
+} as const satisfies Record<(typeof EDGES)[ScrollDirection], ScrollDirection>;
+
 function toScroll(step: StepDraft): Record<string, unknown> {
   switch (step.scrollKind) {
-    case 'position':
-      return { kind: 'position', y: toNumber(step.scrollY) };
+    case 'by':
+      return {
+        kind: 'by',
+        direction: step.scrollDirection,
+        distance: toNumber(step.scrollDistance),
+      };
+    case 'position': {
+      const x = step.scrollX.trim();
+      return { kind: 'position', y: toNumber(step.scrollY), ...(x ? { x: toNumber(x) } : {}) };
+    }
     case 'element':
       return { kind: 'element', target: toTarget(step) };
-    case 'bottom':
-      return { kind: 'bottom' };
+    case 'edge':
+      return { kind: EDGES[step.scrollDirection] };
   }
 }
 
@@ -433,12 +468,26 @@ export function toStepDraft(step: Step): StepDraft | null {
         : { ...draft, key: step.key };
     case 'scroll': {
       const { to } = step;
-      if (to.kind === 'position')
-        return { ...draft, scrollKind: 'position', scrollY: String(to.y) };
-      if (to.kind === 'element') {
-        return { ...draft, scrollKind: 'element', ...targetFields(to.target) };
+      switch (to.kind) {
+        case 'by':
+          return {
+            ...draft,
+            scrollKind: 'by',
+            scrollDirection: to.direction,
+            scrollDistance: String(to.distance),
+          };
+        case 'position':
+          return {
+            ...draft,
+            scrollKind: 'position',
+            scrollY: String(to.y),
+            scrollX: to.x === undefined ? '' : String(to.x),
+          };
+        case 'element':
+          return { ...draft, scrollKind: 'element', ...targetFields(to.target) };
+        default:
+          return { ...draft, scrollKind: 'edge', scrollDirection: EDGE_DIRECTIONS[to.kind] };
       }
-      return { ...draft, scrollKind: 'bottom' };
     }
     case 'assert': {
       const { assertion } = step;
@@ -801,6 +850,8 @@ export type StepField =
   | 'value'
   | 'waitSeconds'
   | 'scrollY'
+  | 'scrollX'
+  | 'scrollDistance'
   | 'key'
   | 'timeoutSeconds'
   | 'username'
@@ -821,6 +872,8 @@ function stepField(rest: string): StepField {
   if (rest === 'timeoutMs') return 'timeoutSeconds';
   if (rest === 'until.ms') return 'waitSeconds';
   if (rest === 'to.y') return 'scrollY';
+  if (rest === 'to.x') return 'scrollX';
+  if (rest === 'to.distance') return 'scrollDistance';
   if (rest === 'key') return 'key';
   if (/(^|\.)target\.role$/.test(rest)) return 'targetRole';
   if (/(^|\.)target(\.|$)/.test(rest)) return 'targetValue';

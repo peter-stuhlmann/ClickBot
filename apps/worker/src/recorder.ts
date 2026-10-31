@@ -10,7 +10,7 @@ export type RecordedStep =
   | { type: 'select'; target: Target; option: string }
   | { type: 'assert'; assertion: { kind: 'elementVisible'; target: Target } }
   | { type: 'press'; key: string; target?: Target }
-  | { type: 'scroll'; to: { kind: 'position'; y: number } }
+  | { type: 'scroll'; to: { kind: 'position'; y: number; x?: number } }
   | { type: 'screenshot' };
 
 /** Everything is recorded from start to end; assert: the next click becomes a check instead. */
@@ -23,7 +23,8 @@ type Action =
   | { kind: 'select'; candidates: Target[]; option: string }
   // Without candidates the key goes to the page, not to an element.
   | { kind: 'press'; candidates: Target[]; key: string }
-  | { kind: 'scroll'; y: number };
+  // x only on a page wider than the window.
+  | { kind: 'scroll'; y: number; x?: number };
 
 export type Recorder = {
   setMode(mode: RecorderMode): Promise<void>;
@@ -265,7 +266,11 @@ const PAGE_SCRIPT = `(() => {
     addEventListener('scroll', () => {
       if (window.__clickbotMode !== 'record' || Date.now() - userScroll > 1500) return;
       clearTimeout(scrollTimer);
-      scrollTimer = setTimeout(() => send({ kind: 'scroll', y: Math.round(window.scrollY) }), 400);
+      scrollTimer = setTimeout(() => {
+        const root = document.scrollingElement || document.documentElement;
+        const sideways = root.scrollWidth > root.clientWidth ? { x: Math.round(window.scrollX) } : {};
+        send({ kind: 'scroll', y: Math.round(window.scrollY), ...sideways });
+      }, 400);
     }, { passive: true });
   }
 })();`;
@@ -313,8 +318,13 @@ export async function startRecorder(
   await context.exposeBinding(BINDING, ({ frame }, action: Action) => {
     queue = queue.then(async () => {
       if (action.kind === 'assert') mode = 'record';
-      if (action.kind === 'scroll')
-        return onStep({ type: 'scroll', to: { kind: 'position', y: action.y } });
+      if (action.kind === 'scroll') {
+        const { y, x } = action;
+        return onStep({
+          type: 'scroll',
+          to: { kind: 'position', y, ...(x === undefined ? {} : { x }) },
+        });
+      }
       if (action.kind === 'press' && action.candidates.length === 0) {
         return onStep({ type: 'press', key: action.key });
       }

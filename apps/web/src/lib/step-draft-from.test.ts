@@ -58,6 +58,11 @@ const STORED: Step[] = [
     to: { kind: 'element', target: { by: 'role', role: 'heading', name: 'Kontakt' } },
   },
   { ...base, id: 'sc3', type: 'scroll', to: { kind: 'bottom' } },
+  { ...base, id: 'sc4', type: 'scroll', to: { kind: 'top' } },
+  { ...base, id: 'sc5', type: 'scroll', to: { kind: 'left' } },
+  { ...base, id: 'sc6', type: 'scroll', to: { kind: 'right' } },
+  { ...base, id: 'sc7', type: 'scroll', to: { kind: 'position', y: 0, x: 300 } },
+  { ...base, id: 'sc8', type: 'scroll', to: { kind: 'by', direction: 'up', distance: 250 } },
   { ...base, id: 'k', type: 'press', key: 'Escape' },
   {
     ...base,

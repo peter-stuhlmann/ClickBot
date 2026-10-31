@@ -25,17 +25,26 @@ export const KEY_PATTERN =
   /^(?:(?:Control|Alt|Shift|Meta)\+)*(?:Enter|Tab|Backspace|Delete|Escape|Space|Home|End|PageUp|PageDown|Arrow(?:Up|Down|Left|Right)|\S)$/u;
 const KEY_MESSAGE = 'Eine Taste wie „Escape“ oder eine Kombination wie „Control+a“.';
 
+const pixels = (min: 0 | 1) => {
+  const message = `Ganze Pixel ab ${min}.`;
+  return z.number({ error: message }).int(message).min(min, message);
+};
+
+export const SCROLL_DIRECTIONS = ['down', 'up', 'right', 'left'] as const;
+export type ScrollDirection = (typeof SCROLL_DIRECTIONS)[number];
+
 const scrollTargetSchema = z.discriminatedUnion('kind', [
-  // Where the page stands, from the top, as the live recording measures it.
-  z.object({
-    kind: z.literal('position'),
-    y: z
-      .number({ error: 'Ganze Pixel ab 0.' })
-      .int('Ganze Pixel ab 0.')
-      .min(0, 'Ganze Pixel ab 0.'),
-  }),
+  // Where the page stands, from the top, as the live recording measures it. Without `x` the
+  // page keeps its horizontal position.
+  z.object({ kind: z.literal('position'), y: pixels(0), x: pixels(0).optional() }),
+  // From where the page stands.
+  z.object({ kind: z.literal('by'), direction: z.enum(SCROLL_DIRECTIONS), distance: pixels(1) }),
   z.object({ kind: z.literal('element'), target: targetSchema }),
+  // To an edge of the page.
   z.object({ kind: z.literal('bottom') }),
+  z.object({ kind: z.literal('top') }),
+  z.object({ kind: z.literal('left') }),
+  z.object({ kind: z.literal('right') }),
 ]);
 
 // Absolute http(s) URL, a path relative to the job's start URL, or a URL built from a variable.

@@ -320,18 +320,77 @@ describe('StepForm – keys and scrolling', () => {
     );
   });
 
+  it('scrolls from where the page stands by default, a distance in a direction', async () => {
+    const user = userEvent.setup();
+    const onChange = vi.fn();
+    render(<Harness initial={step('scroll')} onChange={onChange} />);
+    expect(labels()).toEqual([
+      'Aktion',
+      'Scrollen',
+      'Richtung',
+      'Strecke (Pixel)',
+      'Timeout (Sekunden)',
+    ]);
+    expect(screen.getByRole('combobox', { name: 'Scrollen' })).toHaveTextContent(
+      'Von der aktuellen Position aus',
+    );
+    await chooseOption(user, screen.getByRole('combobox', { name: 'Richtung' }), 'Nach links');
+    expect(onChange).toHaveBeenLastCalledWith(expect.objectContaining({ scrollDirection: 'left' }));
+    const distance = screen.getByRole('textbox', { name: 'Strecke (Pixel)' });
+    await user.clear(distance);
+    await user.type(distance, '120');
+    expect(onChange).toHaveBeenLastCalledWith(expect.objectContaining({ scrollDistance: '120' }));
+  });
+
   it.each([
-    ['Zu einer Position', ['Aktion', 'Scrollen', 'Pixel von oben', 'Timeout (Sekunden)']],
+    [
+      'Zu einer Position',
+      ['Aktion', 'Scrollen', 'Pixel von oben', 'Pixel von links (optional)', 'Timeout (Sekunden)'],
+    ],
     [
       'Bis ein Element zu sehen ist',
       ['Aktion', 'Scrollen', 'Element finden über', 'Rolle', 'Name', 'Timeout (Sekunden)'],
     ],
-    ['Ans Seitenende', ['Aktion', 'Scrollen', 'Timeout (Sekunden)']],
+    ['Bis zum Rand der Seite', ['Aktion', 'Scrollen', 'Richtung', 'Timeout (Sekunden)']],
   ])('scrolls "%s" with the matching fields', async (kind, expected) => {
     const user = userEvent.setup();
-    render(<Harness initial={step('scroll')} errors={{ scrollY: 'Ganze Pixel ab 0.' }} />);
+    render(<Harness initial={step('scroll')} />);
     await chooseOption(user, screen.getByRole('combobox', { name: 'Scrollen' }), kind);
     expect(labels()).toEqual(expected);
+  });
+
+  it('offers all four directions', async () => {
+    const user = userEvent.setup();
+    render(<Harness initial={step('scroll')} />);
+    await user.click(screen.getByRole('combobox', { name: 'Richtung' }));
+    expect(screen.getAllByRole('option').map((option) => option.textContent)).toEqual([
+      'Nach unten',
+      'Nach oben',
+      'Nach rechts',
+      'Nach links',
+    ]);
+  });
+
+  it('shows what is wrong with the pixels at their fields', () => {
+    const errors = {
+      scrollY: 'Ganze Pixel ab 0.',
+      scrollX: 'Links: ganze Pixel ab 0.',
+      scrollDistance: 'Ganze Pixel ab 1.',
+    };
+    const { unmount } = render(
+      <Harness initial={step('scroll', { scrollKind: 'position' })} errors={errors} />,
+    );
+    expect(screen.getByRole('textbox', { name: 'Pixel von oben' })).toHaveAccessibleDescription(
+      /Ganze Pixel ab 0/,
+    );
+    expect(
+      screen.getByRole('textbox', { name: 'Pixel von links (optional)' }),
+    ).toHaveAccessibleDescription(/Links: ganze Pixel ab 0/);
+    unmount();
+    render(<Harness initial={step('scroll')} errors={errors} />);
+    expect(screen.getByRole('textbox', { name: 'Strecke (Pixel)' })).toHaveAccessibleDescription(
+      /Ganze Pixel ab 1/,
+    );
   });
 
   it('offers only the given actions, e.g. no password protection in templates', async () => {

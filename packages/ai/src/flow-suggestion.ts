@@ -55,8 +55,10 @@ Step types (one JSON object per step, without "id"):
 - select: {"type":"select","target":TARGET,"option":"visible option text"}
 - press: {"type":"press","key":"Escape"} – a key or combination like "Tab", "Shift+Tab",
   "Control+a"; with "target":TARGET it goes to that element.
-- scroll: {"type":"scroll","to":{"kind":"element","target":TARGET}} or {"kind":"bottom"} or
-  {"kind":"position","y":1200}
+- scroll: {"type":"scroll","to":{"kind":"element","target":TARGET}} or
+  {"kind":"by","direction":"down","distance":600} (from where the page stands; direction down,
+  up, right or left) or {"kind":"position","y":1200} (optionally "x" from the left) or an edge
+  of the page: {"kind":"bottom"}, {"kind":"top"}, {"kind":"left"} or {"kind":"right"}
 - assert: {"type":"assert","assertion":{"kind":"textVisible","text":"..."}} or
   {"kind":"elementVisible","target":TARGET} or {"kind":"urlContains","value":"..."} or
   {"kind":"titleContains","value":"..."}

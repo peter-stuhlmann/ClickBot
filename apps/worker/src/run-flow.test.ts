@@ -408,6 +408,66 @@ describe('runFlow – scrolling and keys', () => {
     expect(Number(result.extracted.y)).toBeGreaterThan(maxScroll - 900);
   });
 
+  /** Waits until the page stands exactly there; it fails the run after 2 s. */
+  const standsAt = (selector: string) =>
+    step(`at-${selector}`, {
+      type: 'wait',
+      until: { kind: 'element', target: { by: 'css', selector: `body${selector}` } },
+      timeoutMs: 2_000,
+    });
+  const scroll = (id: string, to: Record<string, unknown>) => step(id, { type: 'scroll', to });
+
+  it('scrolls from where the page stands, in every direction', async () => {
+    const result = await run([
+      start,
+      scroll('to', { kind: 'position', y: 1200, x: 600 }),
+      scroll('down', { kind: 'by', direction: 'down', distance: 300 }),
+      scroll('up', { kind: 'by', direction: 'up', distance: 500 }),
+      scroll('right', { kind: 'by', direction: 'right', distance: 200 }),
+      scroll('left', { kind: 'by', direction: 'left', distance: 300 }),
+      standsAt('[data-x="500"][data-y="1000"]'),
+    ]);
+    expect(result.status).toBe('passed');
+  });
+
+  it('keeps the horizontal position when a position has none', async () => {
+    const result = await run([
+      start,
+      scroll('right', { kind: 'position', y: 0, x: 600 }),
+      scroll('down', { kind: 'position', y: 1200 }),
+      standsAt('[data-x="600"][data-y="1200"]'),
+    ]);
+    expect(result.status).toBe('passed');
+  });
+
+  it('scrolls to every edge of the page', async () => {
+    const result = await run([
+      start,
+      scroll('to', { kind: 'position', y: 1200, x: 600 }),
+      scroll('top', { kind: 'top' }),
+      scroll('left', { kind: 'left' }),
+      standsAt('[data-x="0"][data-y="0"]'),
+      scroll('right', { kind: 'right' }),
+      scroll('bottom', { kind: 'bottom' }),
+      standsAt(':not([data-x="0"]):not([data-y="0"])'),
+      position,
+    ]);
+    expect(result.status).toBe('passed');
+    expect(Number(result.extracted.y)).toBeGreaterThan(maxScroll - 900);
+  });
+
+  it('scrolls sideways to an element right of the view, at the height of the view', async () => {
+    const result = await run([
+      start,
+      scroll('to', {
+        kind: 'element',
+        target: { by: 'role', role: 'heading', name: 'Ganz rechts' },
+      }),
+      standsAt('[data-x]:not([data-x="0"])[data-y="0"]'),
+    ]);
+    expect(result.status).toBe('passed');
+  });
+
   it('presses a key, e.g. Escape to close a dialog', async () => {
     const result = await run([
       start,

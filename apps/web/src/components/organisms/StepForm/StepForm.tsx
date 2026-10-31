@@ -14,6 +14,7 @@ import {
 import {
   ASSERT_OPTIONS,
   ROLE_OPTIONS,
+  SCROLL_DIRECTION_OPTIONS,
   SCROLL_OPTIONS,
   STEP_TYPE_OPTIONS,
   TARGET_OPTIONS,
@@ -145,22 +146,70 @@ export function StepForm({ index, step, errors, onChange, types }: StepFormProps
               />
             )}
           </Field>
-          {step.scrollKind === 'position' && (
+          {(step.scrollKind === 'by' || step.scrollKind === 'edge') && (
+            <Field id="step-scroll-direction" label="Richtung">
+              {(control) => (
+                <Select
+                  {...control}
+                  options={SCROLL_DIRECTION_OPTIONS}
+                  value={step.scrollDirection}
+                  onChange={(direction) =>
+                    set({ scrollDirection: direction as StepDraft['scrollDirection'] })
+                  }
+                />
+              )}
+            </Field>
+          )}
+          {step.scrollKind === 'by' && (
             <Field
-              id="step-scroll-y"
-              label="Pixel von oben"
-              hint="Wie weit die Seite gescrollt ist; 0 ist ganz oben."
-              error={errors.scrollY}
+              id="step-scroll-distance"
+              label="Strecke (Pixel)"
+              hint="So weit scrollt der Bot von der Stelle, an der die Seite gerade steht."
+              error={errors.scrollDistance}
             >
               {(control) => (
                 <Input
                   {...control}
                   inputMode="numeric"
-                  value={step.scrollY}
-                  onChange={(event) => set({ scrollY: event.target.value })}
+                  value={step.scrollDistance}
+                  onChange={(event) => set({ scrollDistance: event.target.value })}
                 />
               )}
             </Field>
+          )}
+          {step.scrollKind === 'position' && (
+            <>
+              <Field
+                id="step-scroll-y"
+                label="Pixel von oben"
+                hint="Wie weit die Seite gescrollt ist; 0 ist ganz oben."
+                error={errors.scrollY}
+              >
+                {(control) => (
+                  <Input
+                    {...control}
+                    inputMode="numeric"
+                    value={step.scrollY}
+                    onChange={(event) => set({ scrollY: event.target.value })}
+                  />
+                )}
+              </Field>
+              <Field
+                id="step-scroll-x"
+                label="Pixel von links (optional)"
+                hint="Für Seiten, die breiter als das Fenster sind. Leer: bleibt, wie es ist."
+                error={errors.scrollX}
+              >
+                {(control) => (
+                  <Input
+                    {...control}
+                    inputMode="numeric"
+                    value={step.scrollX}
+                    onChange={(event) => set({ scrollX: event.target.value })}
+                  />
+                )}
+              </Field>
+            </>
           )}
         </>
       )}

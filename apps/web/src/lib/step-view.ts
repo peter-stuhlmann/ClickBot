@@ -1,3 +1,4 @@
+import type { ScrollDirection } from '@click-bot/shared';
 import { displayUrl } from './format';
 import type {
   AssertKind,
@@ -53,10 +54,32 @@ export const ASSERT_OPTIONS: readonly Option<AssertKind>[] = [
 ];
 
 export const SCROLL_OPTIONS: readonly Option<ScrollKind>[] = [
+  { value: 'by', label: 'Von der aktuellen Position aus' },
   { value: 'position', label: 'Zu einer Position' },
   { value: 'element', label: 'Bis ein Element zu sehen ist' },
-  { value: 'bottom', label: 'Ans Seitenende' },
+  { value: 'edge', label: 'Bis zum Rand der Seite' },
 ];
+
+export const SCROLL_DIRECTION_OPTIONS: readonly Option<ScrollDirection>[] = [
+  { value: 'down', label: 'Nach unten' },
+  { value: 'up', label: 'Nach oben' },
+  { value: 'right', label: 'Nach rechts' },
+  { value: 'left', label: 'Nach links' },
+];
+
+const DIRECTION_WORDS: Record<ScrollDirection, string> = {
+  down: 'nach unten',
+  up: 'nach oben',
+  right: 'nach rechts',
+  left: 'nach links',
+};
+
+const EDGE_TITLES: Record<ScrollDirection, { title: string; detail: string }> = {
+  down: { title: 'Scrolle ans Seitenende', detail: 'scroll bottom' },
+  up: { title: 'Scrolle an den Seitenanfang', detail: 'scroll top' },
+  right: { title: 'Scrolle an den rechten Rand', detail: 'scroll right' },
+  left: { title: 'Scrolle an den linken Rand', detail: 'scroll left' },
+};
 
 export const WAIT_OPTIONS: readonly Option<WaitKind>[] = [
   { value: 'duration', label: 'Feste Zeit' },
@@ -133,15 +156,22 @@ function describeWait(step: StepDraft): Content {
 
 function describeScroll(step: StepDraft): Content {
   switch (step.scrollKind) {
-    case 'position':
+    case 'by':
       return {
-        title: `Scrolle zu ${or(step.scrollY)} px von oben`,
-        detail: `scroll y = ${step.scrollY.trim()}`,
+        title: `Scrolle ${or(step.scrollDistance)} px ${DIRECTION_WORDS[step.scrollDirection]}`,
+        detail: `scroll ${step.scrollDirection} by ${step.scrollDistance.trim()}`,
       };
+    case 'position': {
+      const x = step.scrollX.trim();
+      return {
+        title: `Scrolle zu ${or(step.scrollY)} px von oben${x ? `, ${x} px von links` : ''}`,
+        detail: `scroll y = ${step.scrollY.trim()}${x ? `, x = ${x}` : ''}`,
+      };
+    }
     case 'element':
       return { title: `Scrolle zu „${targetName(step)}“`, detail: targetDetail(step) };
-    case 'bottom':
-      return { title: 'Scrolle ans Seitenende', detail: 'scroll bottom' };
+    case 'edge':
+      return EDGE_TITLES[step.scrollDirection];
   }
 }
 

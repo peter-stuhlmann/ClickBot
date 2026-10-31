@@ -269,6 +269,47 @@ describe('scroll steps', () => {
       expect(result.success).toBe(false);
     }
   });
+
+  it('scroll to a position from the left as well, or leave the horizontal one as it is', () => {
+    const to = { kind: 'position', y: 0, x: 300 };
+    expect(stepSchema.parse({ id: 's', type: 'scroll', to })).toMatchObject({ to });
+    for (const x of [-1, 0.5]) {
+      const result = stepSchema.safeParse({
+        id: 's',
+        type: 'scroll',
+        to: { kind: 'position', y: 0, x },
+      });
+      expect(result.error?.issues[0]?.path).toEqual(['to', 'x']);
+    }
+  });
+
+  it.each(['down', 'up', 'right', 'left'])('scroll from where the page stands, %s', (direction) => {
+    const to = { kind: 'by', direction, distance: 400 };
+    expect(stepSchema.parse({ id: 's', type: 'scroll', to })).toMatchObject({ to });
+  });
+
+  it('scroll by whole pixels, at least one', () => {
+    for (const distance of [0, -10, 2.5]) {
+      const result = stepSchema.safeParse({
+        id: 's',
+        type: 'scroll',
+        to: { kind: 'by', direction: 'down', distance },
+      });
+      expect(result.error?.issues.map((issue) => [issue.path.join('.'), issue.message])).toEqual([
+        ['to.distance', 'Ganze Pixel ab 1.'],
+      ]);
+    }
+    const sideways = stepSchema.safeParse({
+      id: 's',
+      type: 'scroll',
+      to: { kind: 'by', direction: 'diagonal', distance: 10 },
+    });
+    expect(sideways.success).toBe(false);
+  });
+
+  it.each(['top', 'bottom', 'left', 'right'])('scroll to the %s edge of the page', (kind) => {
+    expect(stepSchema.safeParse({ id: 's', type: 'scroll', to: { kind } }).success).toBe(true);
+  });
 });
 
 describe('press steps (keys and key combinations)', () => {

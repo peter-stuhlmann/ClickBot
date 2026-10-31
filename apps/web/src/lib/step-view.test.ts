@@ -161,7 +161,29 @@ describe('describeStep for scrolling and keys', () => {
       'Scrolle zu „Kontakt“',
       'role = heading, name = "Kontakt"',
     ],
-    [{ scrollKind: 'bottom' }, 'Scrolle ans Seitenende', 'scroll bottom'],
+    [
+      { scrollKind: 'position', scrollY: '0', scrollX: '300' },
+      'Scrolle zu 0 px von oben, 300 px von links',
+      'scroll y = 0, x = 300',
+    ],
+    [
+      { scrollKind: 'by', scrollDirection: 'down', scrollDistance: '500' },
+      'Scrolle 500 px nach unten',
+      'scroll down by 500',
+    ],
+    [
+      { scrollKind: 'by', scrollDirection: 'left', scrollDistance: '80' },
+      'Scrolle 80 px nach links',
+      'scroll left by 80',
+    ],
+    [{ scrollKind: 'edge', scrollDirection: 'down' }, 'Scrolle ans Seitenende', 'scroll bottom'],
+    [{ scrollKind: 'edge', scrollDirection: 'up' }, 'Scrolle an den Seitenanfang', 'scroll top'],
+    [
+      { scrollKind: 'edge', scrollDirection: 'right' },
+      'Scrolle an den rechten Rand',
+      'scroll right',
+    ],
+    [{ scrollKind: 'edge', scrollDirection: 'left' }, 'Scrolle an den linken Rand', 'scroll left'],
   ] as const)('names a scroll step: %o', (fields, title, detail) => {
     expect(describeStep(step('scroll', fields))).toMatchObject({
       typeLabel: 'Scrollen',

@@ -194,8 +194,29 @@ describe('startRecorder – scrolling', () => {
     await expect.poll(() => page.evaluate(() => Math.round(window.scrollY))).toBeGreaterThan(0);
     expect(step).toEqual({
       type: 'scroll',
-      to: { kind: 'position', y: await page.evaluate(() => Math.round(window.scrollY)) },
+      to: { kind: 'position', y: await page.evaluate(() => Math.round(window.scrollY)), x: 0 },
     });
+    await context.close();
+  });
+
+  it('records sideways scrolling on a page wider than the window', async () => {
+    const { context, page, settled } = await record('/lang.html');
+    await page.mouse.move(200, 200);
+    await page.mouse.wheel(400, 0);
+
+    const [step] = await settled(1);
+    expect(step).toEqual({ type: 'scroll', to: { kind: 'position', y: 0, x: 400 } });
+    await context.close();
+  });
+
+  it('leaves out the position from the left when the page fits the window sideways', async () => {
+    const { context, page, settled } = await record('/lang.html');
+    await page.setViewportSize({ width: 3200, height: 800 });
+    await page.mouse.move(200, 200);
+    await page.mouse.wheel(0, 700);
+
+    const [step] = await settled(1);
+    expect(step).toEqual({ type: 'scroll', to: { kind: 'position', y: expect.any(Number) } });
     await context.close();
   });
 });

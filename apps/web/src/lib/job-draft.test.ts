@@ -12,6 +12,7 @@ import {
   summarise,
   withStartUrl,
   toNewJobInput,
+  toStep,
   validateWizardStep,
   wizardStepOf,
   type StepDraft,
@@ -93,6 +94,20 @@ describe('newStep', () => {
   it('suggests a sensible way to find the element', () => {
     expect(newStep('click', [], '')).toMatchObject({ targetBy: 'role', targetRole: 'button' });
     expect(newStep('fill', [], '')).toMatchObject({ targetBy: 'label' });
+  });
+
+  it('scrolls a new scroll step on from where the page stands, a bit down', () => {
+    expect(toStep(newStep('scroll', [], ''))).toMatchObject({
+      to: { kind: 'by', direction: 'down', distance: 500 },
+    });
+  });
+
+  it('leaves out the position from the left while it is empty', () => {
+    const position = step('scroll', { scrollKind: 'position', scrollY: '900', scrollX: ' ' });
+    expect(toStep(position)).toMatchObject({ to: { kind: 'position', y: 900 } });
+    expect(toStep({ ...position, scrollX: '40' })).toMatchObject({
+      to: { kind: 'position', y: 900, x: 40 },
+    });
   });
 });
 
@@ -478,12 +493,16 @@ describe('stepErrors', () => {
       { path: 'flow.steps.0.to.y', message: 'Ganze Pixel ab 0.' },
       { path: 'flow.steps.0.to.target.name', message: 'Bitte ausfüllen.' },
       { path: 'flow.steps.1.key', message: 'Eine Taste wie „Escape“.' },
+      { path: 'flow.steps.2.to.x', message: 'Ganze Pixel ab 0.' },
+      { path: 'flow.steps.3.to.distance', message: 'Ganze Pixel ab 1.' },
     ];
     expect(stepErrors(issues, 0)).toEqual({
       scrollY: 'Ganze Pixel ab 0.',
       targetValue: 'Bitte ausfüllen.',
     });
     expect(stepErrors(issues, 1)).toEqual({ key: 'Eine Taste wie „Escape“.' });
+    expect(stepErrors(issues, 2)).toEqual({ scrollX: 'Ganze Pixel ab 0.' });
+    expect(stepErrors(issues, 3)).toEqual({ scrollDistance: 'Ganze Pixel ab 1.' });
   });
 });
 

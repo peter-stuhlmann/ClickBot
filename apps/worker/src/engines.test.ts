@@ -83,6 +83,35 @@ describe.each([
     expect(result.status).toBe('passed');
   });
 
+  it('scrolls from where the page stands, down and to the right', async () => {
+    const extract = (testId: string) => ({
+      id: testId,
+      type: 'extract',
+      target: { by: 'testId', testId },
+      saveAs: testId,
+    });
+    const { result } = await run([
+      { id: 'open', type: 'open', url: '/lang.html' },
+      { id: 'down', type: 'scroll', to: { kind: 'by', direction: 'down', distance: 300 } },
+      { id: 'right', type: 'scroll', to: { kind: 'by', direction: 'right', distance: 200 } },
+      {
+        id: 'there',
+        type: 'wait',
+        until: {
+          kind: 'element',
+          target: { by: 'css', selector: 'body:not([data-x="0"]):not([data-y="0"])' },
+        },
+        timeoutMs: 2_000,
+      },
+      extract('position'),
+      extract('links'),
+    ]);
+    expect(result.status).toBe('passed');
+    // The iPhone shows the page zoomed out and scrolls by whole device pixels: 296 for 300.
+    expect(Number(result.extracted.position)).toBeCloseTo(300, -1);
+    expect(Number(result.extracted.links)).toBeCloseTo(200, -1);
+  });
+
   it('opens a page behind .htaccess', async () => {
     const { result } = await run(
       [
