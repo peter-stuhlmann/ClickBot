@@ -436,3 +436,22 @@ export const aiProviders = pgTable(
     ),
   ],
 );
+
+/**
+ * "Vorlagen": flows for any website, for all projects. A job made from one copies its steps, so
+ * changing or deleting a template changes no job.
+ */
+export const flowTemplates = pgTable(
+  'flow_templates',
+  {
+    id: id(),
+    name: text('name').notNull(),
+    description: text('description'),
+    /** Validated with templateFlowSchema from @click-bot/shared. */
+    flow: jsonb('flow').$type<Flow>().notNull(),
+    createdBy: uuid('created_by').references(() => users.id, { onDelete: 'set null' }),
+    createdAt: createdAt(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [uniqueIndex('flow_templates_name_unique').on(sql`lower(${t.name})`)],
+);

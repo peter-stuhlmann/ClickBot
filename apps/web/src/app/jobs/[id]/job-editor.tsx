@@ -10,6 +10,7 @@ import { DevicePicker } from '@/components/organisms/DevicePicker';
 import { DeleteSection } from '@/components/organisms/DeleteSection';
 import { JobSettingsForm } from '@/components/organisms/JobSettingsForm';
 import { PageHeader } from '@/components/organisms/PageHeader';
+import { SaveTemplateCard } from '@/components/organisms/SaveTemplateCard';
 import { ScheduleForm } from '@/components/organisms/ScheduleForm';
 import { StepForm } from '@/components/organisms/StepForm';
 import { StepList } from '@/components/organisms/StepList';
@@ -46,6 +47,8 @@ export type JobEditorProps = {
   campaigns: { id: string; name: string }[];
   /** "Job löschen"; redirects to the job list. */
   deleteAction: (state: FormState, formData: FormData) => Promise<FormState>;
+  /** "Als Vorlage speichern": the stored flow becomes a template. */
+  saveTemplateAction: (state: FormState, formData: FormData) => Promise<FormState>;
   /** Saves `draft` first if given, then queues a test run. */
   testRunAction: (
     jobId: string,
@@ -64,6 +67,7 @@ export function JobEditor({
   testRunAction,
   campaigns,
   deleteAction,
+  saveTemplateAction,
 }: JobEditorProps) {
   const router = useRouter();
   const renderedAt = useMemo(() => new Date(now), [now]);
@@ -219,6 +223,16 @@ export function JobEditor({
           <AnalyticsMarkingForm
             marking={draft.analyticsMarking}
             onChange={(analyticsMarking) => update({ analyticsMarking })}
+          />
+          <SaveTemplateCard
+            jobId={jobId}
+            defaultName={saved.name}
+            action={saveTemplateAction}
+            blocked={
+              dirty
+                ? 'Erst die Änderungen speichern: Die Vorlage übernimmt den gespeicherten Ablauf.'
+                : undefined
+            }
           />
           <DeleteSection
             title="Job löschen"

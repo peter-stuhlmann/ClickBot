@@ -333,4 +333,22 @@ describe('StepForm – keys and scrolling', () => {
     await chooseOption(user, screen.getByRole('combobox', { name: 'Scrollen' }), kind);
     expect(labels()).toEqual(expected);
   });
+
+  it('offers only the given actions, e.g. no password protection in templates', async () => {
+    const user = userEvent.setup();
+    render(
+      <StepForm
+        index={0}
+        step={newStep('click', [], '')}
+        errors={{}}
+        onChange={() => {}}
+        types={['open', 'click']}
+      />,
+    );
+    await user.click(screen.getByRole('combobox', { name: 'Aktion' }));
+    expect(screen.getAllByRole('option').map((option) => option.textContent)).toEqual([
+      'Seite öffnen',
+      'Klicken',
+    ]);
+  });
 });

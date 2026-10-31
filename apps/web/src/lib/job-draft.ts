@@ -347,7 +347,8 @@ function toScroll(step: StepDraft): Record<string, unknown> {
   }
 }
 
-function toStep(step: StepDraft): Record<string, unknown> {
+/** A step of the forms as stored; the flow schemas check the result. */
+export function toStep(step: StepDraft): Record<string, unknown> {
   const base = { id: step.id, type: step.type, timeoutMs: toMs(step.timeoutSeconds) };
   switch (step.type) {
     case 'open':

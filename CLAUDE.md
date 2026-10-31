@@ -5,8 +5,8 @@ Ein Bot öffnet eine Seite in einem echten Browser, führt einen Ablauf aus (kli
 ausfüllen, prüfen) und erstellt pro Lauf einen Report auf dem Bildschirm und als PDF.
 
 Status: Grundgerüst, Datenbank-Schicht, Worker mit Zeitplan, die Job-Liste, der Assistent
-„Neuer Job“, der Editor, der Lauf-Report, die Läufe-Übersicht, der Kalender, die Projekte, die
-Anmeldung, das Profil und die Einstellungen der KI-Anbieter stehen.
+„Neuer Job“, der Editor, der Lauf-Report, die Läufe-Übersicht, der Kalender, die Vorlagen, die
+Projekte, die Anmeldung, das Profil und die Einstellungen der KI-Anbieter stehen.
 
 - **Fertig:**
   - das Design (Figma)
@@ -21,8 +21,15 @@ Anmeldung, das Profil und die Einstellungen der KI-Anbieter stehen.
     - Screen 05 „Neuer Job“ (`/jobs/neu`): Assistent in vier Schritten: Job (Kampagne des
       aktuellen Projekts und Name; mit nur einer Kampagne ist sie vorausgewählt), Ablauf (Start-URL oben, der erste Schritt „Seite öffnen“ folgt ihr, solange er nicht
       von Hand geändert wurde), Zeitplan, Geräte (mit der Freigabe am Ende). Am Ende wird der Job aktiv angelegt und läuft nach Zeitplan. Den
-      Ablauf gibt es zusammengeklickt, „Mit KI beschreiben“ (Screen 06, siehe Abschnitt KI) oder
-      „Im Browser aufnehmen“ (Screen 04, siehe Worker → Live-Browser).
+      Ablauf gibt es zusammengeklickt, „Mit KI beschreiben“ (Screen 06, siehe Abschnitt KI),
+      „Im Browser aufnehmen“ (Screen 04, siehe Worker → Live-Browser) oder „Aus Vorlage“.
+    - „Vorlagen“ (`/vorlagen`, ohne Figma-Entwurf): Abläufe für jede Website, für alle Projekte.
+      Anlegen unter `/vorlagen/neu` (gleicher Baukasten, ohne Passwortschutz) oder im Editor eines
+      Jobs mit „Als Vorlage speichern“ (`toTemplateFlow`: ohne das Öffnen der Start-URL am Anfang,
+      ohne Passwortschutz, Seiten der eigenen Website als Pfad). „Aus Vorlage“ im Assistenten
+      kopiert die Schritte (`stepsFromTemplate`) und stellt „Seite öffnen“ mit der Start-URL
+      davor, wenn die Vorlage nicht selbst mit einer Seite beginnt. Ändern oder Löschen einer
+      Vorlage ändert keinen Job.
     - Screen 02 „Editor“ (`/jobs/<id>`, über den Job-Namen in der Liste): Name, Start-URL,
       Zeitplan, Geräte und Ablauf eines bestehenden Jobs ändern. Zwei Spalten statt der drei
       aus dem Design, weil die Terminzeilen sonst zu schmal werden.
@@ -209,6 +216,9 @@ Die Pakete unter `packages/` liefern TypeScript-Quelltext aus, ohne eigenen Buil
     (`squareImage` in `apps/web/src/lib/avatar.ts`).
   - Ausgeliefert über `/avatar/<id>?v=<Zeit>`, nur für Angemeldete, mit `nosniff`. Die Zeit in
     der Adresse lässt Browser das Bild dauerhaft cachen; ein neues Bild hat eine neue Adresse.
+- **Vorlagen** (`templates.ts`, Tabelle `flow_templates`): Name (eindeutig ohne Groß- und
+  Kleinschreibung), Beschreibung, Ablauf (`templateFlowSchema` in `packages/shared`: nur Schritte
+  der Formulare, kein Passwortschutz). Gehören keinem Projekt.
 - **KI-Anbieter** (`ai-providers.ts`, Tabelle `ai_providers`):
   - Eine Zeile je Anbieter (Gemini, OpenAI, Perplexity, Claude, Custom), Liste und Regeln in
     `packages/shared/src/ai-providers.ts`.
@@ -248,11 +258,12 @@ Hochziehen erst, wenn beide Pakete die neue Version offiziell unterstützen.
     scrollen (`scroll`: zu einer Position, bis ein Element zu sehen ist, ans Seitenende), prüfen,
     auslesen, warten, screenshot, analytics, Passwortschutz (.htaccess, `basicAuth`), KI-Schritt.
   - Variablen: `{{faker.*}}`, `{{run_nr}}`, `{{bot_nr}}`, `{{secret.name}}`.
-- **Drei Wege zum Ablauf:**
+- **Vier Wege zum Ablauf:**
   - KI: Beschreibung → Schrittvorschlag + Rückfragen.
   - Aufnehmen: Live-Browser.
   - Editor: Baukasten.
-  - Alle drei erzeugen dieselbe Schrittliste.
+  - Vorlage: ein gespeicherter Ablauf (`flow_templates`).
+  - Alle erzeugen dieselbe Schrittliste.
   - **Kein eigener Code (bewusst entschieden):** Weder ein Weg „Code schreiben“ noch ein
     Schritt-Typ dafür. Nutzer-Code liefe auf dem Server neben Datenbank, `SECRETS_KEY` und
     Zugangsdaten. Screen 07 aus dem Design wird nicht gebaut.

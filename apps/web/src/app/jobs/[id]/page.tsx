@@ -10,6 +10,7 @@ import { getShell } from '@/server/shell';
 import { toJobHeader } from '@/server/job-editor-view';
 import {
   deleteJobAction,
+  saveJobAsTemplateAction,
   selectProjectAction,
   startTestRunAction,
   updateJobAction,
@@ -55,6 +56,7 @@ export default async function JobEditorPage({ params }: Props) {
           testRunAction={startTestRunAction}
           campaigns={campaigns}
           deleteAction={deleteJobAction}
+          saveTemplateAction={saveJobAsTemplateAction}
         />
       ) : (
         <>

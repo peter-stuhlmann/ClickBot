@@ -62,6 +62,8 @@ test.describe('Auf dem Handy', () => {
       '/kalender',
       '/laeufe',
       run,
+      '/vorlagen',
+      '/vorlagen/neu',
       '/kampagnen',
       '/kampagnen/neu',
       '/projekte/neu',
@@ -162,6 +164,7 @@ test.describe('Auf Tablet und kleinem Laptop', () => {
         '/jobs/neu',
         '/kalender',
         '/laeufe',
+        '/vorlagen/neu',
         '/kampagnen',
         '/einstellungen/ki',
       ]) {

@@ -59,6 +59,16 @@ export {
 } from './overview';
 export { DEFAULT_DEMO_SITE_URL, seedDemoData } from './seed';
 export { getRunReport, type RunReport, type RunStepRow } from './reports';
+export {
+  createTemplate,
+  deleteTemplate,
+  getTemplate,
+  listTemplates,
+  updateTemplate,
+  type FlowTemplate,
+  type TemplateInput,
+  type TemplateRow,
+} from './templates';
 export { queueTestRun } from './test-runs';
 export { listRuns, type RunFilter, type RunListRow } from './run-list';
 export {

@@ -252,3 +252,15 @@ export type LoadView = {
 };
 
 export type WeekNavView = { previousHref: string; currentHref: string; nextHref: string };
+
+/** A template ("Vorlagen"): on its page and in the wizard. */
+export type TemplateView = {
+  id: string;
+  name: string;
+  description: string | null;
+  /** The template's editor. */
+  href: string;
+  /** "3 Schritte · geändert vor 2 Std. von Peter Stuhlmann" */
+  meta: string;
+  steps: StepItemView[];
+};

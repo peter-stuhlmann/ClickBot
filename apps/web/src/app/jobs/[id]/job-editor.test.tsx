@@ -90,6 +90,7 @@ function renderEditor({
         { id: 'k2', name: 'Black Friday' },
       ]}
       deleteAction={async () => ({})}
+      saveTemplateAction={async () => ({})}
     />,
   );
   return { saveAction, testRunAction };
@@ -111,6 +112,20 @@ describe('JobEditor', () => {
     renderEditor();
     await user.click(screen.getByRole('button', { name: 'Job löschen' }));
     expect(screen.getByRole('button', { name: 'Endgültig löschen' })).toBeVisible();
+  });
+
+  it('saves the stored flow as a template, but not while changes are unsaved', async () => {
+    const user = userEvent.setup();
+    renderEditor();
+    const saveTemplate = () => screen.getByRole('button', { name: 'Vorlage erstellen' });
+    expect(screen.getByRole('textbox', { name: 'Name der Vorlage' })).toHaveValue(
+      'Kontaktformular-Test',
+    );
+    expect(saveTemplate()).toBeEnabled();
+
+    await user.type(screen.getByRole('textbox', { name: 'Job-Name' }), '!');
+    expect(saveTemplate()).toBeDisabled();
+    expect(screen.getByText(/Erst die Änderungen speichern/)).toBeInTheDocument();
   });
 
   it('shows the stored job and has nothing to save yet', () => {

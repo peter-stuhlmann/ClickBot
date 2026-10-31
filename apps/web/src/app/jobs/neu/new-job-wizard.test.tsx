@@ -26,6 +26,30 @@ type CreateAction = (draft: WizardDraft) => Promise<{ issues: Issue[] }>;
 const noSuggestion: SuggestFlowAction = async () => ({ ok: false, message: 'nicht im Test' });
 const noRecording: StartRecordingAction = async () => ({ ok: false, message: 'nicht im Test' });
 
+/** A template that leaves opening the start page to the job. */
+const contactTemplate = {
+  view: {
+    id: 'v1',
+    name: 'Kontaktformular',
+    description: 'Sendet das Formular ab.',
+    href: '/vorlagen/v1',
+    meta: '1 Schritt',
+    steps: [{ typeLabel: 'Klicken', tone: 'primary' as const, title: 'Klicke', detail: '' }],
+  },
+  flow: {
+    version: 1 as const,
+    steps: [
+      {
+        id: 'senden',
+        type: 'click' as const,
+        target: { by: 'role' as const, role: 'button', name: 'Absenden' },
+        timeoutMs: 10_000,
+        aiFallback: true,
+      },
+    ],
+  },
+};
+
 function renderWizard(
   createAction = vi.fn<CreateAction>(async () => ({ issues: [] })),
   suggestAction: SuggestFlowAction = noSuggestion,
@@ -38,6 +62,7 @@ function renderWizard(
       createAction={createAction}
       suggestAction={suggestAction}
       startRecording={startRecording}
+      templates={[contactTemplate]}
     />,
   );
   return createAction;
@@ -185,6 +210,24 @@ describe('NewJobWizard', () => {
     expect(screen.getByRole('button', { name: 'Schritt 2: Klicke auf „Absenden“' })).toBeVisible();
   });
 
+  it('takes over the steps of a template, after opening the start page', async () => {
+    const user = userEvent.setup();
+    renderWizard();
+    await toFlowStep(user);
+
+    await user.click(screen.getByRole('button', { name: /Aus Vorlage/ }));
+    await user.click(screen.getByRole('button', { name: 'Schritte übernehmen' }));
+
+    expect(screen.getByRole('button', { name: /Schritte zusammenklicken/ })).toHaveAttribute(
+      'aria-pressed',
+      'true',
+    );
+    expect(
+      screen.getByRole('button', { name: 'Schritt 1: Öffne 127.0.0.1:4100/kontakt.html' }),
+    ).toBeVisible();
+    expect(screen.getByRole('button', { name: 'Schritt 2: Klicke auf „Absenden“' })).toBeVisible();
+  });
+
   it('shows why the AI made no suggestion', async () => {
     const user = userEvent.setup();
     renderWizard(undefined, async () => ({ ok: false, message: 'Custom ist nicht erreichbar.' }));
@@ -203,6 +246,7 @@ describe('NewJobWizard', () => {
         createAction={vi.fn()}
         suggestAction={noSuggestion}
         startRecording={noRecording}
+        templates={[]}
       />,
     );
     expect(screen.getByRole('combobox', { name: 'Kampagne' })).toHaveTextContent('Allgemein');

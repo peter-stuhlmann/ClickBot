@@ -1,5 +1,6 @@
 'use client';
 
+import type { Flow } from '@click-bot/shared';
 import { useMemo, useState, useTransition, type ReactNode } from 'react';
 import { Button } from '@/components/atoms/Button';
 import { Icon } from '@/components/atoms/Icon';
@@ -15,6 +16,7 @@ import { ScheduleForm } from '@/components/organisms/ScheduleForm';
 import { StartUrlCard } from '@/components/organisms/StartUrlCard';
 import { StepForm } from '@/components/organisms/StepForm';
 import { StepList } from '@/components/organisms/StepList';
+import { TemplatePicker } from '@/components/organisms/TemplatePicker';
 import { WizardStepper } from '@/components/organisms/WizardStepper';
 import { WizardLayout } from '@/components/templates/WizardLayout';
 import { toggleDevice, toggleDeviceBrowser } from '@/lib/devices';
@@ -39,7 +41,13 @@ import {
   type WizardDraft,
 } from '@/lib/job-draft';
 import { describeStep } from '@/lib/step-view';
-import type { FlowSuggestionResult, StartRecordingAction, SuggestFlowAction } from '@/lib/views';
+import { stepsFromTemplate } from '@/lib/template-draft';
+import type {
+  FlowSuggestionResult,
+  StartRecordingAction,
+  SuggestFlowAction,
+  TemplateView,
+} from '@/lib/views';
 import { useLiveRecording } from './use-live-recording';
 
 export type NewJobWizardProps = {
@@ -52,6 +60,8 @@ export type NewJobWizardProps = {
   suggestAction: SuggestFlowAction;
   /** "Im Browser aufnehmen": a one-time address of the live browser. */
   startRecording: StartRecordingAction;
+  /** "Aus Vorlage": the templates with their steps. */
+  templates: { view: TemplateView; flow: Flow }[];
 };
 
 const NOT_SAVED =
@@ -64,6 +74,7 @@ export function NewJobWizard({
   createAction,
   suggestAction,
   startRecording,
+  templates,
 }: NewJobWizardProps) {
   const renderedAt = useMemo(() => new Date(now), [now]);
   const [draft, setDraft] = useState(() => ({
@@ -188,6 +199,14 @@ export function NewJobWizard({
                 takeOver(recording.steps);
               }}
               onCancel={() => chooseMethod('editor')}
+            />
+          ) : method === 'template' ? (
+            <TemplatePicker
+              templates={templates.map((template) => template.view)}
+              onApply={(templateId) => {
+                const chosen = templates.find((template) => template.view.id === templateId);
+                if (chosen) takeOver(stepsFromTemplate(chosen.flow, draft.startUrl));
+              }}
             />
           ) : method === 'ai' ? (
             <AiFlowPanel

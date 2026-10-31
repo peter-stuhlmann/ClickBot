@@ -4,6 +4,9 @@ import {
   createCampaign,
   createCustomer,
   createJob,
+  createTemplate,
+  deleteTemplate,
+  updateTemplate,
   deleteCampaign,
   deleteCustomer,
   deleteJob,
@@ -23,6 +26,7 @@ import {
   updateJob,
   ValidationError,
 } from '@click-bot/db';
+import { toTemplateFlow } from '@click-bot/shared';
 import { revalidatePath } from 'next/cache';
 import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
@@ -40,6 +44,7 @@ import {
 import type { CustomerFormState } from '@/components/organisms/CustomerForm';
 import { startOfWeek } from '@/lib/calendar';
 import { field, toFormState } from '@/lib/form-state';
+import { toTemplateInput, validateTemplate, type TemplateDraft } from '@/lib/template-draft';
 import type { FormState, StartRecordingAction } from '@/lib/views';
 import { requireUser } from '@/server/auth';
 import { artifactsDir, removeRunArtifacts } from '@/server/artifacts';
@@ -379,4 +384,97 @@ export async function moveSlotAction(_state: FormState, formData: FormData): Pro
   const day = field(formData, 'toDate');
   revalidatePath('/kalender');
   redirect(`/kalender?woche=${startOfWeek(day)}&tag=${day}`);
+}
+
+export type TemplateResult = { issues: Issue[] };
+
+/** Saves a template; ValidationError becomes issues by path, like in the job forms. */
+async function storeTemplate(save: () => Promise<unknown>): Promise<Issue[]> {
+  try {
+    await save();
+    return [];
+  } catch (error) {
+    if (error instanceof ValidationError) return error.issues;
+    if (error instanceof NotFoundError) {
+      return [{ path: 'form', message: 'Diese Vorlage gibt es nicht mehr.' }];
+    }
+    throw error;
+  }
+}
+
+/** "Neue Vorlage": creates the template and goes back to the templates. */
+export async function createTemplateAction(draft: TemplateDraft): Promise<TemplateResult> {
+  const user = await requireUser();
+  const issues = validateTemplate(draft);
+  if (issues.length > 0) return { issues };
+  const stored = await storeTemplate(() =>
+    createTemplate(getDb(), { ...toTemplateInput(draft), createdBy: user.id }),
+  );
+  if (stored.length > 0) return { issues: stored };
+  revalidatePath('/vorlagen');
+  redirect('/vorlagen');
+}
+
+/** Saves the editor of a template. Jobs made from it keep their steps. */
+export async function updateTemplateAction(
+  templateId: string,
+  draft: TemplateDraft,
+): Promise<TemplateResult> {
+  await requireUser();
+  const issues = validateTemplate(draft);
+  if (issues.length > 0) return { issues };
+  const stored = await storeTemplate(() =>
+    updateTemplate(getDb(), templateId, toTemplateInput(draft)),
+  );
+  if (stored.length === 0) revalidatePath('/vorlagen');
+  return { issues: stored };
+}
+
+/** "Vorlage löschen"; jobs made from it keep their steps. */
+export async function deleteTemplateAction(
+  _state: FormState,
+  formData: FormData,
+): Promise<FormState> {
+  await requireUser();
+  const refused = await refusalOf(() => deleteTemplate(getDb(), field(formData, 'id')));
+  if (refused) return refused;
+  revalidatePath('/vorlagen');
+  redirect('/vorlagen');
+}
+
+/**
+ * "Als Vorlage speichern" in the editor: the stored flow of the job, without opening the start
+ * URL and without password protection, pages of the website as paths (toTemplateFlow).
+ */
+export async function saveJobAsTemplateAction(
+  _state: FormState,
+  formData: FormData,
+): Promise<FormState> {
+  const user = await requireUser();
+  const values = { name: field(formData, 'name'), description: field(formData, 'description') };
+  const db = getDb();
+  let job;
+  try {
+    job = await getJob(db, field(formData, 'jobId'));
+  } catch (error) {
+    if (error instanceof NotFoundError) return { error: 'Diesen Job gibt es nicht mehr.', values };
+    throw error;
+  }
+  const flow = toTemplateFlow(job.flow, job.startUrl);
+  if (flow.steps.length === 0) {
+    return {
+      error: 'Der Ablauf hat außer dem Öffnen der Start-URL keine Schritte für eine Vorlage.',
+      values,
+    };
+  }
+  let templateId = '';
+  const issues = await storeTemplate(async () => {
+    templateId = (await createTemplate(db, { ...values, flow, createdBy: user.id })).id;
+  });
+  if (issues.length > 0) return toFormState(issues, values);
+  revalidatePath('/vorlagen');
+  return {
+    notice: `Vorlage „${values.name.trim()}“ gespeichert.`,
+    link: `/vorlagen/${templateId}`,
+  };
 }

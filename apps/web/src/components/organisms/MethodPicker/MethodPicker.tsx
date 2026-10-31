@@ -3,7 +3,7 @@ import type { IconName } from '@/components/atoms/Icon';
 import { ChoiceCard } from '@/components/molecules/ChoiceCard';
 
 /** The ways to a flow. */
-export type FlowMethod = 'ai' | 'record' | 'editor';
+export type FlowMethod = 'ai' | 'record' | 'editor' | 'template';
 
 const METHODS: { key: FlowMethod; icon: IconName; title: string; description: string }[] = [
   {
@@ -25,6 +25,12 @@ const METHODS: { key: FlowMethod; icon: IconName; title: string; description: st
     title: 'Schritte zusammenklicken',
     description: 'Schritt für Schritt aus Bausteinen wie Klicken, Ausfüllen, Prüfen.',
   },
+  {
+    key: 'template',
+    icon: 'copy',
+    title: 'Aus Vorlage',
+    description: 'Einen gespeicherten Ablauf übernehmen, z. B. „Kontaktformular absenden“.',
+  },
 ];
 
 export type MethodPickerProps = {
@@ -33,16 +39,16 @@ export type MethodPickerProps = {
 };
 
 /**
- * The three ways to a flow (screen 05), all leading to the same steps. Writing code is
+ * The ways to a flow (screen 05), all leading to the same steps. Writing code is
  * deliberately not offered: own code would run on the server next to keys and database.
  */
 export function MethodPicker({ method, onChoose }: MethodPickerProps) {
   return (
     <Card
       title="Wie soll der Ablauf entstehen?"
-      description="Alle drei Wege erzeugen dieselben Schritte, die du danach einzeln ändern kannst."
+      description="Alle Wege erzeugen dieselben Schritte, die du danach einzeln ändern kannst."
     >
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 2xl:grid-cols-4">
         {METHODS.map(({ key, ...card }) => (
           <ChoiceCard
             key={card.title}

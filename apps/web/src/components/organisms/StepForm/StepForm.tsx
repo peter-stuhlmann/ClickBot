@@ -26,6 +26,8 @@ export type StepFormProps = {
   step: StepDraft;
   errors: Partial<Record<StepField, string>>;
   onChange: (step: StepDraft) => void;
+  /** The actions offered; all by default. Templates leave out password protection. */
+  types?: readonly EditableStepType[];
 };
 
 const TARGET_VALUE_LABEL: Record<Exclude<TargetBy, 'role'>, string> = {
@@ -76,7 +78,7 @@ function needsTarget(step: StepDraft): boolean {
 }
 
 /** Edits one step of the flow; which fields appear depends on the action. */
-export function StepForm({ index, step, errors, onChange }: StepFormProps) {
+export function StepForm({ index, step, errors, onChange, types }: StepFormProps) {
   const set = (patch: Partial<StepDraft>) => onChange({ ...step, ...patch });
   // While no element is entered yet, follow the action with the suggested way to find it.
   const changeType = (type: EditableStepType) =>
@@ -92,7 +94,11 @@ export function StepForm({ index, step, errors, onChange }: StepFormProps) {
         {(control) => (
           <Select
             {...control}
-            options={STEP_TYPE_OPTIONS}
+            options={
+              types
+                ? STEP_TYPE_OPTIONS.filter((option) => types.includes(option.value))
+                : STEP_TYPE_OPTIONS
+            }
             value={step.type}
             onChange={(type) => changeType(type as EditableStepType)}
           />

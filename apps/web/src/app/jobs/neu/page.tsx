@@ -1,8 +1,9 @@
-import { listCampaigns } from '@click-bot/db';
+import { listCampaigns, listTemplates } from '@click-bot/db';
 import type { Metadata } from 'next';
 import { AppShell } from '@/components/templates/AppShell';
 import { getDb } from '@/server/db';
 import { getShell, projectScope } from '@/server/shell';
+import { toTemplateView } from '@/server/templates-view';
 import { suggestFlowAction } from '../../ai-actions';
 import { createJobAction, selectProjectAction, startRecordingAction } from '../../actions';
 import { NewJobWizard } from './new-job-wizard';
@@ -16,7 +17,10 @@ export default async function NewJobPage() {
   const db = getDb();
   const now = new Date();
   const shell = await getShell(db, now);
-  const campaigns = await listCampaigns(db, projectScope(shell.project).customerId);
+  const [campaigns, templates] = await Promise.all([
+    listCampaigns(db, projectScope(shell.project).customerId),
+    listTemplates(db),
+  ]);
 
   return (
     <AppShell active="jobs" {...shell} selectProject={selectProjectAction}>
@@ -28,6 +32,10 @@ export default async function NewJobPage() {
         createAction={createJobAction}
         suggestAction={suggestFlowAction}
         startRecording={startRecordingAction}
+        templates={templates.map((template) => ({
+          view: toTemplateView(template, now),
+          flow: template.flow,
+        }))}
       />
     </AppShell>
   );
