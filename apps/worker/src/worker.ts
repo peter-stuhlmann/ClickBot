@@ -1,8 +1,6 @@
 import {
   claimNextRun,
   getAiConfig,
-  claimPageAnalysis,
-  completePageAnalysis,
   completeRun,
   planDueRuns,
   recordHeartbeat,
@@ -19,7 +17,6 @@ import type { BrowserContext } from 'playwright';
 import type { AgentDriver } from './ai-step';
 import type { ArtifactStore } from './artifacts';
 import { toStepMessage } from './errors';
-import { analysePage } from './page-analysis';
 import { runFlow } from './run-flow';
 
 export type WorkerDeps = {
@@ -122,23 +119,6 @@ async function executeRun(deps: WorkerDeps, { run, job }: ClaimedRun): Promise<v
   }
 }
 
-/** "Mit KI beschreiben": opens the start page once on a desktop in Chromium and stores the facts. */
-async function executeAnalysis(deps: WorkerDeps, { id, url }: { id: string; url: string }) {
-  const now = deps.clock ?? (() => new Date());
-  let context: BrowserContext | undefined;
-  try {
-    context = await deps.newContext('desktop', 'chromium');
-    const facts = await analysePage(context, url);
-    await completePageAnalysis(deps.db, id, { facts }, now());
-  } catch (error) {
-    await completePageAnalysis(deps.db, id, { error: toStepMessage(error) }, now()).catch(
-      (reason: unknown) => deps.log?.(`Seitenanalyse ${id}: ${toStepMessage(reason)}`),
-    );
-  } finally {
-    await context?.close().catch(() => undefined);
-  }
-}
-
 export function createWorker(deps: WorkerDeps): Worker {
   const now = deps.clock ?? (() => new Date());
   const startedAt = now();
@@ -155,12 +135,6 @@ export function createWorker(deps: WorkerDeps): Worker {
         const tracked = execution.finally(() => active.delete(tracked));
         active.add(tracked);
       };
-      // A user waits for a page analysis, so it goes before scheduled runs.
-      while (!stopping && active.size < deps.maxConcurrent) {
-        const analysis = await claimPageAnalysis(deps.db, now());
-        if (!analysis) break;
-        track(executeAnalysis(deps, analysis));
-      }
       while (!stopping && active.size < deps.maxConcurrent) {
         const claimed = await claimNextRun(deps.db, now());
         if (!claimed) break;

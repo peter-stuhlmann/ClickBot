@@ -5,7 +5,6 @@ import {
   type AnalyticsMarking,
   type Criterion,
   type DeviceBrowsers,
-  type PageFacts,
   type Flow,
   type Schedule,
 } from '@click-bot/shared';
@@ -365,28 +364,6 @@ export const runSteps = pgTable(
     uniqueIndex('run_steps_run_step_unique').on(t.runId, t.stepIndex),
     check('run_steps_duration_positive', sql`${t.durationMs} >= 0`),
   ],
-);
-
-/** Sign of life of a worker process; the web app shows "Worker online" from it. */
-export const analysisStatus = pgEnum('analysis_status', ['queued', 'running', 'done', 'failed']);
-
-/**
- * "Mit KI beschreiben": the web app asks for a start page to be opened once, the worker does it
- * and stores what it found. Short-lived; old rows are deleted with the other clean-up.
- */
-export const pageAnalyses = pgTable(
-  'page_analyses',
-  {
-    id: id(),
-    url: text('url').notNull(),
-    status: analysisStatus('status').notNull().default('queued'),
-    result: jsonb('result').$type<PageFacts>(),
-    error: text('error'),
-    createdAt: createdAt(),
-    startedAt: timestamp('started_at', { withTimezone: true }),
-    finishedAt: timestamp('finished_at', { withTimezone: true }),
-  },
-  (t) => [index('page_analyses_status_idx').on(t.status, t.createdAt)],
 );
 
 /**

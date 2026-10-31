@@ -2,7 +2,7 @@ import type { AgentAction, AgentInput } from '@click-bot/ai';
 import { verdictOutcome, type Criterion, type Step, type VerdictOutcome } from '@click-bot/shared';
 import type { Page } from 'playwright';
 import { StepError, toStepMessage } from './errors';
-import { readStructure } from './page-analysis';
+import { readStructure } from './page-structure';
 import { executeStep, type StepContext } from './steps';
 import { describeTarget, pageOf, type PageSource } from './targets';
 

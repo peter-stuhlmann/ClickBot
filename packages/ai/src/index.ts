@@ -11,15 +11,6 @@ export {
   type ConnectionResult,
 } from './client';
 export {
-  FLOW_EXAMPLE,
-  flowPrompt,
-  parseFlowSuggestion,
-  suggestFlow,
-  type FlowQuestion,
-  type FlowSuggestion,
-  type FlowSuggestionInput,
-} from './flow-suggestion';
-export {
   agentPrompt,
   nextAgentAction,
   parseAgentAction,

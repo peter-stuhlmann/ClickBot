@@ -4,7 +4,6 @@
  */
 
 import type { Criterion } from '@click-bot/shared';
-import type { StepDraft } from './job-draft';
 
 export type Tone = 'success' | 'warning' | 'danger' | 'neutral';
 
@@ -177,28 +176,6 @@ export type ConnectionCheck = {
 };
 
 export type ConnectionCheckAction = (formData: FormData) => Promise<ConnectionCheck>;
-
-/** A question of the model with answers to choose from ("Rückfragen der KI"). */
-export type FlowQuestionView = { question: string; options: string[] };
-
-/** "Mit KI beschreiben": the suggested steps, or why there is none. */
-export type FlowSuggestionResult =
-  | {
-      ok: true;
-      steps: StepDraft[];
-      questions: FlowQuestionView[];
-      /** "Auf der Seite erkannt"; empty when the page could not be opened. */
-      facts: SummaryRowView[];
-      /** Why the model did not know the page, if so. */
-      notice: string | null;
-    }
-  | { ok: false; message: string };
-
-export type SuggestFlowAction = (input: {
-  startUrl: string;
-  description: string;
-  answers: { question: string; answer: string }[];
-}) => Promise<FlowSuggestionResult>;
 
 /** "Im Browser aufnehmen": record turns actions into steps, browse only uses the page, assert checks the next element clicked. */
 /** Everything is recorded; assert: the next click becomes a check instead. */

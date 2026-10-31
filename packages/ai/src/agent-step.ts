@@ -1,6 +1,5 @@
 import { stepSchema, type Criterion, type CriterionStatus, type Step } from '@click-bot/shared';
 import { AiError, type AiClient, type AiImage, type AiMessage, type AiRequest } from './client';
-import { safeMail } from './flow-suggestion';
 
 /** What the browser shows right now; the snapshot is the accessibility tree, secrets masked. */
 export type AgentPage = {
@@ -36,6 +35,18 @@ const ACTION_TYPES = new Set<Step['type']>([
   'open',
   'wait',
 ]);
+const SAFE_MAIL_DOMAIN = /@example\.(com|org|net)$/i;
+const MAIL_ADDRESS = /^[^\s@{}]+@[^\s@{}]+\.[^\s@{}]+$/;
+
+// A made-up address could reach a real inbox; test data only goes to example.com/.org/.net.
+function safeMail(step: Record<string, unknown>): Record<string, unknown> {
+  const value = step.value;
+  if (step.type !== 'fill' || typeof value !== 'string') return step;
+  const address = value.trim();
+  if (!MAIL_ADDRESS.test(address) || SAFE_MAIL_DOMAIN.test(address)) return step;
+  return { ...step, value: '{{faker.email}}' };
+}
+
 const STATUSES = new Set<CriterionStatus>(['met', 'failed', 'unknown']);
 const MAX_CRITERIA = 12;
 

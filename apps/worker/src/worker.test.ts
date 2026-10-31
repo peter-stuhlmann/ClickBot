@@ -3,9 +3,7 @@ import {
   createCipher,
   createJob,
   createSecret,
-  getPageAnalysis,
   getWorkerStatus,
-  requestPageAnalysis,
   saveAiProvider,
   schema,
   type Cipher,
@@ -174,23 +172,6 @@ describe('worker', () => {
     expect(run).toMatchObject({
       status: 'failed',
       error: 'Kein KI-Anbieter eingerichtet: unter „Einstellungen → KI & API“ einen speichern.',
-    });
-  });
-
-  it('opens a page queued for "Mit KI beschreiben" and stores what it found', async () => {
-    const ok = await requestPageAnalysis(db, `${browser.origin()}/kontakt.html`, new Date());
-    const broken = await requestPageAnalysis(db, `${browser.origin()}/fehler`, new Date());
-    const w = startWorker();
-
-    await w.tick();
-    await w.idle();
-    expect(await getPageAnalysis(db, ok)).toMatchObject({
-      status: 'done',
-      result: { title: 'Kontakt – Beispiel GmbH', forms: 1 },
-    });
-    expect(await getPageAnalysis(db, broken)).toMatchObject({
-      status: 'failed',
-      error: 'Seite antwortet mit HTTP 500.',
     });
   });
 
