@@ -78,6 +78,13 @@
       "when": 1793376674746,
       "tag": "0010_device_browsers",
       "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1793453575103,
+      "tag": "0011_worker_browser_limit",
+      "breakpoints": true
     }
   ]
 }

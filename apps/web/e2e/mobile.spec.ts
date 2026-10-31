@@ -59,6 +59,7 @@ test.describe('Auf dem Handy', () => {
     for (const path of [
       '/',
       job,
+      '/kalender',
       '/laeufe',
       run,
       '/kampagnen',
@@ -155,7 +156,15 @@ test.describe('Auf Tablet und kleinem Laptop', () => {
       await page.setViewportSize(viewport);
       await page.goto('/');
       const job = await hrefOf(page, 'Login & Bestellstatus');
-      for (const path of ['/', job, '/jobs/neu', '/laeufe', '/kampagnen', '/einstellungen/ki']) {
+      for (const path of [
+        '/',
+        job,
+        '/jobs/neu',
+        '/kalender',
+        '/laeufe',
+        '/kampagnen',
+        '/einstellungen/ki',
+      ]) {
         await test.step(path, async () => {
           await page.goto(path);
           await expect(page.getByRole('heading', { level: 1 })).toBeVisible();

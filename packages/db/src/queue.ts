@@ -234,12 +234,20 @@ export async function recoverStaleRuns(
 
 export async function recordHeartbeat(
   db: Database,
-  { workerId, startedAt, now }: { workerId: string; startedAt: Date; now: Date },
+  {
+    workerId,
+    startedAt,
+    now,
+    maxBrowsers = null,
+  }: { workerId: string; startedAt: Date; now: Date; maxBrowsers?: number | null },
 ): Promise<void> {
   await db
     .insert(workerHeartbeats)
-    .values({ workerId, startedAt, lastSeenAt: now })
-    .onConflictDoUpdate({ target: workerHeartbeats.workerId, set: { lastSeenAt: now } });
+    .values({ workerId, startedAt, lastSeenAt: now, maxBrowsers })
+    .onConflictDoUpdate({
+      target: workerHeartbeats.workerId,
+      set: { lastSeenAt: now, maxBrowsers },
+    });
 }
 
 /** Online if any worker reported within `maxAgeMs`. */

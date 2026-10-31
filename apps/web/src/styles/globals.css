@@ -28,6 +28,8 @@
   --color-danger-soft: #fef3f2;
   --color-warning: #b54708;
   --color-warning-soft: #fffaeb;
+  /* Calendar entries whose runs wait for a browser ("Limit überschritten"). */
+  --color-warning-chip: #fef0c7;
   /* Step type "Ausfüllen" in the step list. */
   --color-info: #026aa2;
   --color-info-soft: #e0f2fe;

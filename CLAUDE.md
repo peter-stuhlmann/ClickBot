@@ -5,8 +5,8 @@ Ein Bot öffnet eine Seite in einem echten Browser, führt einen Ablauf aus (kli
 ausfüllen, prüfen) und erstellt pro Lauf einen Report auf dem Bildschirm und als PDF.
 
 Status: Grundgerüst, Datenbank-Schicht, Worker mit Zeitplan, die Job-Liste, der Assistent
-„Neuer Job“, der Editor, der Lauf-Report, die Läufe-Übersicht, die Projekte, die Anmeldung, das
-Profil und die Einstellungen der KI-Anbieter stehen.
+„Neuer Job“, der Editor, der Lauf-Report, die Läufe-Übersicht, der Kalender, die Projekte, die
+Anmeldung, das Profil und die Einstellungen der KI-Anbieter stehen.
 
 - **Fertig:**
   - das Design (Figma)
@@ -42,6 +42,21 @@ Profil und die Einstellungen der KI-Anbieter stehen.
     - Screen 14 „Läufe“ (`/laeufe`): alle Läufe, neueste zuerst, 50 je Seite, mit Filtern nach
       Kampagne, Ergebnis, Zeitraum und Gerät. Die Filter stehen in der Adresse (GET-Formular,
       `src/lib/run-filters.ts`). CSV, Sammel-PDF, gespeicherte Ansichten und Standort fehlen.
+    - Screen 13 „Kalender“ (`/kalender?woche=<Montag>&tag=<Tag>`): die Starts einer Woche des
+      Projekts als Wellen je Tag (ein Eintrag je Termin bzw. Start; ab 5 Starts eines Jobs am
+      Tag einer für den ganzen Tag), darunter die „Auslastung“ eines Tags. Ohne `tag` der erste
+      Tag mit Engpass, sonst heute, sonst Montag. Logik in `src/lib/week-plan.ts`.
+      - Ein Lauf belegt einen Browser ab seinem Start so lange, wie die Läufe seines Jobs typisch
+        dauern (Median der letzten 30 Tage, `listCalendarJobs`; ohne Läufe 1 Minute). Mehr Läufe
+        gleichzeitig als Browser ist ein Engpass („Limit überschritten“). Gezählt werden die Jobs
+        aller Projekte, weil sie sich den Worker teilen. Nur aktive und beendete Jobs.
+      - Das Limit meldet der Worker mit seinem Lebenszeichen (`getBrowserLimit`), sonst gilt
+        `MAX_CONCURRENT_BROWSERS` aus der `.env`, sonst 6.
+      - Vorschlag je Engpass: die späteste, kleinste Welle eines Termin-Plans des Projekts, die
+        nicht in den nächsten 5 Minuten startet, um so wenige Minuten wie möglich (höchstens 120)
+        nach hinten, bis kein Lauf mehr wartet. „Übernehmen“ verschiebt den Termin (`moveSlot`:
+        nur ohne Läufe, nur in die Zukunft, nur wenn er sich nicht inzwischen geändert hat).
+      - „Report-Versand“ aus dem Design fehlt, bis es PDF und E-Mail gibt.
     - Screen 03 „Lauf-Report“ (`/laeufe/<id>`), erreichbar über „Letzter Lauf“ in der
       Job-Liste: Kennzahlen, Schritte mit Ergebnis, Fehler und Bildschirmfoto
     - „Einstellungen“ mit den Tabs aus Screen 08a, bisher nur „Team“ und „KI & API“
@@ -397,8 +412,9 @@ time, bots }]`, `stagger`) bilden die Bots eines Termins eine Welle.
     die Seite von selbst (Anker nach einem Klick), entsteht kein Schritt.
   - Neue Tabs öffnen sich im selben Tab, PDFs mit dem Viewer von Chromium. Der aufgenommene
     Klick öffnet im Lauf den neuen Tab, in dem der Bot weitermacht.
-- **Lebenszeichen:** Alle 10 s schreibt der Worker in `worker_heartbeats`. Die Web-App zeigt
-  „online“, wenn der letzte Eintrag höchstens 30 s alt ist.
+- **Lebenszeichen:** Alle 10 s schreibt der Worker in `worker_heartbeats`, mit seinem Limit
+  (`max_browsers`, für den Kalender). Die Web-App zeigt „online“, wenn der letzte Eintrag
+  höchstens 30 s alt ist.
 - **Geräte** (`contextOptionsFor`):
   - Desktop 1440 × 900, iPhone 15, Pixel 8, iPad (gen 11), alle mit Deutsch und Europe/Berlin.
   - Desktop behält den User-Agent seines Browsers. iPhone und iPad laufen in echtem WebKit.

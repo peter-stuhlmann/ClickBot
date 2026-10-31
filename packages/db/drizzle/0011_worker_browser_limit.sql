@@ -1,0 +1,2 @@
+ALTER TABLE "worker_heartbeats" ADD COLUMN "max_browsers" integer;--> statement-breakpoint
+ALTER TABLE "worker_heartbeats" ADD CONSTRAINT "worker_heartbeats_max_browsers_positive" CHECK ("worker_heartbeats"."max_browsers" IS NULL OR "worker_heartbeats"."max_browsers" > 0);

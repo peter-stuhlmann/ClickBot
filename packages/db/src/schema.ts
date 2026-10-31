@@ -392,11 +392,22 @@ export const recordingSessions = pgTable(
   ],
 );
 
-export const workerHeartbeats = pgTable('worker_heartbeats', {
-  workerId: text('worker_id').primaryKey(),
-  startedAt: timestamp('started_at', { withTimezone: true }).notNull(),
-  lastSeenAt: timestamp('last_seen_at', { withTimezone: true }).notNull(),
-});
+export const workerHeartbeats = pgTable(
+  'worker_heartbeats',
+  {
+    workerId: text('worker_id').primaryKey(),
+    startedAt: timestamp('started_at', { withTimezone: true }).notNull(),
+    lastSeenAt: timestamp('last_seen_at', { withTimezone: true }).notNull(),
+    /** How many browsers the worker runs at once (MAX_CONCURRENT_BROWSERS); for the calendar. */
+    maxBrowsers: integer('max_browsers'),
+  },
+  (t) => [
+    check(
+      'worker_heartbeats_max_browsers_positive',
+      sql`${t.maxBrowsers} IS NULL OR ${t.maxBrowsers} > 0`,
+    ),
+  ],
+);
 
 /** "Einstellungen → KI & API": one row per provider; the default one serves AI steps. */
 export const aiProviders = pgTable(

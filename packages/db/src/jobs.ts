@@ -201,7 +201,7 @@ export async function listStartedSlots(db: Database, jobId: string): Promise<num
   return rows.map((row) => row.slotIndex as number);
 }
 
-const SLOT_FIXED =
+export const SLOT_FIXED =
   'Dieser Termin hat schon Läufe und lässt sich nicht mehr verschieben oder löschen.';
 const TYPE_FIXED =
   'Die Art des Zeitplans lässt sich nicht mehr ändern, weil der Job schon Läufe hat.';

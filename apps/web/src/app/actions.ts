@@ -15,6 +15,7 @@ import {
   getCampaign,
   getJob,
   getWorkerStatus,
+  moveSlot,
   NotFoundError,
   queueTestRun,
   secureStepPasswords,
@@ -37,6 +38,7 @@ import {
   type WizardDraft,
 } from '@/lib/job-draft';
 import type { CustomerFormState } from '@/components/organisms/CustomerForm';
+import { startOfWeek } from '@/lib/calendar';
 import { field, toFormState } from '@/lib/form-state';
 import type { FormState, StartRecordingAction } from '@/lib/views';
 import { requireUser } from '@/server/auth';
@@ -353,4 +355,28 @@ export async function updateProfileAction(
   // Name and picture show in the sidebar of every page.
   revalidatePath('/', 'layout');
   return { notice: 'Gespeichert.' };
+}
+
+/** Calendar (screen 13): moves a date as the load panel suggests, so that no run has to wait. */
+export async function moveSlotAction(_state: FormState, formData: FormData): Promise<FormState> {
+  await requireUser();
+  const slotIndex = Number(field(formData, 'slotIndex'));
+  if (!Number.isInteger(slotIndex) || slotIndex < 0) return { error: 'Der Termin fehlt.' };
+  const refused = await refusalOf(() =>
+    moveSlot(
+      getDb(),
+      field(formData, 'jobId'),
+      {
+        slotIndex,
+        from: { date: field(formData, 'fromDate'), time: field(formData, 'fromTime') },
+        to: { date: field(formData, 'toDate'), time: field(formData, 'toTime') },
+      },
+      new Date(),
+    ),
+  );
+  if (refused) return refused;
+  // Stay on the day of the date, which now shows that every run gets a browser.
+  const day = field(formData, 'toDate');
+  revalidatePath('/kalender');
+  redirect(`/kalender?woche=${startOfWeek(day)}&tag=${day}`);
 }

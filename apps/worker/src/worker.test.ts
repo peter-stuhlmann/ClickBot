@@ -1,4 +1,5 @@
 import {
+  getBrowserLimit,
   createCipher,
   createJob,
   createSecret,
@@ -287,10 +288,11 @@ describe('worker', () => {
     expect((await allRuns()).map((r) => r.status)).toEqual(['passed', 'queued']);
   });
 
-  it('reports itself as online through its heartbeat', async () => {
-    const w = startWorker();
+  it('reports itself as online through its heartbeat, with its browser limit', async () => {
+    const w = startWorker({ maxConcurrent: 3 });
     await w.heartbeat();
     expect((await getWorkerStatus(db, new Date())).online).toBe(true);
+    expect(await getBrowserLimit(db)).toBe(3);
   });
 
   it('gets a new browser after a crash, so the next run works again', async () => {

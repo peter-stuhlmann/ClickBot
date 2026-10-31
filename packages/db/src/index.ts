@@ -1,6 +1,13 @@
 export { createDb, type Database, type DbConnection } from './client';
 export { createCipher, parseKey, type Cipher } from './crypto';
 export {
+  getBrowserLimit,
+  listCalendarJobs,
+  moveSlot,
+  type CalendarJob,
+  type SlotMove,
+} from './calendar';
+export {
   createCampaign,
   DEFAULT_CAMPAIGN,
   deleteCampaign,

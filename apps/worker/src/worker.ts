@@ -146,7 +146,12 @@ export function createWorker(deps: WorkerDeps): Worker {
     },
 
     async heartbeat() {
-      await recordHeartbeat(deps.db, { workerId: deps.workerId, startedAt, now: now() });
+      await recordHeartbeat(deps.db, {
+        workerId: deps.workerId,
+        startedAt,
+        now: now(),
+        maxBrowsers: deps.maxConcurrent,
+      });
     },
 
     activeRuns: () => active.size,

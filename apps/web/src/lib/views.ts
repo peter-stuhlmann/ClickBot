@@ -214,3 +214,41 @@ export type LiveInput =
 export type StartRecordingAction = (
   startUrl: string,
 ) => Promise<{ ok: true; url: string } | { ok: false; message: string }>;
+
+/** Screen 13: one wave of a day in the calendar, or all starts of a job that starts often. */
+export type CalendarEntryView = {
+  key: string;
+  /** "13:38", or "08:00–20:00" for a job with many starts that day. */
+  time: string;
+  name: string;
+  runs: number;
+  /** Some of its runs wait for a browser. */
+  over: boolean;
+  href: string;
+};
+
+export type CalendarDayView = {
+  date: string;
+  /** "Do 05.11." */
+  label: string;
+  /** Shows the load of this day. */
+  href: string;
+  selected: boolean;
+  today: boolean;
+  entries: CalendarEntryView[];
+};
+
+/** A suggestion of the load panel and the form fields that carry it out. */
+export type LoadSuggestionView = { title: string; text: string; fields: Record<string, string> };
+
+export type LoadView = {
+  /** "Auslastung Do, 05.11." */
+  title: string;
+  overloads: { key: string; title: string; text: string; suggestion: LoadSuggestionView | null }[];
+  /** Without overloads: how busy the day gets. */
+  summary: string | null;
+  /** How the load is estimated. */
+  note: string;
+};
+
+export type WeekNavView = { previousHref: string; currentHref: string; nextHref: string };
