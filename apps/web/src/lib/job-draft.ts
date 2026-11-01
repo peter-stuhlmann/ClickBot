@@ -672,6 +672,9 @@ function scheduleIssues(schedule: ScheduleDraft, now: Date, original?: ScheduleD
   const parsed = scheduleSchema.safeParse(toSchedule(schedule, now));
   if (!parsed.success) return issuesFrom('schedule', parsed.error);
 
+  // A random plan draws from now on, so the schema already said if nothing is left of it.
+  // Its draft still carries the slots of "Feste Zeiten": they are hidden and do not count.
+  if (schedule.type === 'random') return [];
   if (schedule.type === 'interval') {
     const start = startInstant(schedule, now);
     const unchanged =

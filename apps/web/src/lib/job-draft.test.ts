@@ -874,6 +874,30 @@ describe('random plans in the wizard', () => {
     });
   });
 
+  it('ignores the hidden slots of "Feste Zeiten" once they lie in the past', () => {
+    // The default slot of a fresh draft is "now"; an hour later it is in the past.
+    const later = new Date(now.getTime() + 60 * 60_000);
+    const issues = validateWizardStep(random(), 'schedule', later);
+    expect(issues).toEqual([]);
+  });
+
+  it('says so at the curves when a plan for today has no hour left to start in', () => {
+    const quiet = Array.from({ length: 25 }, (_, hour) => (hour < 9 ? 1 : 0));
+    const evening = new Date('2026-11-05T20:00:00+01:00');
+    const issues = validateWizardStep(
+      random({
+        randomFrom: '2026-11-05',
+        randomTo: '2026-11-05',
+        curves: { ...emptyDraft(now).schedule.curves, thu: quiet },
+      }),
+      'schedule',
+      evening,
+    );
+    expect(scheduleErrors(issues).fields).toEqual({
+      curves: 'Die Kurven lassen im Zeitraum keinen Start zu.',
+    });
+  });
+
   it('counts the runs of a random plan for every device', () => {
     expect(describeRunTotal(random({ randomRuns: '30' }), now)).toBe(
       '30 Starts × 1 Gerät = 30 Durchläufe',
