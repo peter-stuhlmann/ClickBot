@@ -12,7 +12,7 @@ function Legend() {
   return (
     <ul aria-label="Legende" className="flex flex-wrap gap-x-4 gap-y-1 text-small text-text-muted">
       <li className="flex items-center gap-1.5">
-        <span aria-hidden="true" className="size-2 rounded-full bg-text-subtle" />
+        <span aria-hidden="true" className="size-2 rounded-full bg-neutral-dot" />
         Welle
       </li>
       <li className="flex items-center gap-1.5">

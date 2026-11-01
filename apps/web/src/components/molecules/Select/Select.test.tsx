@@ -117,7 +117,7 @@ describe('Select', () => {
     render(<Select aria-label="Kampagne" options={options} placeholder="Kampagne wählen" />);
     const combobox = screen.getByRole('combobox', { name: 'Kampagne' });
     expect(combobox).toHaveTextContent('Kampagne wählen');
-    expect(combobox.querySelector('.text-text-subtle')).not.toBeNull();
+    expect(combobox.querySelector('.text-text-muted')).not.toBeNull();
     await user.click(combobox);
     expect(optionTexts()).toEqual(['Kampagne wählen', 'Klicken', 'Ausfüllen', 'Prüfen', 'Warten']);
   });

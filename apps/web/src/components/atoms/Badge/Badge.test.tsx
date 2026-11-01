@@ -12,7 +12,7 @@ describe('Badge', () => {
     ['success', 'bg-success-soft', 'bg-success-dot'],
     ['warning', 'bg-warning-soft', 'bg-warning-dot'],
     ['danger', 'bg-danger-soft', 'bg-danger-dot'],
-    ['neutral', 'bg-neutral-soft', 'bg-text-subtle'],
+    ['neutral', 'bg-neutral-soft', 'bg-neutral-dot'],
   ] as const)('colours the %s tone with tokens', (tone, background, dotColour) => {
     render(<Badge tone={tone}>Status</Badge>);
     expect(screen.getByText('Status')).toHaveClass(background);

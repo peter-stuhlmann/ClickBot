@@ -321,9 +321,9 @@ export function DatePicker({
                             selected
                               ? 'bg-primary font-semibold text-on-primary'
                               : 'hover:bg-neutral-soft',
-                            !selected && (inMonth ? 'text-text' : 'text-text-subtle'),
+                            !selected && (inMonth ? 'text-text' : 'text-text-muted'),
                             !selected && day === today && 'font-semibold text-primary',
-                            'disabled:bg-transparent disabled:text-text-subtle disabled:line-through disabled:opacity-60',
+                            'disabled:bg-transparent disabled:text-text-muted disabled:line-through disabled:opacity-60',
                           )}
                         >
                           {Number(day.slice(8))}

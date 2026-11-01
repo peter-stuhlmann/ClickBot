@@ -41,7 +41,10 @@ export function ChoiceCard({
         {/* Long German words like "zusammenklicken" must not overflow the narrow cards. */}
         <span className="min-w-0 hyphens-auto">{title}</span>
       </span>
-      <span className="text-meta text-text-muted">{description}</span>
+      {/* Darker on the tinted card, so the text keeps its contrast there too. */}
+      <span className={cn('text-meta', selected ? 'text-text-secondary' : 'text-text-muted')}>
+        {description}
+      </span>
       {unavailable && (
         <span className="rounded-chip bg-neutral-soft px-2 py-0.5 text-small text-text-muted">
           {unavailable}

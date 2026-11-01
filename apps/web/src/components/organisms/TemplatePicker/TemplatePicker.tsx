@@ -61,10 +61,22 @@ export function TemplatePicker({ templates, onApply }: TemplatePickerProps) {
                   {selected && <Icon name="check" size={16} className="text-primary" />}
                   {template.name}
                 </span>
+                {/* Darker on the tinted card, so the text keeps its contrast there too. */}
                 {template.description && (
-                  <span className="text-meta text-text-muted">{template.description}</span>
+                  <span
+                    className={cn(
+                      'text-meta',
+                      selected ? 'text-text-secondary' : 'text-text-muted',
+                    )}
+                  >
+                    {template.description}
+                  </span>
                 )}
-                <span className="text-small text-text-muted">{template.meta}</span>
+                <span
+                  className={cn('text-small', selected ? 'text-text-secondary' : 'text-text-muted')}
+                >
+                  {template.meta}
+                </span>
               </button>
             </li>
           );

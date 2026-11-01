@@ -183,7 +183,7 @@ export function Select<T extends string = string>({
         )}
         {...aria}
       >
-        <span className={cn('truncate', empty && 'text-text-subtle')}>{label}</span>
+        <span className={cn('truncate', empty && 'text-text-muted')}>{label}</span>
         <Icon
           name="chevronDown"
           size={16}

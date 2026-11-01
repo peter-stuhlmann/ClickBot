@@ -20,8 +20,8 @@ const badge = cva('flex size-7 shrink-0 items-center justify-center rounded-full
       healed: 'bg-warning-soft text-warning',
       unclear: 'bg-warning-soft text-warning',
       failed: 'bg-danger-soft text-danger',
-      skipped: 'bg-neutral-soft text-text-subtle',
-      pending: 'bg-neutral-soft text-text-subtle',
+      skipped: 'bg-neutral-soft text-text-muted',
+      pending: 'bg-neutral-soft text-text-muted',
     },
   },
 });

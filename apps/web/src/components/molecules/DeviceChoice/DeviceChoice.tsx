@@ -53,7 +53,9 @@ export function DeviceChoice({
           {selected && <Icon name="check" size={16} className="mt-0.75 text-primary" />}
           <span className="min-w-0 hyphens-auto">{title}</span>
         </span>
-        <span className="text-meta text-text-muted">{description}</span>
+        <span className={cn('text-meta', selected ? 'text-text-secondary' : 'text-text-muted')}>
+          {description}
+        </span>
       </button>
 
       {selected && (

@@ -22,7 +22,7 @@ const dot = cva('size-1.5 shrink-0 rounded-full', {
       success: 'bg-success-dot',
       warning: 'bg-warning-dot',
       danger: 'bg-danger-dot',
-      neutral: 'bg-text-subtle',
+      neutral: 'bg-neutral-dot',
     },
   },
 });
