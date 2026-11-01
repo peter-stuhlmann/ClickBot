@@ -504,6 +504,14 @@ time, bots }]`, `stagger`) bilden die Bots eines Termins eine Welle.
     Name, Label, Test-ID, Text, ID, CSS-Pfad). Der Worker nimmt das erste, das über alle Frames
     genau ein Element trifft. Ist das Element schon weg (Banner, die sich beim Klick entfernen),
     das beste nicht mehrdeutige. Enter im Formular wird ein Klick auf den Absende-Button.
+  - Der Name eines Elements wird wie im Accessibility-Baum gebildet (`contentName`), damit die
+    Suche nach Rolle im Lauf dasselbe findet: Alt-Text von Bildern gehört dazu („Katalanisch
+    lernen mit Sprachkursen | Beispiel Katalanisch lernen“), versteckte Teile nicht, generierter
+    Inhalt (`::before`) schon. Namen bis 120 Zeichen.
+  - Ein Klick, der die Seite verlässt (Link auf eine andere Adresse, Absende-Button), wartet im
+    Seitenskript, bis der Worker die Vorschläge geprüft hat (`leavesPage`), und läuft dann als
+    eigener, nicht vertrauenswürdiger Klick weiter. Sonst wäre die Seite weg, bevor ein
+    mehrdeutiger Name auffällt. Anker (`#…`) und Klicks mit Strg/Umschalt warten nicht.
   - Passwortfelder werden nie mitgeschnitten, der Schritt bekommt `{{secret.passwort}}`.
   - Aufgezeichnet wird immer, von Anfang bis Ende (kein „Nur bedienen“). Neben der Adresse fügt
     die Kamera ein Bildschirmfoto ein, der Haken macht den nächsten Klick zu einer Prüfung

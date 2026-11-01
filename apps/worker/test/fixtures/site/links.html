@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="de">
+  <head>
+    <meta charset="utf-8" />
+    <title>Sprachkurse – Beispiel GmbH</title>
+    <style>
+      .pfeil::before {
+        content: '→ ';
+      }
+    </style>
+  </head>
+  <body>
+    <h1>Sprachkurse</h1>
+
+    <!-- A card link as WordPress renders it: the image alt text is part of the link's name. -->
+    <div class="grid">
+      <a href="/danke.html?kurs=katalanisch"
+        ><img
+          src="/bild.png"
+          alt="Katalanisch lernen mit Sprachkursen | Beispiel"
+          width="40"
+          height="40"
+        /><br />Katalanisch lernen</a
+      >
+    </div>
+
+    <!-- Two links with the same text that both leave the page. -->
+    <p><a id="info-1" href="/danke.html?kurs=1">Weitere Informationen</a></p>
+    <p><a id="info-2" href="/danke.html?kurs=2">Weitere Informationen</a></p>
+
+    <!-- Hidden text and generated content, which the bot's name computation treats its own way. -->
+    <p>
+      <a href="/danke.html?kurs=weiter"
+        ><span class="pfeil"></span>Weiter<span hidden>(öffnet die Kursseite)</span></a
+      >
+    </p>
+
+    <!-- A link that only scrolls the page. -->
+    <p><a href="#unten">Nach unten</a></p>
+    <div style="height: 2000px"></div>
+    <p id="unten">Unten angekommen.</p>
+  </body>
+</html>

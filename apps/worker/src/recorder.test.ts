@@ -1,6 +1,8 @@
+import type { BrowserContext } from 'playwright';
 import { describe, expect, it } from 'vitest';
 import { useBrowser } from '../test/browser';
 import { startRecorder, type RecordedStep } from './recorder';
+import { locate } from './targets';
 
 const browser = useBrowser();
 
@@ -146,6 +148,73 @@ describe('startRecorder', () => {
     ]);
     expect(page.url()).toMatch(/\/aufnahme\.html$/);
     expect(recorder.mode()).toBe('record');
+    await context.close();
+  });
+});
+
+describe('startRecorder – links that leave the page', () => {
+  /** How many elements the recorded target finds on a fresh copy of the page. */
+  async function matchesOnFreshPage(context: BrowserContext, step: RecordedStep) {
+    const fresh = await context.newPage();
+    await fresh.goto(`${browser.origin()}/links.html`);
+    if (step.type !== 'click') throw new Error('expected a click');
+    return locate(fresh, step.target).count();
+  }
+
+  it('names a card link like the bot does: with the alt text of its image', async () => {
+    const { context, page, settled } = await record('/links.html');
+    await page.getByRole('link', { name: /Katalanisch lernen/ }).click();
+
+    const steps = await settled(1);
+    expect(steps).toEqual([
+      {
+        type: 'click',
+        target: {
+          by: 'role',
+          role: 'link',
+          name: 'Katalanisch lernen mit Sprachkursen | Beispiel Katalanisch lernen',
+        },
+      },
+    ]);
+    await expect.poll(() => page.url()).toMatch(/\/danke\.html\?kurs=katalanisch$/);
+    expect(await matchesOnFreshPage(context, steps[0] as RecordedStep)).toBe(1);
+    await context.close();
+  });
+
+  it('checks the target before the link leaves the page, so equal links get a unique one', async () => {
+    const { context, page, settled } = await record('/links.html');
+    await page.locator('#info-2').click();
+
+    expect(await settled(1)).toEqual([
+      { type: 'click', target: { by: 'css', selector: '#info-2' } },
+    ]);
+    await expect.poll(() => page.url()).toMatch(/\/danke\.html\?kurs=2$/);
+    await context.close();
+  });
+
+  it('skips hidden text and keeps generated content in the name, as the bot sees it', async () => {
+    const { context, page, settled } = await record('/links.html');
+    await page.getByRole('link', { name: /Weiter$/ }).click();
+
+    const steps = await settled(1);
+    expect(steps[0]).toEqual({
+      type: 'click',
+      target: { by: 'role', role: 'link', name: '→ Weiter' },
+    });
+    await expect.poll(() => page.url()).toMatch(/\/danke\.html\?kurs=weiter$/);
+    expect(await matchesOnFreshPage(context, steps[0] as RecordedStep)).toBe(1);
+    await context.close();
+  });
+
+  it('lets a link that only scrolls the page do so', async () => {
+    const { context, page, settled } = await record('/links.html');
+    await page.getByRole('link', { name: 'Nach unten' }).click();
+
+    expect(await settled(1)).toEqual([
+      { type: 'click', target: { by: 'role', role: 'link', name: 'Nach unten' } },
+    ]);
+    await expect.poll(() => page.url()).toMatch(/\/links\.html#unten$/);
+    await expect.poll(() => page.evaluate(() => window.scrollY)).toBeGreaterThan(0);
     await context.close();
   });
 });

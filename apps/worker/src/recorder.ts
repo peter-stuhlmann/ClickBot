@@ -98,6 +98,40 @@ const PAGE_SCRIPT = `(() => {
     return '';
   }
 
+  // The name from the content of an element, the way the accessibility tree (and so the bot's
+  // search by role) builds it: hidden parts left out, images by their alt text, generated
+  // content included, a space around every block.
+  const hiddenForName = (el) => el.getAttribute('aria-hidden') === 'true' ||
+    (typeof el.checkVisibility === 'function' && !el.checkVisibility({ visibilityProperty: true }));
+  function pseudoText(el, which) {
+    const content = getComputedStyle(el, which).content || '';
+    const match = /^"(.*)"$/.exec(content) || /^'(.*)'$/.exec(content);
+    return match ? match[1] : '';
+  }
+  function contentName(node) {
+    if (node.nodeType === 3) return node.textContent;
+    if (node.nodeType !== 1 || hiddenForName(node)) return '';
+    const label = labelOf(node);
+    if (label) return ' ' + label + ' ';
+    const tag = node.tagName.toUpperCase();
+    if (tag === 'IMG' || tag === 'AREA' || (tag === 'INPUT' && node.type === 'image')) {
+      return ' ' + (node.getAttribute('alt') || '') + ' ';
+    }
+    if (tag === 'SVG') {
+      const title = node.querySelector('title');
+      return title ? ' ' + title.textContent + ' ' : '';
+    }
+    if (tag === 'BR') return ' ';
+    if (tag === 'SELECT' || isTextField(node)) return ' ' + (node.value || '') + ' ';
+    const inside = pseudoText(node, '::before') +
+      [...node.childNodes].map(contentName).join('') + pseudoText(node, '::after');
+    return getComputedStyle(node).display === 'inline' ? inside : ' ' + inside + ' ';
+  }
+  function fromContent(el) {
+    return clean(pseudoText(el, '::before') +
+      [...el.childNodes].map(contentName).join('') + pseudoText(el, '::after'));
+  }
+
   function nameOf(el) {
     const label = labelOf(el);
     if (label) return label;
@@ -107,10 +141,7 @@ const PAGE_SCRIPT = `(() => {
     if (el.tagName === 'INPUT' || el.tagName === 'SELECT' || el.tagName === 'TEXTAREA') {
       return clean(el.getAttribute('placeholder') || el.getAttribute('title'));
     }
-    const text = clean(el.textContent);
-    if (text) return text;
-    const img = el.querySelector && el.querySelector('img[alt]');
-    return clean((img && img.getAttribute('alt')) || el.getAttribute('title'));
+    return fromContent(el) || clean(el.getAttribute('title'));
   }
 
   function cssPath(el) {
@@ -138,10 +169,11 @@ const PAGE_SCRIPT = `(() => {
       const label = labelOf(el);
       if (label) list.push({ by: 'label', label });
     }
-    if (role && name && name.length <= 80) list.push({ by: 'role', role, name });
+    // A card link is named by its image too; such names get long, but they stay readable.
+    if (role && name && name.length <= 120) list.push({ by: 'role', role, name });
     const testId = el.getAttribute('data-testid');
     if (testId) list.push({ by: 'testId', testId });
-    if (!field && name && name.length <= 80) list.push({ by: 'text', text: name, exact: true });
+    if (!field && name && name.length <= 120) list.push({ by: 'text', text: name, exact: true });
     if (el.id && /^[A-Za-z][\\w-]*$/.test(el.id)) list.push({ by: 'css', selector: '#' + el.id });
     const fieldName = el.getAttribute('name');
     if (fieldName && /^[\\w-]+$/.test(fieldName)) {
@@ -211,8 +243,48 @@ const PAGE_SCRIPT = `(() => {
     if (last.el === el && now - last.at < 500) return;
     last = { el, at: now };
     if (document.activeElement && document.activeElement !== el) sendField(document.activeElement);
-    send({ kind: 'click', candidates: candidates(el, false) });
+    const hold = leavesPage(el, event);
+    if (hold) {
+      event.preventDefault();
+      event.stopImmediatePropagation();
+      // Enter in a field clicks the submit button: this click is the submit, not a key.
+      clearTimeout(pendingEnter);
+    }
+    const checked = send({ kind: 'click', candidates: candidates(el, false) });
+    if (!hold) return;
+    // The page is still here while the worker checks the suggestions. Then the click goes on,
+    // as a click of its own (not trusted, so it is not recorded again).
+    Promise.resolve(checked).catch(() => undefined).then(() => {
+      last = { el, at: Date.now() };
+      event.target.dispatchEvent(new MouseEvent('click', {
+        bubbles: true, cancelable: true, composed: true, view: window, detail: event.detail,
+        screenX: event.screenX, screenY: event.screenY, clientX: event.clientX,
+        clientY: event.clientY, button: 0,
+      }));
+    });
   }, true);
+
+  // A click that leaves the page (a link to another address, a submit button) would take the
+  // page away before the worker could check which suggestion finds exactly one element.
+  function leavesPage(el, event) {
+    if (event.button !== 0 || event.ctrlKey || event.metaKey || event.shiftKey || event.altKey) {
+      return false;
+    }
+    const link = el.closest('a[href]');
+    if (link) {
+      const href = (link.getAttribute('href') || '').trim();
+      if (href === '' || href.startsWith('#') || /^javascript:/i.test(href)) return false;
+      try {
+        const url = new URL(link.href, location.href);
+        const samePage = url.href.split('#')[0] === location.href.split('#')[0];
+        return !(samePage && url.hash);
+      } catch (error) {
+        return false;
+      }
+    }
+    const button = el.closest('button, input[type=submit], input[type=image]');
+    return !!(button && button.form && (button.type === 'submit' || button.type === 'image'));
+  }
 
   document.addEventListener('change', (event) => {
     if (event.target instanceof Element) sendField(event.target);
