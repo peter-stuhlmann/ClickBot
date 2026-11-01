@@ -53,11 +53,11 @@ export type JobEditorProps = {
   deleteAction: (state: FormState, formData: FormData) => Promise<FormState>;
   /** "Als Vorlage speichern": the stored flow becomes a template. */
   saveTemplateAction: (state: FormState, formData: FormData) => Promise<FormState>;
-  /** Saves `draft` first if given, then queues a test run. */
+  /** Saves `draft` first if given, then queues a test run; `href` is the report to open. */
   testRunAction: (
     jobId: string,
     draft: WizardDraft | null,
-  ) => Promise<{ issues: Issue[]; runId?: string }>;
+  ) => Promise<{ issues: Issue[]; href?: string }>;
 };
 
 /** State of the editor (screen 02): settings, schedule, devices and flow of one job. */
@@ -127,7 +127,7 @@ export function JobEditor({
     });
   }
 
-  /** Saves unsaved changes, then starts one bot and opens its report. */
+  /** Saves unsaved changes, then starts every device and browser and opens the report. */
   function testRun() {
     const found = dirty ? validateJobEdit(draft, saved, new Date()) : [];
     setIssues(found);
@@ -137,7 +137,7 @@ export function JobEditor({
       setIssues(result.issues);
       if (result.issues.length > 0) return selectStepOf(result.issues);
       setSaved(draft);
-      if (result.runId) router.push(`/laeufe/${result.runId}`);
+      if (result.href) router.push(result.href);
     });
   }
 
@@ -151,8 +151,13 @@ export function JobEditor({
 
   const selectedStep = selected === null ? undefined : draft.steps[selected];
   const advanced = describeAdvanced(draft);
-  // The test run takes the first device in its first browser, as queueTestRun does.
-  const [testTarget] = runTargets(draft.devices, draft.deviceBrowsers);
+  // A test run starts every device in every browser at once, as queueTestRun does.
+  const testTargets = runTargets(draft.devices, draft.deviceBrowsers);
+  const [testTarget] = testTargets;
+  const testRunHint =
+    testTargets.length > 1
+      ? `Auf allen gewählten Geräten und Browsern (${testTargets.length} Durchläufe), sofort.`
+      : `Einmal auf ${deviceLabel(testTarget?.device ?? 'desktop')} in ${browserLabel(testTarget?.browser ?? 'chromium')}, sofort.`;
 
   return (
     <EditorLayout
@@ -172,7 +177,7 @@ export function JobEditor({
             loading={testing}
             disabled={saving}
             onClick={testRun}
-            title={`Einmal auf ${deviceLabel(testTarget?.device ?? 'desktop')} in ${browserLabel(testTarget?.browser ?? 'chromium')}, sofort. Ungespeicherte Änderungen werden vorher gespeichert.`}
+            title={`${testRunHint} Ungespeicherte Änderungen werden vorher gespeichert.`}
           >
             Jetzt ausführen
           </Button>

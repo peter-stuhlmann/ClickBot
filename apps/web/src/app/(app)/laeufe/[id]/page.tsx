@@ -1,6 +1,8 @@
 import { getRunReport, NotFoundError } from '@click-bot/db';
 import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
+import { Button } from '@/components/atoms/Button';
+import { Icon } from '@/components/atoms/Icon';
 import { Notice } from '@/components/molecules/Notice';
 import { PageHeader } from '@/components/organisms/PageHeader';
 import { RunStepList } from '@/components/organisms/RunStepList';
@@ -10,7 +12,7 @@ import { ReportLayout } from '@/components/templates/ReportLayout';
 import { getDb } from '@/server/db';
 import { getShell } from '@/server/shell';
 import { toRunReportView } from '@/server/run-report-view';
-import { AutoRefresh } from './auto-refresh';
+import { AutoRefresh } from '../auto-refresh';
 
 export const dynamic = 'force-dynamic';
 
@@ -66,6 +68,17 @@ export default async function RunReportPage({ params }: Props) {
               { label: view.jobName, href: view.jobHref },
               { label: view.runLabel },
             ]}
+            actions={
+              view.wave ? (
+                <Button
+                  variant="secondary"
+                  href={view.wave.href}
+                  icon={<Icon name="history" size={16} />}
+                >
+                  {view.wave.label}
+                </Button>
+              ) : undefined
+            }
           />
         }
         stats={<StatGrid cards={view.stats} />}

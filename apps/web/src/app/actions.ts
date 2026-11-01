@@ -27,6 +27,7 @@ import {
   ValidationError,
 } from '@click-bot/db';
 import { toTemplateFlow } from '@click-bot/shared';
+import { testRunHref } from '@/lib/run-links';
 import { revalidatePath } from 'next/cache';
 import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
@@ -63,13 +64,13 @@ export async function toggleJobAction(formData: FormData): Promise<void> {
   revalidatePath('/');
 }
 
-/** "Jetzt ausführen" in the jobs table: one test run right away, then its report. */
+/** "Jetzt ausführen" in the jobs table: a test run on every device and browser, then the report. */
 export async function runJobNowAction(formData: FormData): Promise<void> {
   await requireUser();
   const jobId = formData.get('jobId');
   if (typeof jobId !== 'string' || jobId === '') throw new Error('jobId fehlt.');
-  const { runId } = await queueTestRun(getDb(), jobId, new Date());
-  redirect(`/laeufe/${runId}`);
+  const batch = await queueTestRun(getDb(), jobId, new Date());
+  redirect(testRunHref(batch));
 }
 
 export type CreateJobResult = { issues: Issue[] };
@@ -146,11 +147,12 @@ export async function updateJobAction(jobId: string, draft: WizardDraft): Promis
   return { issues: await saveJob(jobId, draft) };
 }
 
-export type TestRunResult = { issues: Issue[]; runId?: string };
+export type TestRunResult = { issues: Issue[]; href?: string };
 
 /**
- * "Testlauf starten": saves unsaved changes first (`draft`), because the worker runs the stored
- * job, then queues one test run. Returns the run to show, or why nothing was started.
+ * "Jetzt ausführen" in the editor: saves unsaved changes first (`draft`), because the worker runs
+ * the stored job, then queues a test run on every device and browser. Returns the report to
+ * show, or why nothing was started.
  */
 export async function startTestRunAction(
   jobId: string,
@@ -162,8 +164,8 @@ export async function startTestRunAction(
     if (issues.length > 0) return { issues };
   }
   try {
-    const { runId } = await queueTestRun(getDb(), jobId, new Date());
-    return { issues: [], runId };
+    const batch = await queueTestRun(getDb(), jobId, new Date());
+    return { issues: [], href: testRunHref(batch) };
   } catch (error) {
     if (error instanceof NotFoundError) return { issues: [GONE] };
     throw error;

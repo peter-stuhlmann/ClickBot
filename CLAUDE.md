@@ -28,7 +28,8 @@ Projekte, die Anmeldung, das Profil und die Einstellungen der KI-Anbieter stehen
       Deutsch: in der App mit Sidebar (`(app)/not-found.tsx`), außerhalb schlicht
       (`app/not-found.tsx`).
     - Screen 01 „Jobs“ (in der Oberfläche „Tests“) mit echten Daten, inklusive Pausieren und
-      Fortsetzen; je Zeile „Jetzt ausführen“ (`runJobNowAction`: ein Testlauf, dann sein Report)
+      Fortsetzen; je Zeile „Jetzt ausführen“ (`runJobNowAction`: ein Testlauf auf jedem Gerät in jedem
+      Browser, dann der Start-Report, bei nur einer Kombination der Lauf-Report; `testRunHref`)
     - Screen 05 „Neuer Job“ (`/jobs/neu`): Assistent in drei Schritten (`WIZARD_STEPS`), so
       dass die Website das Erste ist, was man eingibt:
       1. „Website & Test“: Start-URL (der erste Schritt „Seite öffnen“ folgt ihr, solange er
@@ -63,9 +64,9 @@ Projekte, die Anmeldung, das Profil und die Einstellungen der KI-Anbieter stehen
       aus dem Design, weil die Terminzeilen sonst zu schmal werden. GA4-Markierung und Werbung
       liegen auch hier unter „Erweiterte Einstellungen“; das Akkordeon ist offen, wenn eine davon
       vom Standard abweicht, damit die Warnung zu sehen ist.
-    - „Testlauf starten“ im Editor: speichert offene Änderungen, startet einen Bot auf dem
-      ersten Gerät und öffnet dessen Report. Der Report lädt sich alle 2 s neu, solange der
-      Lauf wartet oder läuft.
+    - „Jetzt ausführen“ im Editor: speichert offene Änderungen, startet einen Lauf je Gerät und
+      Browser und öffnet den Report (`startTestRunAction` liefert `href`). Die Reports laden sich
+      alle 2 s neu, solange ein Lauf wartet oder läuft (`AutoRefresh` in `(app)/laeufe/`).
     - Projekt → Kampagne → Job: Oben in der Sidebar wählt der Projekt-Umschalter
       (`ProjectSwitcher`, Suche filtert beim Tippen, „Neues Projekt“ fest unten) das aktuelle
       Projekt. Es liegt im Cookie `clickbot_project` (`src/server/shell.ts`, `getShell`, ohne
@@ -98,7 +99,13 @@ Projekte, die Anmeldung, das Profil und die Einstellungen der KI-Anbieter stehen
         nur ohne Läufe, nur in die Zukunft, nur wenn er sich nicht inzwischen geändert hat).
       - „Report-Versand“ aus dem Design fehlt, bis es PDF und E-Mail gibt.
     - Screen 03 „Lauf-Report“ (`/laeufe/<id>`), erreichbar über „Letzter Lauf“ in der
-      Job-Liste: Kennzahlen, Schritte mit Ergebnis, Fehler und Bildschirmfoto
+      Job-Liste: Kennzahlen, Schritte mit Ergebnis, Fehler und Bildschirmfoto. Gehört der Lauf
+      zu einem Start mit mehreren Läufen, führt „Alle n Durchläufe dieses Starts“ zum Start-Report.
+    - Screen 03b „Welle-Report“, in der Oberfläche „Start“ (`/laeufe/welle/<lauf-id>`, ohne
+      Figma-Abgleich): alle Läufe eines Starts nebeneinander, je Gerät und Browser mit Ergebnis,
+      fehlgeschlagenem Schritt und Grund; rechts die Fehler je Schritt mit den betroffenen
+      Kombinationen. Ein Start sind die Läufe eines Termins (`slot_index`) oder die Testläufe, die
+      „Jetzt ausführen“ zusammen angelegt hat (gleiche `scheduled_at`, `getWaveReport`).
     - „Einstellungen“ mit den Tabs aus Screen 08a, bisher nur „Team“ und „KI & API“
       (`/einstellungen/ki`): API-Schlüssel, Modell und Standard-Anbieter. Nur Admins ändern,
       die anderen sehen den Stand. Die Anbieter sind ein Accordion (`AccordionItem`): anfangs
@@ -121,7 +128,7 @@ Projekte, die Anmeldung, das Profil und die Einstellungen der KI-Anbieter stehen
   - im Lauf-Report: PDF, „Erneut ausführen“, KI-Eingriffe des Fallbacks, Konsolenfehler und ausgelesene
     Werte (dafür speichert der Worker noch keine Daten)
   - im Editor: KI-Box, „Erfolg & Daten“ und Variablen-Liste aus dem Design
-  - alle übrigen Screens, auch der Welle-Report (03b)
+  - alle übrigen Screens
 
 Was als „geplant“ markiert ist, existiert noch nicht.
 
@@ -140,6 +147,7 @@ Fachbegriffe. Wer UI-Texte schreibt, nutzt die linke Spalte:
 | Adresse der Website    | Start-URL (`start_url`)            |
 | Browser 1, Browser 2 … | Bot 1, Bot 2 (`bot_nr`)            |
 | Projekt                | Kunde, `customer`                  |
+| Start                  | Welle (alle Läufe eines Termins)   |
 
 „Bot“ kommt in der Oberfläche nur noch im Produktnamen Click-Bot und in GA4-Begriffen wie
 „Bot-Kennung“ vor. Die Umbenennung lief über ein Skript, das nur Strings, Template-Strings,
@@ -472,10 +480,12 @@ time, bots }]`, `stagger`) bilden die Bots eines Termins eine Welle.
        absoluter Pfad sein, weil Worker und Web-App in verschiedenen Ordnern starten.
      - Fehler außerhalb des Ablaufs, z. B. bei Zugangsdaten oder Browser, beenden den Lauf als
        „Lauf konnte nicht ausgeführt werden: …“.
-- **Testläufe** (`queueTestRun`) sind Läufe ohne Termin (`slot_index` NULL):
+- **Testläufe** (`queueTestRun`) sind Läufe ohne Termin (`slot_index` NULL), einer je Gerät und
+  Browser des Jobs (`runTargets`), alle mit derselben `scheduled_at`: das macht sie zu einem
+  Start (`TestRunBatch`: `runId` ist der erste, `runIds` alle).
   - `claimNextRun` nimmt sie auch bei pausierten, beendeten oder Entwurfs-Jobs an. Geplante
     Läufe nur bei aktiven Jobs.
-  - Wartet oder läuft schon ein Testlauf des Jobs, gibt `queueTestRun` diesen zurück statt
+  - Wartet oder läuft noch ein Testlauf des Jobs, gibt `queueTestRun` dessen Start zurück statt
     einen weiteren anzulegen.
   - Sie zählen nicht zum Fortschritt des Zeitplans (`runsDone`), aber zur Erfolgsquote.
 - **Ein Worker:** Beim Start markiert er alle noch `running`-Läufe als abgebrochen

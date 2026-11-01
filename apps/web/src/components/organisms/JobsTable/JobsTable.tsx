@@ -186,7 +186,7 @@ export function JobsTable({ rows, toggleAction, runAction }: JobsTableProps) {
                       variant="ghost"
                       size="sm"
                       aria-label={`${row.name} jetzt ausführen`}
-                      title="Jetzt einmal ausführen und den Report öffnen"
+                      title="Jetzt auf allen Geräten und Browsern ausführen und den Report öffnen"
                       icon={<Icon name="play" size={16} />}
                     />
                   </form>

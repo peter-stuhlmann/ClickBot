@@ -70,9 +70,11 @@ function report(
     job?: Partial<RunReport['job']>;
     steps?: RunStepRow[];
     averageDurationMs?: number | null;
+    waveSize?: number;
   } = {},
 ): RunReport {
   return {
+    waveSize: overrides.waveSize ?? 1,
     run: {
       id: 'run-1',
       jobId: 'job-1',
@@ -109,6 +111,14 @@ function report(
 }
 
 describe('toRunReportView', () => {
+  it('links to the other runs of the same start, and not when the run ran alone', () => {
+    expect(toRunReportView(report({ waveSize: 7 })).wave).toEqual({
+      href: '/laeufe/welle/run-1',
+      label: 'Alle 7 Durchläufe dieses Starts',
+    });
+    expect(toRunReportView(report()).wave).toBeNull();
+  });
+
   it('describes a passed run like the design', () => {
     const view = toRunReportView(report(), { workerOnline: true });
 

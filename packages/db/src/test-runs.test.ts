@@ -29,42 +29,68 @@ async function newJob(
 }
 
 describe('queueTestRun', () => {
-  it('queues one bot on the first device of the job, due right away, without a date', async () => {
+  it('queues one run per device and browser of the job, due right away, without a date', async () => {
     const job = await newJob();
-    const { runId, existing } = await queueTestRun(db, job.id, now);
+    const { runId, runIds, existing } = await queueTestRun(db, job.id, now);
 
     expect(existing).toBe(false);
-    const [run] = await db.select().from(runs).where(eq(runs.id, runId));
-    expect(run).toMatchObject({
-      jobId: job.id,
-      runNr: 5,
-      slotIndex: null,
-      botNr: 1,
-      device: 'iphone',
-      browser: 'webkit',
-      status: 'queued',
-      scheduledAt: now,
-    });
+    expect(runIds).toHaveLength(2);
+    expect(runId).toBe(runIds[0]);
+    const queued = await db.select().from(runs).orderBy(runs.runNr);
+    expect(queued.map((run) => run.id)).toEqual(runIds);
+    expect(queued).toMatchObject([
+      // The iPhone always runs in Safari, the desktop starts in Chrome.
+      { jobId: job.id, runNr: 5, slotIndex: null, botNr: 1, device: 'iphone', browser: 'webkit' },
+      {
+        jobId: job.id,
+        runNr: 6,
+        slotIndex: null,
+        botNr: 1,
+        device: 'desktop',
+        browser: 'chromium',
+      },
+    ]);
+    // One start: all runs of it share the moment they were queued.
+    for (const run of queued) expect(run).toMatchObject({ status: 'queued', scheduledAt: now });
   });
 
-  it('hands out the waiting test run instead of queuing another one', async () => {
+  it('hands out the waiting test runs instead of queuing more', async () => {
     const job = await newJob();
     const first = await queueTestRun(db, job.id, now);
     const again = await queueTestRun(db, job.id, later(5));
 
-    expect(again).toEqual({ runId: first.runId, existing: true });
-    expect(await db.select().from(runs)).toHaveLength(1);
+    expect(again).toEqual({ runId: first.runId, runIds: first.runIds, existing: true });
+    expect(await db.select().from(runs)).toHaveLength(2);
   });
 
-  it('queues a new test run once the previous one has finished', async () => {
+  it('still hands out the start while one of its runs is running and the other has finished', async () => {
     const job = await newJob();
     const first = await queueTestRun(db, job.id, now);
+    const claimed = await claimNextRun(db, now);
+    await completeRun(db, claimed?.run.id ?? '', {
+      status: 'passed',
+      finishedAt: later(3),
+      steps: [],
+    });
     await claimNextRun(db, now);
-    await completeRun(db, first.runId, { status: 'passed', finishedAt: later(3), steps: [] });
+
+    const again = await queueTestRun(db, job.id, later(5));
+    expect(again.existing).toBe(true);
+    expect(again.runIds.sort()).toEqual(first.runIds.slice().sort());
+  });
+
+  it('queues a new start once the previous one has finished', async () => {
+    const job = await newJob();
+    const first = await queueTestRun(db, job.id, now);
+    for (const runId of first.runIds) {
+      await claimNextRun(db, now);
+      await completeRun(db, runId, { status: 'passed', finishedAt: later(3), steps: [] });
+    }
 
     const second = await queueTestRun(db, job.id, later(10));
     expect(second.existing).toBe(false);
-    expect(second.runId).not.toBe(first.runId);
+    expect(second.runIds).toHaveLength(2);
+    expect(second.runIds).not.toContain(first.runId);
   });
 
   it.each([

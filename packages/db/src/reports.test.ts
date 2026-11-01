@@ -4,7 +4,7 @@ import { db, insertCampaign } from '../test/db';
 import { NotFoundError } from './errors';
 import { createJob } from './jobs';
 import type { Run } from './queue';
-import { getRunReport } from './reports';
+import { getRunReport, getWaveReport } from './reports';
 import { runSteps, runs } from './schema';
 
 const flow = {
@@ -123,10 +123,96 @@ describe('getRunReport', () => {
     expect((await getRunReport(db, queued.id)).averageDurationMs).toBeNull();
   });
 
+  it('counts the runs of the same start, e.g. two devices of one slot', async () => {
+    const { failed, queued } = await jobWithRuns();
+    expect((await getRunReport(db, failed.id)).waveSize).toBe(2);
+    expect((await getRunReport(db, queued.id)).waveSize).toBe(1);
+  });
+
   it.each([
     ['an unknown', '00000000-0000-0000-0000-000000000000'],
     ['a malformed', 'lauf-7'],
   ])('throws NotFoundError for %s id', async (_case, id) => {
     await expect(getRunReport(db, id)).rejects.toBeInstanceOf(NotFoundError);
+  });
+});
+
+describe('getWaveReport', () => {
+  it('lists every run of the same slot with device, browser, result and the failed step', async () => {
+    const { job, failed, passed } = await jobWithRuns();
+    await db.insert(runSteps).values([
+      { runId: failed.id, stepIndex: 0, stepId: 'open', status: 'passed', durationMs: 800 },
+      {
+        runId: failed.id,
+        stepIndex: 1,
+        stepId: 'send',
+        status: 'failed',
+        durationMs: 3_000,
+        message: 'Element nicht gefunden …',
+      },
+      { runId: passed.id, stepIndex: 0, stepId: 'open', status: 'passed', durationMs: 700 },
+      { runId: passed.id, stepIndex: 1, stepId: 'send', status: 'passed', durationMs: 900 },
+    ]);
+
+    const wave = await getWaveReport(db, passed.id);
+
+    expect(wave.job).toEqual({ id: job.id, name: 'Kontaktformular-Test' });
+    expect(wave.flow.steps.map((step) => step.id)).toEqual(['open', 'send']);
+    expect(wave.manual).toBe(false);
+    expect(wave.scheduledAt).toEqual(failed.scheduledAt);
+    // In the order they were queued; the run of the next slot is not part of it.
+    expect(wave.runs).toEqual([
+      {
+        id: failed.id,
+        runNr: 1,
+        botNr: 1,
+        device: 'desktop',
+        browser: 'chromium',
+        status: 'failed',
+        scheduledAt: failed.scheduledAt,
+        startedAt: failed.startedAt,
+        finishedAt: failed.finishedAt,
+        error: 'Element nicht gefunden: Rolle „button“ mit Name „Absenden“ (nach 10 s).',
+        failedStep: { stepIndex: 1, stepId: 'send', message: 'Element nicht gefunden …' },
+      },
+      {
+        id: passed.id,
+        runNr: 2,
+        botNr: 1,
+        device: 'iphone',
+        browser: 'chromium',
+        status: 'passed',
+        scheduledAt: passed.scheduledAt,
+        startedAt: passed.startedAt,
+        finishedAt: passed.finishedAt,
+        error: null,
+        failedStep: null,
+      },
+    ]);
+  });
+
+  it('groups manual runs by the moment they were queued together', async () => {
+    const { job } = await jobWithRuns();
+    const at = (seconds: number) => new Date(Date.UTC(2026, 10, 5, 13, 0, seconds));
+    const [a, b, other] = (await db
+      .insert(runs)
+      .values([
+        { jobId: job.id, runNr: 10, slotIndex: null, device: 'desktop', scheduledAt: at(0) },
+        { jobId: job.id, runNr: 11, slotIndex: null, device: 'iphone', scheduledAt: at(0) },
+        { jobId: job.id, runNr: 12, slotIndex: null, device: 'desktop', scheduledAt: at(30) },
+      ])
+      .returning()) as [Run, Run, Run];
+
+    const wave = await getWaveReport(db, b.id);
+    expect(wave.manual).toBe(true);
+    expect(wave.runs.map((run) => run.id)).toEqual([a.id, b.id]);
+    expect((await getWaveReport(db, other.id)).runs.map((run) => run.id)).toEqual([other.id]);
+  });
+
+  it.each([
+    ['an unknown', '00000000-0000-0000-0000-000000000000'],
+    ['a malformed', 'welle-7'],
+  ])('throws NotFoundError for %s id', async (_case, id) => {
+    await expect(getWaveReport(db, id)).rejects.toBeInstanceOf(NotFoundError);
   });
 });

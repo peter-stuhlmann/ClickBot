@@ -77,6 +77,45 @@ export type RunReportView = {
   marking: { title: string; message: string } | null;
   /** Set when the run loaded ads instead of blocking them. */
   ads: { title: string; message: string } | null;
+  /** The other runs of the same start (every device and browser); null when it ran alone. */
+  wave: { href: string; label: string } | null;
+};
+
+/** One run in the report of a start (screen 03b): a device in a browser. */
+export type WaveRunRowView = {
+  id: string;
+  /** The report of that run. */
+  href: string;
+  /** "Desktop", "iPhone 15" */
+  device: string;
+  /** "Chrome", "Safari" */
+  browser: string;
+  status: { tone: Tone; label: string };
+  /** "Schritt 7 · Klicke auf „Weiter“", null unless a step failed. */
+  failedStep: string | null;
+  /** Why it failed: the message of the step, or of the run when it never got to a step. */
+  reason: string | null;
+  duration: string;
+  failed: boolean;
+};
+
+/** Screen 03b "Welle-Report": every device and browser of one start, side by side. */
+export type WaveReportView = {
+  jobName: string;
+  jobHref: string;
+  /** "Start 16:17 Uhr", for the breadcrumb and the title. */
+  title: string;
+  status: { tone: Tone; label: string };
+  /** "So., 01.11.2026 · manuell gestartet · 7 Durchläufe auf 4 Geräten" */
+  meta: string;
+  stats: StatCardView[];
+  /** "7 Durchläufe · 3 fehlgeschlagen", next to the table title. */
+  summary: string;
+  rows: WaveRunRowView[];
+  /** What failed, grouped by step: where (devices and browsers) and why. */
+  failures: { title: string; where: string; message: string }[];
+  /** While a run waits or runs: what is going on. The page then refreshes itself. */
+  live: string | null;
 };
 
 /** Title line of the editor: name, status badge, schedule and devices. */

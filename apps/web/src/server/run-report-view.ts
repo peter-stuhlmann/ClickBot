@@ -193,6 +193,13 @@ export function toRunReportView(
     live: liveHint(run.status, workerOnline),
     marking: markingNote(run.analyticsMarking),
     ads: adsNote(run.adsBlocked),
+    wave:
+      report.waveSize > 1
+        ? {
+            href: `/laeufe/welle/${run.id}`,
+            label: `Alle ${report.waveSize} Durchläufe dieses Starts`,
+          }
+        : null,
     screenshot: lastScreenshot?.screenshotPath
       ? {
           url: artifactUrl(lastScreenshot.screenshotPath),

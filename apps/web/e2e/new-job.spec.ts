@@ -62,6 +62,29 @@ test.describe('Neuer Test', () => {
     await expect(row).toContainText('127.0.0.1:4100/kontakt.html');
     await expect(row).toContainText('alle 30 Min.');
     await expect(row.getByText('Aktiv', { exact: true })).toBeVisible();
+
+    // "Jetzt ausführen" starts every device in every browser at once and shows them together.
+    await row.getByRole('button', { name: 'Jetzt ausführen' }).click();
+    await expect(page).toHaveURL(/\/laeufe\/welle\/[0-9a-f-]{36}$/);
+    await expect(
+      page.getByRole('heading', { level: 1, name: /^Start \d\d:\d\d Uhr$/ }),
+    ).toBeVisible();
+    await expect(page.getByText('4 Durchläufe auf 3 Geräten')).toBeVisible();
+    const table = page.getByRole('region', { name: 'Durchläufe dieses Starts' });
+    const cells = table.getByRole('row').filter({ has: page.getByRole('link') });
+    await expect(cells).toHaveCount(4);
+    await expect(table).toContainText('Firefox');
+    await expect(table).toContainText('iPhone 15');
+    // No worker runs during the e2e tests: everything waits.
+    await expect(
+      page.getByRole('status').filter({ hasText: 'Das Testsystem ist nicht verbunden.' }),
+    ).toBeVisible();
+
+    // A single run links back to its start.
+    await table.getByRole('link', { name: 'iPhone 15' }).click();
+    await expect(page.getByRole('heading', { level: 1, name: /manuell gestartet/ })).toBeVisible();
+    await page.getByRole('link', { name: 'Alle 4 Durchläufe dieses Starts' }).click();
+    await expect(page).toHaveURL(/\/laeufe\/welle\//);
   });
 
   test('creates a job with random starts, shaped by a curve per weekday', async ({ page }) => {

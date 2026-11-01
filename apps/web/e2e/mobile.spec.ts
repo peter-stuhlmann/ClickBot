@@ -61,6 +61,7 @@ test.describe('Auf dem Handy', () => {
       '/kalender',
       '/laeufe',
       run,
+      run.replace('/laeufe/', '/laeufe/welle/'),
       '/vorlagen',
       '/vorlagen/neu',
       '/kampagnen',

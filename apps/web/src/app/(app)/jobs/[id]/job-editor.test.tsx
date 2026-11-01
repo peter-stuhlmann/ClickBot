@@ -1,5 +1,5 @@
 import type { Flow, Schedule } from '@click-bot/shared';
-import { fireEvent, render, screen } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { jobToDraft, type Issue, type WizardDraft } from '@/lib/job-draft';
@@ -65,13 +65,13 @@ type SaveAction = (jobId: string, draft: WizardDraft) => Promise<{ issues: Issue
 type TestRunAction = (
   jobId: string,
   draft: WizardDraft | null,
-) => Promise<{ issues: Issue[]; runId?: string }>;
+) => Promise<{ issues: Issue[]; href?: string }>;
 
 function renderEditor({
   initial = draftOf(),
   startedSlots = [] as number[],
   saveAction = vi.fn<SaveAction>(async () => ({ issues: [] })),
-  testRunAction = vi.fn<TestRunAction>(async () => ({ issues: [], runId: 'run-9' })),
+  testRunAction = vi.fn<TestRunAction>(async () => ({ issues: [], href: '/laeufe/run-9' })),
 } = {}) {
   render(
     <JobEditor
@@ -357,11 +357,23 @@ describe('JobEditor', () => {
       expect(push).not.toHaveBeenCalled();
     });
 
-    it('names the device it will use', () => {
+    it('names the device it will use, or how many combinations run at once', () => {
       renderEditor();
       expect(testButton()).toHaveAttribute(
         'title',
         expect.stringContaining('Einmal auf Desktop in Chrome'),
+      );
+      cleanup();
+      renderEditor({
+        initial: {
+          ...draftOf(),
+          devices: ['desktop', 'iphone'],
+          deviceBrowsers: { desktop: ['chromium', 'firefox'], iphone: ['webkit'] },
+        },
+      });
+      expect(testButton()).toHaveAttribute(
+        'title',
+        expect.stringContaining('Auf allen gewählten Geräten und Browsern (3 Durchläufe)'),
       );
     });
   });

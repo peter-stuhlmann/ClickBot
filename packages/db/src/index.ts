@@ -59,7 +59,14 @@ export {
   type ProjectScope,
 } from './overview';
 export { DEFAULT_DEMO_SITE_URL, seedDemoData } from './seed';
-export { getRunReport, type RunReport, type RunStepRow } from './reports';
+export {
+  getRunReport,
+  getWaveReport,
+  type RunReport,
+  type RunStepRow,
+  type WaveReport,
+  type WaveRun,
+} from './reports';
 export {
   createTemplate,
   deleteTemplate,
@@ -70,7 +77,7 @@ export {
   type TemplateInput,
   type TemplateRow,
 } from './templates';
-export { queueTestRun } from './test-runs';
+export { queueTestRun, type TestRunBatch } from './test-runs';
 export { listRuns, type RunFilter, type RunListRow } from './run-list';
 export {
   claimNextRun,
