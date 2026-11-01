@@ -1,6 +1,11 @@
-import { render, screen } from '@testing-library/react';
-import { describe, expect, it } from 'vitest';
+import { render, screen, waitFor } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { chooseOption } from '../../../../test/select';
 import { RunFilters } from './RunFilters';
+
+const push = vi.fn();
+vi.mock('next/navigation', () => ({ useRouter: () => ({ push }) }));
 
 const props = {
   values: { kampagne: 'c2', ergebnis: 'fehlgeschlagen', zeitraum: '24h', geraet: '' },
@@ -16,8 +21,10 @@ const props = {
   devices: [{ value: 'desktop', label: 'Desktop' }],
 };
 
+beforeEach(() => push.mockReset());
+
 describe('RunFilters', () => {
-  it('is a GET form for the run list, so the filters end up in the address', () => {
+  it('is a GET form for the run list, so it works without JavaScript too', () => {
     render(<RunFilters {...props} />);
     const form = screen.getByRole('form', { name: 'Durchläufe filtern' });
     expect(form).toHaveAttribute('method', 'get');
@@ -40,12 +47,18 @@ describe('RunFilters', () => {
     expect(screen.getByRole('combobox', { name: 'Gerät' })).toHaveTextContent('Alle Geräte');
   });
 
-  it('applies and resets the filters', () => {
+  it('applies a changed filter at once, keeping the others and leaving empty ones out', async () => {
+    const user = userEvent.setup();
     render(<RunFilters {...props} />);
-    expect(screen.getByRole('button', { name: 'Filter anwenden' })).toHaveAttribute(
-      'type',
-      'submit',
+    await chooseOption(user, screen.getByRole('combobox', { name: 'Zeitraum' }), 'Letzte 7 Tage');
+    await waitFor(() =>
+      expect(push).toHaveBeenCalledWith('/laeufe?kampagne=c2&ergebnis=fehlgeschlagen&zeitraum=7d'),
     );
+    expect(screen.queryByRole('button', { name: 'Filter anwenden' })).not.toBeInTheDocument();
+  });
+
+  it('resets everything with one link', () => {
+    render(<RunFilters {...props} />);
     expect(screen.getByRole('link', { name: 'Filter zurücksetzen' })).toHaveAttribute(
       'href',
       '/laeufe',

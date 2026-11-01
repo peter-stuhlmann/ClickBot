@@ -23,11 +23,10 @@ test.describe('Durchläufe', () => {
 
   test('filters by result and opens the report of a run', async ({ page }) => {
     await page.goto('/laeufe');
+    // A changed filter applies itself; empty filters stay out of the address.
     await chooseOption(page.getByRole('combobox', { name: 'Ergebnis' }), 'Fehlgeschlagen');
-    await page.getByRole('button', { name: 'Filter anwenden' }).click();
-
-    // A plain GET form also sends the empty fields.
     await expect(page).toHaveURL(/[?&]ergebnis=fehlgeschlagen(&|$)/);
+    expect(page.url()).not.toMatch(/kampagne=|geraet=/);
     await expect(page.getByRole('combobox', { name: 'Ergebnis' })).toHaveText('Fehlgeschlagen');
     const rows = page.getByRole('region', { name: 'Durchläufe' }).getByRole('row');
     const count = await rows.count();

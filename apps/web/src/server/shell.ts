@@ -1,6 +1,7 @@
 import 'server-only';
 import { getWorkerStatus, listCustomers, type CustomerOption, type Database } from '@click-bot/db';
 import { cookies } from 'next/headers';
+import { cache } from 'react';
 import { getCurrentUser } from './session';
 
 /** The project the user chose in the sidebar; per browser, like the language of a shop. */
@@ -22,13 +23,17 @@ export function projectScope(project: CustomerOption | null): { customerId: stri
   return { customerId: project?.id ?? NO_PROJECT };
 }
 
-/** What every page with the sidebar needs: user, worker, projects and the current project. */
-export async function getShell(db: Database, now: Date) {
+/**
+ * What the sidebar and every page need: user, worker, projects and the current project. Read
+ * once per request: the layout renders the sidebar from it, the page scopes its data to the
+ * project, and both get the same result.
+ */
+export const getShell = cache(async (db: Database) => {
   // Auth first: nothing is read for someone who is not signed in.
   const user = await getCurrentUser();
   const [projects, worker, store] = await Promise.all([
     listCustomers(db),
-    getWorkerStatus(db, now),
+    getWorkerStatus(db, new Date()),
     cookies(),
   ]);
   return {
@@ -37,4 +42,4 @@ export async function getShell(db: Database, now: Date) {
     projects,
     project: pickProject(projects, store.get(PROJECT_COOKIE)?.value),
   };
-}
+});

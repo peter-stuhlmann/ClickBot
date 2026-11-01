@@ -1,6 +1,7 @@
 'use client';
 
-import { useEffect, useId, useRef, useState, type MouseEvent } from 'react';
+import { usePathname } from 'next/navigation';
+import { useEffect, useId, useRef, useState, useTransition, type MouseEvent } from 'react';
 import { Icon } from '@/components/atoms/Icon';
 import { LogoMark } from '@/components/atoms/LogoMark';
 import { NavItem, type NavItemProps } from '@/components/molecules/NavItem';
@@ -8,6 +9,7 @@ import { ProjectSwitcher, type ProjectOption } from '@/components/molecules/Proj
 import { UserCard, type UserCardProps } from '@/components/molecules/UserCard';
 import { WorkerStatus, type WorkerStatusProps } from '@/components/molecules/WorkerStatus';
 import { cn } from '@/lib/cn';
+import { navKeyFor, type NavKey } from '@/lib/navigation';
 
 export const NAVIGATION = [
   { key: 'jobs', href: '/', label: 'Tests', icon: 'play' },
@@ -16,20 +18,24 @@ export const NAVIGATION = [
   { key: 'kampagnen', href: '/kampagnen', label: 'Kampagnen', icon: 'megaphone' },
   { key: 'vorlagen', href: '/vorlagen', label: 'Vorlagen', icon: 'copy' },
   { key: 'einstellungen', href: '/einstellungen', label: 'Einstellungen', icon: 'sliders' },
-] as const satisfies (Omit<NavItemProps, 'active'> & { key: string })[];
+] as const satisfies (Omit<NavItemProps, 'active'> & { key: NavKey })[];
 
-export type NavKey = (typeof NAVIGATION)[number]['key'];
+export type { NavKey };
 
 export type SidebarProps = {
-  /** The section of the page; 'profil' marks the user card at the bottom instead. */
-  active: NavKey | 'profil';
+  /**
+   * The section of the page; 'profil' marks the user card at the bottom instead. Without it
+   * the section follows the address, which is what the layout relies on.
+   */
+  active?: NavKey | 'profil';
   worker: WorkerStatusProps;
   /** Null until someone is signed in. */
   user: UserCardProps | null;
   /** The projects for the switcher above the navigation; the pages show `project`. */
   projects: ProjectOption[];
   project: ProjectOption | null;
-  selectProject: (projectId: string) => void;
+  /** A server action: the transition waits for it, so the switcher shows busy until it is done. */
+  selectProject: (projectId: string) => void | Promise<void>;
 };
 
 const iconButton =
@@ -50,7 +56,11 @@ function Brand() {
  * as a drawer.
  */
 export function Sidebar({ active, worker, user, projects, project, selectProject }: SidebarProps) {
+  const pathname = usePathname();
+  const current = active ?? navKeyFor(pathname ?? '');
   const [open, setOpen] = useState(false);
+  // Switching the project re-renders every page; the switcher shows that it is working.
+  const [switching, startSwitching] = useTransition();
   const drawerId = useId();
   const menuButton = useRef<HTMLButtonElement>(null);
   const closeButton = useRef<HTMLButtonElement>(null);
@@ -125,20 +135,21 @@ export function Sidebar({ active, worker, user, projects, project, selectProject
           <ProjectSwitcher
             projects={projects}
             current={project}
-            onSelect={selectProject}
+            onSelect={(projectId) => startSwitching(() => selectProject(projectId))}
+            busy={switching}
             newProjectHref="/projekte/neu"
           />
         </div>
 
         <nav aria-label="Hauptnavigation" className="flex flex-col gap-1">
           {NAVIGATION.map(({ key, ...item }) => (
-            <NavItem key={key} {...item} active={key === active} />
+            <NavItem key={key} {...item} active={key === current} />
           ))}
         </nav>
 
         <div className="flex-1" />
         <WorkerStatus {...worker} />
-        {user && <UserCard {...user} current={active === 'profil'} />}
+        {user && <UserCard {...user} current={current === 'profil'} />}
       </aside>
     </>
   );

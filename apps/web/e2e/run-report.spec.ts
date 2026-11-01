@@ -27,6 +27,7 @@ test.describe('Durchlauf-Report', () => {
   test('shows a not-found page for an unknown run', async ({ page }) => {
     const response = await page.goto('/laeufe/00000000-0000-0000-0000-000000000000');
     expect(response?.status()).toBe(404);
+    await expect(page.getByRole('heading', { name: 'Nicht gefunden' })).toBeVisible();
   });
 
   test('serves stored screenshots and nothing else', async ({ request }) => {

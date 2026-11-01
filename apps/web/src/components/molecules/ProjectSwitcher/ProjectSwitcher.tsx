@@ -14,6 +14,8 @@ export type ProjectSwitcherProps = {
   current: ProjectOption | null;
   onSelect: (projectId: string) => void;
   newProjectHref: string;
+  /** True while the chosen project is being applied; the trigger shows it and waits. */
+  busy?: boolean;
 };
 
 /**
@@ -25,6 +27,7 @@ export function ProjectSwitcher({
   current,
   onSelect,
   newProjectHref,
+  busy = false,
 }: ProjectSwitcherProps) {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState('');
@@ -88,8 +91,10 @@ export function ProjectSwitcher({
         aria-label={`Projekt: ${current?.name ?? 'keins'}`}
         aria-haspopup="dialog"
         aria-expanded={open}
+        aria-busy={busy || undefined}
+        disabled={busy}
         onClick={toggle}
-        className="flex w-full items-center gap-2 rounded-input bg-sidebar-active px-3 py-2 text-left transition-colors hover:bg-sidebar-active/80 focus-visible:outline-2 focus-visible:outline-primary"
+        className="flex w-full items-center gap-2 rounded-input bg-sidebar-active px-3 py-2 text-left transition-colors hover:bg-sidebar-active/80 focus-visible:outline-2 focus-visible:outline-primary disabled:opacity-70"
       >
         <span className="flex min-w-0 flex-1 flex-col">
           <span className="text-label font-semibold text-sidebar-muted uppercase">Projekt</span>
@@ -97,7 +102,14 @@ export function ProjectSwitcher({
             {current?.name ?? 'Noch kein Projekt'}
           </span>
         </span>
-        <Icon name="chevrons" size={16} className="shrink-0 text-sidebar-muted" />
+        {busy ? (
+          <span
+            aria-hidden="true"
+            className="size-4 shrink-0 animate-spin rounded-full border-2 border-sidebar-muted border-t-transparent"
+          />
+        ) : (
+          <Icon name="chevrons" size={16} className="shrink-0 text-sidebar-muted" />
+        )}
       </button>
 
       {open && (

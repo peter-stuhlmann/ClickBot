@@ -1,6 +1,12 @@
 import { render, screen } from '@testing-library/react';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { NavItem } from './NavItem';
+
+const linkStatus = vi.hoisted(() => ({ pending: false }));
+vi.mock('next/link', async (importOriginal) => ({
+  ...(await importOriginal<Record<string, unknown>>()),
+  useLinkStatus: () => linkStatus,
+}));
 
 describe('NavItem', () => {
   it('links to its page', () => {
@@ -18,5 +24,17 @@ describe('NavItem', () => {
   it('does not mark other pages', () => {
     render(<NavItem href="/laeufe" label="Durchläufe" icon="history" />);
     expect(screen.getByRole('link', { name: 'Durchläufe' })).not.toHaveAttribute('aria-current');
+  });
+
+  it('shows a spinner while its page loads, and none otherwise', () => {
+    const { rerender } = render(<NavItem href="/laeufe" label="Durchläufe" icon="history" />);
+    const spinner = () =>
+      screen.getByRole('link', { name: 'Durchläufe' }).querySelector('.animate-spin');
+    expect(spinner()).toBeNull();
+
+    linkStatus.pending = true;
+    rerender(<NavItem href="/laeufe" label="Durchläufe" icon="history" />);
+    expect(spinner()).not.toBeNull();
+    linkStatus.pending = false;
   });
 });

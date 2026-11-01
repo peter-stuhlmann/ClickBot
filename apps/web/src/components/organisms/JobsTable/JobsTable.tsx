@@ -1,9 +1,9 @@
 import Link from 'next/link';
 import { Badge } from '@/components/atoms/Badge';
-import { Button } from '@/components/atoms/Button';
 import { Icon } from '@/components/atoms/Icon';
 import { ProgressBar } from '@/components/atoms/ProgressBar';
-import { Toggle } from '@/components/atoms/Toggle';
+import { SubmitButton } from '@/components/molecules/SubmitButton';
+import { SubmitToggle } from '@/components/molecules/SubmitToggle';
 import type { JobRowView, Tone } from '@/lib/views';
 
 const RATE_COLOUR: Record<Tone, string> = {
@@ -53,10 +53,9 @@ function StatusCell({
 }) {
   const { status } = row;
   const toggle = (
-    <Toggle
+    <SubmitToggle
       checked={status.active}
       disabled={!status.toggleable}
-      type={status.toggleable ? 'submit' : 'button'}
       label={
         status.toggleable
           ? `${row.name} ${status.active ? 'pausieren' : 'fortsetzen'}`
@@ -183,8 +182,7 @@ export function JobsTable({ rows, toggleAction, runAction }: JobsTableProps) {
                   <StatusCell row={row} toggleAction={toggleAction} />
                   <form action={runAction}>
                     <input type="hidden" name="jobId" value={row.id} />
-                    <Button
-                      type="submit"
+                    <SubmitButton
                       variant="ghost"
                       size="sm"
                       aria-label={`${row.name} jetzt ausführen`}

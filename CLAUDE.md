@@ -16,7 +16,17 @@ Projekte, die Anmeldung, das Profil und die Einstellungen der KI-Anbieter stehen
   - `packages/ai`: Anbindung an Gemini, OpenAI, Perplexity, Claude und eine OpenAI-kompatible
     API (Custom), mit Verbindungstest
   - `apps/web`:
-    - App-Rahmen mit Sidebar
+    - App-Rahmen mit Sidebar: das Layout der Routengruppe `src/app/(app)/` rendert `AppShell`
+      um jede Seite der App. Die Sidebar bleibt beim Wechseln stehen; der angeklickte Punkt
+      zeigt einen Spinner, bis die Seite da ist (`useLinkStatus` in `NavItem`). Bewusst kein
+      `loading.tsx`: Ein Suspense-Fallback macht aus `notFound()` einen Status 200 und bleibt
+      ohne JavaScript für immer stehen. Den aktiven Punkt leitet die Sidebar aus der Adresse ab
+      (`navKeyFor` in `src/lib/navigation.ts`). Seiten rufen `getShell(db)` nur noch, wenn sie
+      das aktuelle Projekt brauchen (React `cache`: einmal je Anfrage). Der Worker-Status in der
+      Sidebar ist so frisch wie der letzte volle Seitenaufbau (Reload, Projektwechsel,
+      `router.refresh()`), nicht jeder Klick. Unbekannte Adressen zeigen „Nicht gefunden“ auf
+      Deutsch: in der App mit Sidebar (`(app)/not-found.tsx`), außerhalb schlicht
+      (`app/not-found.tsx`).
     - Screen 01 „Jobs“ (in der Oberfläche „Tests“) mit echten Daten, inklusive Pausieren und
       Fortsetzen; je Zeile „Jetzt ausführen“ (`runJobNowAction`: ein Testlauf, dann sein Report)
     - Screen 05 „Neuer Job“ (`/jobs/neu`): Assistent in drei Schritten (`WIZARD_STEPS`), so
@@ -67,8 +77,11 @@ Projekte, die Anmeldung, das Profil und die Einstellungen der KI-Anbieter stehen
       `/kunden` leiten auf `/kampagnen` weiter (`next.config.ts`). Die Spalte „Wochen-PDF“
       fehlt, bis es das PDF gibt.
     - Screen 14 „Läufe“ (`/laeufe`): alle Läufe, neueste zuerst, 50 je Seite, mit Filtern nach
-      Kampagne, Ergebnis, Zeitraum und Gerät. Die Filter stehen in der Adresse (GET-Formular,
-      `src/lib/run-filters.ts`). CSV, Sammel-PDF, gespeicherte Ansichten und Standort fehlen.
+      Kampagne, Ergebnis, Zeitraum und Gerät. Die Filter stehen in der Adresse
+      (`src/lib/run-filters.ts`); eine Änderung gilt sofort (`RunFilters`: `router.push` in einer
+      Transition, leere Filter bleiben aus der Adresse), ohne JavaScript schickt dasselbe
+      GET-Formular den Knopf „Filter anwenden“ aus `<noscript>`. CSV, Sammel-PDF, gespeicherte
+      Ansichten und Standort fehlen.
     - Screen 13 „Kalender“ (`/kalender?woche=<Montag>&tag=<Tag>`): die Starts einer Woche des
       Projekts als Wellen je Tag (ein Eintrag je Termin bzw. Start; ab 5 Starts eines Jobs am
       Tag einer für den ganzen Tag), darunter die „Auslastung“ eines Tags. Ohne `tag` der erste
@@ -641,13 +654,18 @@ Regeln:
 - **Datenzugriff nur in Seiten.**
   - Atoms bis Templates sind rein darstellend: nur Props, kein fetch, kein DB-Import.
     Interaktivität (`"use client"`) so tief wie möglich ansetzen.
-  - Jede Seite prüft die Anmeldung zuerst (`getCurrentUser()` bzw. `requireUser()` aus
-    `src/server/auth.ts`), vor jedem Datenzugriff. Jede Server Action ruft selbst
-    `requireUser()` oder `requireAdmin()` auf.
+  - Jede Seite prüft die Anmeldung zuerst (`getShell()` bzw. `requireUser()` aus
+    `src/server/auth.ts`), vor jedem Datenzugriff, auch wenn das Layout das schon tut: Next
+    rendert Layout und Seite parallel. Jede Server Action ruft selbst `requireUser()` oder
+    `requireAdmin()` auf.
   - Server Actions bekommen Komponenten als Prop, z. B. `toggleAction`. Sie liegen in
     `src/app/actions.ts`, die der Anmeldung in `src/app/auth-actions.ts`, die der KI-Anbieter
-    in `src/app/ai-actions.ts`. Sie prüfen Eingaben
+    in `src/app/ai-actions.ts`; Seiten importieren sie über `@/app/actions`. Sie prüfen Eingaben
     selbst noch einmal, denn jeder kann sie aufrufen.
+  - Jede Aktion antwortet sofort sichtbar: Knöpfe und Schalter in einem `<form action>` sind
+    `SubmitButton` bzw. `SubmitToggle` (Moleküle mit `useFormStatus`, Spinner und `aria-busy`,
+    solange die Action läuft); Aktionen aus Client-Komponenten laufen in `useTransition` und
+    zeigen den Wartezustand (z. B. der Projekt-Umschalter, `busy`).
   - Formulare über mehrere Schritte: Der Zustand liegt in einer Client-Komponente neben der
     Seite (z. B. `src/app/jobs/neu/new-job-wizard.tsx`), die nur Organisms zusammensteckt.
     Umwandeln und Prüfen stehen als reine Funktionen mit Tests in `src/lib`
@@ -695,6 +713,11 @@ Tailwind (v4, CSS-first):
   - Nicht erlaubt: Standardpalette (`bg-indigo-600`), Hex-Werte und willkürliche Werte
     (`p-[13px]`, `text-[#333]`).
   - Fehlt ein Wert, wird er als Token ergänzt, nicht inline gesetzt.
+- **Kontrast mindestens 4,5:1** (WCAG AA) für jeden Text, auch für Platzhalter, Badges und Text
+  auf getönten Karten. Deshalb ist `success` #067647 und `danger` #B42318 (dunkler als in Figma),
+  gibt es kein `text-subtle` mehr (Platzhalter sind `text-text-muted`), und Beschreibungen auf
+  einer gewählten Karte (`bg-primary-soft`) sind `text-text-secondary`. Die hellen Grautöne
+  `*-dot` sind nur für Punkte und Flächen, nie für Text. Geprüft mit axe über alle Seiten.
 - **Kein `style={}`** außer für wirklich dynamische Werte, z. B. die Breite eines
   Fortschrittsbalkens.
 
@@ -812,7 +835,9 @@ Design-Tokens:
 | sidebar    | #0F172A | sidebar-text / -active | #CBD5E1 / #1E293B |
 
 Im Code ergänzt (nicht in der Collection): `info` / `info-soft` #026AA2 / #E0F2FE für den
-Schritt-Typ „Ausfüllen“, `text-secondary` #344054 für die Schrittnummer.
+Schritt-Typ „Ausfüllen“, `text-secondary` #344054 für die Schrittnummer, `neutral-dot` #98A2B3
+für den grauen Punkt. Abweichend von der Collection wegen des Kontrasts (siehe Tailwind):
+`success` #067647, `danger` #B42318, `danger-hover` #912018.
 
 Schrift: Inter, für Code und Technisches Roboto Mono. Radien: Karten 12, Inputs 8, Chips 6.
 

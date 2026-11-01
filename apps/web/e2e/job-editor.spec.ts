@@ -79,6 +79,9 @@ test.describe('Test-Editor', () => {
   test('shows a not-found page for an unknown job', async ({ page }) => {
     const response = await page.goto('/jobs/00000000-0000-0000-0000-000000000000');
     expect(response?.status()).toBe(404);
+    // Inside the app, in German, with the sidebar still there.
+    await expect(page.getByRole('heading', { name: 'Nicht gefunden' })).toBeVisible();
+    await expect(page.getByRole('navigation', { name: 'Hauptnavigation' })).toBeVisible();
   });
 
   test('starts a test run and shows it while it waits, without queuing it twice', async ({

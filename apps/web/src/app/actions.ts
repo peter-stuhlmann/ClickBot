@@ -207,7 +207,7 @@ export async function createCampaignAction(
   formData: FormData,
 ): Promise<FormState> {
   const db = getDb();
-  const { project } = await getShell(db, new Date());
+  const { project } = await getShell(db);
   if (!project) return { error: 'Bitte zuerst ein Projekt anlegen.' };
   const values = {
     name: field(formData, 'name'),

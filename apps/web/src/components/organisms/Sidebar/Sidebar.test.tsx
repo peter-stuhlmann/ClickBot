@@ -1,4 +1,4 @@
-import { render, screen, within } from '@testing-library/react';
+import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
 import { Sidebar } from './Sidebar';
@@ -121,5 +121,31 @@ describe('Sidebar on small screens', () => {
     await user.click(menuButton());
     await user.click(screen.getByRole('link', { name: 'Durchläufe' }));
     expect(menuButton()).toHaveAttribute('aria-expanded', 'false');
+  });
+});
+
+vi.mock('next/navigation', () => ({ usePathname: () => '/kalender?woche=2026-11-02' }));
+
+describe('Sidebar without an active section', () => {
+  it('marks the section of the current address, as the layout relies on', () => {
+    render(<Sidebar worker={worker} user={null} {...shell} />);
+    const current = screen
+      .getAllByRole('link')
+      .filter((link) => link.getAttribute('aria-current') === 'page');
+    expect(current.map((link) => link.textContent)).toEqual(['Kalender']);
+  });
+
+  it('shows the switcher busy until the chosen project is applied', async () => {
+    let finish!: () => void;
+    const selectProject = vi.fn(() => new Promise<void>((resolve) => (finish = resolve)));
+    render(<Sidebar worker={worker} user={null} {...shell} selectProject={selectProject} />);
+    const trigger = screen.getByRole('button', { name: /^Projekt: / });
+    await userEvent.click(trigger);
+    await userEvent.click(screen.getByRole('option', { name: 'Müller Shop' }));
+    expect(selectProject).toHaveBeenCalledWith('p2');
+    expect(trigger).toHaveAttribute('aria-busy', 'true');
+    expect(trigger).toBeDisabled();
+    finish();
+    await waitFor(() => expect(trigger).not.toHaveAttribute('aria-busy'));
   });
 });
