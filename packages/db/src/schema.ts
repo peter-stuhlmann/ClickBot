@@ -332,6 +332,8 @@ export const runs = pgTable(
       .on(t.jobId, t.slotIndex, t.botNr, t.device, t.browser)
       .where(sql`${t.slotIndex} IS NOT NULL`),
     index('runs_status_scheduled_idx').on(t.status, t.scheduledAt),
+    // The run list: newest first, with "since" filters, over all jobs.
+    index('runs_scheduled_at_idx').on(t.scheduledAt.desc(), t.runNr.desc()),
     check('runs_bot_nr_positive', sql`${t.botNr} > 0`),
     check(
       'runs_finished_after_start',

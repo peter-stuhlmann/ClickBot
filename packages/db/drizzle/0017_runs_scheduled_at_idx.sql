@@ -1,0 +1,1 @@
+CREATE INDEX "runs_scheduled_at_idx" ON "runs" USING btree ("scheduled_at" DESC NULLS LAST,"run_nr" DESC NULLS LAST);
