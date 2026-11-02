@@ -17,7 +17,8 @@ import type { BrowserContext } from 'playwright';
 import type { AgentDriver } from './ai-step';
 import type { ArtifactStore } from './artifacts';
 import { toStepMessage } from './errors';
-import { runFlow } from './run-flow';
+import { runFlow, type RunResult } from './run-flow';
+import type { RunTap, RunWatchRegistry } from './run-watch';
 
 export type WorkerDeps = {
   db: Database;
@@ -32,6 +33,8 @@ export type WorkerDeps = {
   createAiClient?: (config: AiConfig) => AiClient;
   clock?: () => Date;
   planning?: Omit<PlanOptions, 'now'>;
+  /** Runs that can be watched live while they go ("Live zuschauen"). */
+  watch?: RunWatchRegistry;
   log?: (message: string) => void;
 };
 
@@ -64,6 +67,8 @@ async function agentFor(
 async function executeRun(deps: WorkerDeps, { run, job }: ClaimedRun): Promise<void> {
   const now = deps.clock ?? (() => new Date());
   let context: BrowserContext | undefined;
+  let tap: RunTap | undefined;
+  let result: RunResult | undefined;
   try {
     context = await deps.newContext(run.device, run.browser);
     const secrets = await resolveSecretsForRun(deps.db, deps.cipher, {
@@ -71,7 +76,13 @@ async function executeRun(deps: WorkerDeps, { run, job }: ClaimedRun): Promise<v
       url: job.startUrl,
       now: now(),
     });
-    const result = await runFlow(context, job.flow, {
+    tap = deps.watch?.start(run.id, {
+      engine: run.browser,
+      secrets: Object.values(secrets),
+      total: job.flow.steps.length,
+    });
+    result = await runFlow(context, job.flow, {
+      tap,
       ai: await agentFor(deps, job.flow.steps),
       baseUrl: job.startUrl,
       runNr: run.runNr,
@@ -115,6 +126,7 @@ async function executeRun(deps: WorkerDeps, { run, job }: ClaimedRun): Promise<v
       steps: [],
     }).catch((reason: unknown) => deps.log?.(`Durchlauf ${run.id}: ${toStepMessage(reason)}`));
   } finally {
+    tap?.end(result?.status ?? 'failed');
     await context?.close().catch(() => undefined);
   }
 }

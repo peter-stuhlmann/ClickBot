@@ -15,6 +15,7 @@ import {
   updateProfile,
   listCustomers,
   createRecordingSession,
+  createWatchToken,
   getCampaign,
   getJob,
   getRunReport,
@@ -49,7 +50,7 @@ import type { CustomerFormState } from '@/components/organisms/CustomerForm';
 import { startOfWeek } from '@/lib/calendar';
 import { field, toFormState } from '@/lib/form-state';
 import { toTemplateInput, validateTemplate, type TemplateDraft } from '@/lib/template-draft';
-import type { FormState, StartRecordingAction, TestRunView } from '@/lib/views';
+import type { FormState, StartRecordingAction, TestRunView, WatchRunAction } from '@/lib/views';
 import { restoreWizardState, storableState, type WizardState } from '@/lib/wizard-state';
 import { requireUser } from '@/server/auth';
 import { artifactsDir, removeRunArtifacts } from '@/server/artifacts';
@@ -398,6 +399,24 @@ export async function startRecordingAction(startUrl: string): ReturnType<StartRe
   const { token } = await createRecordingSession(db, { userId: user.id, startUrl: url }, now);
   const base = (process.env.LIVE_URL ?? 'ws://localhost:4200').replace(/\/+$/, '');
   return { ok: true, url: `${base}/live?token=${encodeURIComponent(token)}` };
+}
+
+/**
+ * "Live zuschauen": the address of the worker's live stream of a run. The token says which run
+ * and is valid for two minutes; the worker reads it with SECRETS_KEY, like the web app writes it.
+ */
+export async function watchRunAction(runId: string): ReturnType<WatchRunAction> {
+  await requireUser();
+  const now = new Date();
+  if (!(await getWorkerStatus(getDb(), now)).online) {
+    return {
+      ok: false,
+      message: 'Das Testsystem ist nicht verbunden. Ohne es gibt es kein Live-Bild.',
+    };
+  }
+  const token = createWatchToken(getCipher(), String(runId), now);
+  const base = (process.env.LIVE_URL ?? 'ws://localhost:4200').replace(/\/+$/, '');
+  return { ok: true, url: `${base}/watch?token=${encodeURIComponent(token)}` };
 }
 
 /** Runs a delete; a refusal (e.g. "hat noch Jobs") comes back as the form's error. */

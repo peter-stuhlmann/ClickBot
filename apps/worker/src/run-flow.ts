@@ -12,6 +12,7 @@ import { createGa4Recorder } from './analytics';
 import { markBotTraffic } from './bot-marking';
 import { toStepMessage } from './errors';
 import { waitForPdf } from './pdf';
+import type { RunTap } from './run-watch';
 import { executeStep } from './steps';
 import { createTestData } from './test-data';
 
@@ -30,6 +31,8 @@ export type RunOptions = {
   blockAds?: boolean;
   /** The AI for AI steps; without it they fail and say why. */
   ai?: AgentDriver;
+  /** Told the page and each step as the run goes, for "Live zuschauen". */
+  tap?: RunTap;
 };
 
 export type StepResult = {
@@ -71,8 +74,10 @@ export async function runFlow(
   const analytics = createGa4Recorder();
   context.on('request', (request) => analytics.record(request.url(), request.postData()));
   let page = await context.newPage();
+  options.tap?.page(page);
   context.on('page', (opened) => {
     page = opened;
+    options.tap?.page(opened);
   });
 
   const vars = {
@@ -100,6 +105,8 @@ export async function runFlow(
 
     const started = performance.now();
     const duration = () => Math.ceil(performance.now() - started);
+    // A step that types or opens a secret: a watcher sees nothing of the page meanwhile.
+    options.tap?.step(index, 'running', JSON.stringify(step).includes('{{secret.'));
     const ctx = { vars, baseUrl: options.baseUrl, analytics };
     try {
       if (step.type === 'ai') {
@@ -125,6 +132,7 @@ export async function runFlow(
           result.screenshots.push({ stepId: step.id, image: judged.screenshot });
         if (judged.outcome === 'failed') result.status = 'failed';
         if (judged.outcome === 'unclear' && result.status === 'passed') result.status = 'warning';
+        options.tap?.step(index, judged.outcome);
         continue;
       }
       const outcome = await executeStep(() => page, step, ctx);
@@ -134,6 +142,7 @@ export async function runFlow(
       if (outcome.screenshot)
         result.screenshots.push({ stepId: step.id, image: outcome.screenshot });
       result.steps.push({ stepId: step.id, index, status: 'passed', durationMs: duration() });
+      options.tap?.step(index, 'passed');
     } catch (error) {
       result.status = 'failed';
       result.steps.push({
@@ -144,6 +153,7 @@ export async function runFlow(
         message: mask(toStepMessage(error)),
         ...(error instanceof AiStepError ? { aiActions: error.actions } : {}),
       });
+      options.tap?.step(index, 'failed');
       // Bounded: on a page that hangs, an unbounded screenshot would block the browser slot.
       await waitForPdf(page, FAILURE_SCREENSHOT_TIMEOUT_MS);
       const image = await page

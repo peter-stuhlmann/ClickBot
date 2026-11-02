@@ -48,6 +48,7 @@ export {
   type NewJobInput,
 } from './jobs';
 export { DRAFT_NAME, saveJobDraft, type JobDraftInput } from './job-drafts';
+export { createWatchToken, getRunStatus, readWatchToken } from './watch-tokens';
 export * as schema from './schema';
 export { createSecret, resolveSecretsForRun, saveSecret, type NewSecretInput } from './secrets';
 export { secureStepPasswords } from './step-secrets';

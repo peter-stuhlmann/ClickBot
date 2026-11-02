@@ -63,7 +63,9 @@ Projekte, die Anmeldung, das Profil und die Einstellungen der KI-Anbieter stehen
         und spielt den Ablauf einmal auf dem ersten Gerät und Browser durch
         (`startDraftTestRunAction`, `queueTestRun` mit `once`). Die Karte fragt alle 2 s nach
         (`testRunStatusAction`), bis er fertig ist, und zeigt Ergebnis, fehlgeschlagenen
-        Schritt, Grund und den Link zum Report.
+        Schritt, Grund und den Link zum Report. Solange er wartet oder läuft, zeigt sie ihn live
+        (`LiveScreen`, `useRunWatch`): das Bild der Seite und „Schritt n von m · …“. Am Ende
+        fragt sie sofort nach dem Ergebnis.
     - „Vorlagen“ (`/vorlagen`, ohne Figma-Entwurf): Abläufe für jede Website, für alle Projekte.
       Anlegen unter `/vorlagen/neu` (gleicher Baukasten, ohne Passwortschutz) oder im Editor eines
       Jobs mit „Als Vorlage speichern“ (`toTemplateFlow`: ohne das Öffnen der Start-URL am Anfang,
@@ -130,8 +132,10 @@ Projekte, die Anmeldung, das Profil und die Einstellungen der KI-Anbieter stehen
     - meldet seinen Status an die Web-App
     - führt Läufe in Chrome, Firefox und Safari (WebKit) aus und emuliert Geräte
 - **Noch nicht gebaut:**
-  - im Worker: Proxies und Standort-Profile, KI-Suche nach Elementen (`aiFallback`), Live-Stream; Markierung für andere
-    Analytics-Werkzeuge als GA4
+  - im Worker: Proxies und Standort-Profile, KI-Suche nach Elementen (`aiFallback`), Video der
+    Läufe; Markierung für andere Analytics-Werkzeuge als GA4
+  - „Live zuschauen“ nur im Testlauf des Assistenten, noch nicht im Lauf-Report und im
+    Start-Report
   - E-Mail-Versand (Einladungslinks werden angezeigt und von Hand weitergegeben), Konten
     sperren oder löschen, Rate-Limit je IP-Adresse beim Login
   - im Assistenten: Standort-Profile (die Karte „Von wo aus testen?“ aus dem Design gibt es
@@ -194,7 +198,7 @@ pnpm-Monorepo, Node 22, TypeScript überall.
 
 ```
 apps/web         Next.js 16 (App Router): UI, API-Routen, Login, PDF-Erzeugung
-apps/worker      Node-Prozess mit Playwright (Chromium, Firefox, WebKit): führt Läufe aus (Live-Stream geplant)
+apps/worker      Node-Prozess mit Playwright (Chromium, Firefox, WebKit): führt Läufe aus, Live-Browser und Live-Bild
 packages/shared  Zod-Schemas und reine Logik: flow.ts, variables.ts, schedule.ts, domains.ts
 packages/db      Drizzle-Schema, SQL-Migrationen, Repository-Funktionen, Verschlüsselung (nur Server)
 packages/ai      HTTP-Clients der KI-Anbieter, ohne SDKs (nur Server)
@@ -567,6 +571,21 @@ time, bots }]`, `stagger`) bilden die Bots eines Termins eine Welle.
     die Seite von selbst (Anker nach einem Klick), entsteht kein Schritt.
   - Neue Tabs öffnen sich im selben Tab, PDFs mit dem Viewer von Chromium. Der aufgenommene
     Klick öffnet im Lauf den neuen Tab, in dem der Bot weitermacht.
+- **Live zuschauen** (`/watch` im Live-Server, `run-watch.ts`, `watch-stream.ts`):
+  - Die Web-App gibt ein Token aus (`watchRunAction`, `createWatchToken`): Lauf-ID und Ablauf
+    nach 2 Minuten, mit `SECRETS_KEY` verschlüsselt (AES-GCM, nicht fälschbar), ohne Tabelle.
+    Der Worker liest es (`readWatchToken`) und prüft die Herkunft wie beim Live-Browser.
+    Höchstens `maxWatchers` (4) gleichzeitig.
+  - Laufende Läufe stehen in einer Registry im Speicher (`createRunWatchRegistry`). `runFlow`
+    meldet ihr über `tap` jede Seite (auch neue Tabs) und jeden Schritt bei Start und Ende.
+    Ein Lauf, der noch wartet, wird abgewartet (`waiting`); einer, der vorbei ist, endet sofort.
+  - Bild: in Chromium der CDP-Screencast der Seite, in Firefox und WebKit alle 500 ms ein
+    Bildschirmfoto.
+  - Zugangsdaten (Produktregel): Hat der Lauf welche, geht ein Bild erst raus, nachdem ein Blick
+    auf die Seite keinen ihrer Werte fand (`showsSecret` aus `secret-check.ts`, auch in
+    iframes). Während ein Schritt ein Secret tippt oder öffnet, gar keins. Der Zuschauer sieht
+    dann „Ausgeblendet“, das letzte Bild verschwindet. Ist die Seite wieder sauber, startet der
+    Screencast neu, damit ein frisches Bild kommt.
 - **Lebenszeichen:** Alle 10 s schreibt der Worker in `worker_heartbeats`, mit seinem Limit
   (`max_browsers`, für den Kalender). Die Web-App zeigt „online“, wenn der letzte Eintrag
   höchstens 30 s alt ist.
@@ -648,7 +667,8 @@ time, bots }]`, `stagger`) bilden die Bots eines Termins eine Welle.
 - Hostinger VPS KVM 2 (2 vCPU, 8 GB RAM) mit Docker Compose: web, worker, postgres, Caddy
   (TLS).
 - Shared Hosting geht nicht: kein Chromium, keine dauerhaft laufenden Prozesse, kein WebSocket.
-- Caddy leitet `wss://<domain>/live` an den Worker-Port `LIVE_PORT` weiter. `LIVE_URL` und
+- Caddy leitet `wss://<domain>/live` und `wss://<domain>/watch` an den Worker-Port `LIVE_PORT`
+  weiter. `LIVE_URL` und
   `APP_URL` zeigen auf die öffentliche Adresse.
 - Das Worker-Image braucht Chromium, Firefox und WebKit samt Systembibliotheken (z. B. das
   offizielle Playwright-Image), Chromium als ganzen Browser, nicht nur die Headless-Shell. Jede

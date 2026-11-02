@@ -3,6 +3,7 @@ import { verdictOutcome, type Criterion, type Step, type VerdictOutcome } from '
 import type { Page } from 'playwright';
 import { StepError, toStepMessage } from './errors';
 import { readStructure } from './page-structure';
+import { showsSecret } from './secret-check';
 import { executeStep, type StepContext } from './steps';
 import { describeTarget, pageOf, type PageSource } from './targets';
 
@@ -92,27 +93,6 @@ function onSite(target: string, baseUrl: string): boolean {
   } catch {
     return false;
   }
-}
-
-/** Whether a secret value is anywhere on the page: in its address, its text or a field. */
-async function showsSecret(page: Page, secrets: string[]): Promise<boolean> {
-  const values = secrets.filter(Boolean);
-  if (values.length === 0) return false;
-  if (values.some((value) => page.url().includes(value))) return true;
-  for (const frame of page.frames()) {
-    const found = await frame
-      .evaluate((list) => {
-        const fields = [...document.querySelectorAll('input, textarea')].map(
-          (field) => (field as HTMLInputElement).value,
-        );
-        const text = [document.body?.innerText ?? '', ...fields].join('\n');
-        return list.some((value) => text.includes(value));
-      }, values)
-      // A frame that cannot be read might show anything: no screenshot then.
-      .catch(() => true);
-    if (found) return true;
-  }
-  return false;
 }
 
 /** A screenshot of the visible part, or null while it could show a secret or does not come. */

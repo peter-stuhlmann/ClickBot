@@ -260,6 +260,11 @@ export type LiveInput =
         { kind: 'duration'; ms: number } | { kind: 'networkIdle' } | { kind: 'text'; text: string };
     };
 
+/** "Live zuschauen": the address of the worker's stream of a run, with a short-lived token. */
+export type WatchRunAction = (
+  runId: string,
+) => Promise<{ ok: true; url: string } | { ok: false; message: string }>;
+
 export type StartRecordingAction = (
   startUrl: string,
 ) => Promise<{ ok: true; url: string } | { ok: false; message: string }>;

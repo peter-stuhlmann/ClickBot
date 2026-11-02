@@ -53,6 +53,24 @@ describe('TestRunCard', () => {
     expect(screen.getByRole('alert')).toHaveTextContent('Bitte die markierten Angaben prüfen.');
   });
 
+  it('shows the run live while it goes', () => {
+    render(
+      <TestRunCard
+        run={{ ...failed, open: true, status: { tone: 'neutral', label: 'Läuft' } }}
+        hint={HINT}
+        busy={false}
+        live={{
+          frame: 'data:image/jpeg;base64,eA==',
+          overlay: null,
+          caption: 'Schritt 1 von 2 · Öffne beispiel.de',
+        }}
+        onStart={vi.fn()}
+      />,
+    );
+    expect(screen.getByRole('img', { name: 'Live-Bild des Durchlaufs' })).toBeVisible();
+    expect(screen.getByText('Schritt 1 von 2 · Öffne beispiel.de')).toBeVisible();
+  });
+
   it('is busy while the draft is saved and the run queued', () => {
     render(<TestRunCard run={null} hint={HINT} busy onStart={vi.fn()} />);
     expect(screen.getByRole('button', { name: 'Testlauf' })).toHaveAttribute('aria-busy', 'true');

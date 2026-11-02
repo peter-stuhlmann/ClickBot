@@ -3,7 +3,7 @@ import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { DraftSaveResult, DraftTestRunResult } from '@/app/actions';
 import { emptyDraft, newStep, type Issue, type WizardDraft } from '@/lib/job-draft';
-import type { StartRecordingAction, TestRunView } from '@/lib/views';
+import type { StartRecordingAction, TestRunView, WatchRunAction } from '@/lib/views';
 import type { WizardState } from '@/lib/wizard-state';
 import { NewJobWizard, type NewJobWizardProps } from './new-job-wizard';
 import { chooseOption } from '../../../../../test/select';
@@ -63,6 +63,7 @@ function renderWizard(
       saveDraft={async (draftId) => ({ draftId, savedAt: null })}
       startTestRun={async (draftId) => ({ issues: [], draftId })}
       testRunStatus={async () => null}
+      watchRun={async () => ({ ok: false, message: 'nicht im Test' })}
       deleteAction={async () => ({})}
       startRecording={noRecording}
       templates={[contactTemplate]}
@@ -577,6 +578,43 @@ describe('NewJobWizard – draft and test run', () => {
     expect(card.getByRole('button', { name: 'Erneut testen' })).toBeEnabled();
   });
 
+  it('shows the test run live, step by step, and the result as soon as it ends', async () => {
+    vi.stubGlobal('WebSocket', FakeLiveSocket);
+    const user = userEvent.setup();
+    const watchRun = vi.fn<WatchRunAction>(async () => ({
+      ok: true,
+      url: 'ws://localhost:4200/watch?token=t',
+    }));
+    const testRunStatus = vi.fn(async () => failedRun);
+    renderWizard(undefined, {
+      startTestRun: async () => ({ issues: [], draftId: 'd1', run: waiting }),
+      testRunStatus,
+      watchRun,
+    });
+    await takeTemplate(user);
+    const card = within(screen.getByRole('region', { name: 'Testlauf' }));
+    await user.click(card.getByRole('button', { name: 'Testlauf' }));
+
+    await waitFor(() => expect(watchRun).toHaveBeenCalledWith('run-1'));
+    await waitFor(() => expect(FakeLiveSocket.last?.url).toBe('ws://localhost:4200/watch?token=t'));
+    const socket = FakeLiveSocket.last as FakeLiveSocket;
+    expect(card.getByText('Verbinde mit dem Testsystem …')).toBeVisible();
+
+    socket.receive({ type: 'frame', data: 'eA==' });
+    socket.receive({ type: 'step', index: 1, total: 2, status: 'running' });
+    expect(card.getByRole('img', { name: 'Live-Bild des Durchlaufs' })).toHaveAttribute(
+      'src',
+      'data:image/jpeg;base64,eA==',
+    );
+    expect(card.getByText('Schritt 2 von 2 · Klicke auf „Absenden“')).toBeVisible();
+
+    socket.receive({ type: 'ended', status: 'failed' });
+    await waitFor(() => expect(card.getByRole('status')).toHaveTextContent('Fehlgeschlagen'));
+    expect(testRunStatus).toHaveBeenCalledWith('run-1');
+    expect(card.queryByRole('img')).not.toBeInTheDocument();
+    vi.unstubAllGlobals();
+  });
+
   it('shows at the goal why the test run did not start, and a gone draft at the card', async () => {
     const user = userEvent.setup();
     const startTestRun = vi
@@ -600,6 +638,8 @@ describe('NewJobWizard – draft and test run', () => {
       ).toHaveAccessibleDescription(expect.stringContaining('Bitte das Ziel beschreiben.')),
     );
 
+    // The button is busy until the first attempt has ended completely.
+    await waitFor(() => expect(card.getByRole('button', { name: 'Testlauf' })).toBeEnabled());
     await user.click(card.getByRole('button', { name: 'Testlauf' }));
     expect(await card.findByRole('alert')).toHaveTextContent('Diesen Entwurf gibt es nicht mehr.');
   });

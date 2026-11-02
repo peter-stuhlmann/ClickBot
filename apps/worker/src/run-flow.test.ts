@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 import { useBrowser } from '../test/browser';
 import { createGa4Recorder } from './analytics';
 import { runFlow, type RunOptions } from './run-flow';
+import type { RunTap } from './run-watch';
 import { executeStep } from './steps';
 import { createTestData } from './test-data';
 
@@ -380,6 +381,43 @@ describe('runFlow – links that open a new tab', () => {
     ]);
     expect(result.steps[2]).toMatchObject({ status: 'failed' });
     expect(result.screenshots.map((shot) => shot.stepId)).toEqual(['missing']);
+  });
+});
+
+describe('runFlow – watched live', () => {
+  it('tells the watcher each page and each step as it starts and ends', async () => {
+    const told: string[] = [];
+    const tap: RunTap = {
+      page: (page) => told.push(`page ${new URL(page.url()).pathname}`),
+      step: (index, status, usesSecret) =>
+        told.push(`step ${index} ${status}${usesSecret ? ' secret' : ''}`),
+      end: () => told.push('end'),
+    };
+    const result = await run(
+      [
+        step('open', { type: 'open', url: '/neuer-tab.html' }),
+        step('tab', { type: 'click', target: role('link', 'Danke im neuen Tab') }),
+        step('pass', {
+          type: 'fill',
+          target: { by: 'label', label: 'Passwort' },
+          value: '{{secret.passwort}}',
+        }),
+      ],
+      { tap, secrets: { passwort: 'geheim-123' } },
+    );
+
+    expect(result.status).toBe('failed');
+    // The first page is still blank when it is told; the new tab comes with the click.
+    expect(told).toEqual([
+      'page blank',
+      'step 0 running',
+      'step 0 passed',
+      'step 1 running',
+      'page /danke.html',
+      'step 1 passed',
+      'step 2 running secret',
+      'step 2 failed',
+    ]);
   });
 });
 

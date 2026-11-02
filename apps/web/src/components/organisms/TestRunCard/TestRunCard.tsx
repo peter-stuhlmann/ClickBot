@@ -3,6 +3,7 @@ import { Badge } from '@/components/atoms/Badge';
 import { Button } from '@/components/atoms/Button';
 import { Card } from '@/components/atoms/Card';
 import { Icon } from '@/components/atoms/Icon';
+import { LiveScreen, type LiveScreenProps } from '@/components/molecules/LiveScreen';
 import type { TestRunView } from '@/lib/views';
 
 export type TestRunCardProps = {
@@ -14,11 +15,13 @@ export type TestRunCardProps = {
   busy: boolean;
   /** Why nothing was started, e.g. a step that is not complete. */
   error?: string;
+  /** "Live zuschauen" while the run waits or runs: the picture and the step it is at. */
+  live?: LiveScreenProps | null;
   onStart: () => void;
 };
 
 /** "Testlauf": plays the flow of a draft once, right away, and shows how it went. */
-export function TestRunCard({ run, hint, busy, error, onStart }: TestRunCardProps) {
+export function TestRunCard({ run, hint, busy, error, live, onStart }: TestRunCardProps) {
   return (
     <Card
       title="Testlauf"
@@ -59,6 +62,7 @@ export function TestRunCard({ run, hint, busy, error, onStart }: TestRunCardProp
           {run.reason && <p className="text-body break-words text-danger">{run.reason}</p>}
         </div>
       )}
+      {live && <LiveScreen {...live} />}
     </Card>
   );
 }

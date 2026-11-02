@@ -22,6 +22,7 @@ import {
   startDraftTestRunAction,
   startRecordingAction,
   testRunStatusAction,
+  watchRunAction,
 } from '@/app/actions';
 import { NewJobWizard, type NewJobWizardProps } from './new-job-wizard';
 
@@ -76,6 +77,7 @@ export default async function NewJobPage({ searchParams }: Props) {
         saveDraft={saveDraftAction}
         startTestRun={startDraftTestRunAction}
         testRunStatus={testRunStatusAction}
+        watchRun={watchRunAction}
         deleteAction={deleteJobAction}
         initial={initial}
         startRecording={startRecordingAction}

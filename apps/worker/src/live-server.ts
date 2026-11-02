@@ -1,4 +1,11 @@
-import { claimRecordingSession, endRecordingSession, type Database } from '@click-bot/db';
+import {
+  claimRecordingSession,
+  endRecordingSession,
+  getRunStatus,
+  readWatchToken,
+  type Cipher,
+  type Database,
+} from '@click-bot/db';
 import { createServer, type IncomingMessage } from 'node:http';
 import type { AddressInfo } from 'node:net';
 import type { Duplex } from 'node:stream';
@@ -11,8 +18,13 @@ import {
   type LiveSession,
   type ServerMessage,
 } from './live-session';
+import type { RunWatchRegistry } from './run-watch';
+import { streamRun, type WatchMessage } from './watch-stream';
 
 const PATH = '/live';
+const WATCH_PATH = '/watch';
+/** How often a watcher of a run that has not started yet looks whether it is over already. */
+const WAITING_CHECK_MS = 2_000;
 /** Frames are skipped while the connection is this far behind, so input stays responsive. */
 const MAX_BUFFERED_BYTES = 2 * 1024 * 1024;
 
@@ -25,6 +37,12 @@ export type LiveServerOptions = {
   /** Live browsers at the same time; each one is a browser context on the server. */
   maxSessions?: number;
   maxDurationMs?: number;
+  /** "Live zuschauen": reads the tokens of the web app (SECRETS_KEY). Without it, no watching. */
+  cipher?: Cipher;
+  /** The runs of this worker that can be watched. */
+  runs?: RunWatchRegistry;
+  /** Watchers at the same time; each costs a screencast of a run. */
+  maxWatchers?: number;
   clock?: () => Date;
   log?: (message: string) => void;
 };
@@ -32,6 +50,7 @@ export type LiveServerOptions = {
 export type LiveServer = {
   port: number;
   activeSessions(): number;
+  activeWatchers(): number;
   close(): Promise<void>;
 };
 
@@ -64,8 +83,10 @@ export async function startLiveServer(
   const now = options.clock ?? (() => new Date());
   const maxSessions = options.maxSessions ?? 2;
   const maxDurationMs = options.maxDurationMs ?? 15 * 60_000;
+  const maxWatchers = options.maxWatchers ?? 4;
   const wss = new WebSocketServer({ noServer: true });
   const sockets = new Set<WebSocket>();
+  const watchers = new Set<WebSocket>();
   let starting = 0;
 
   const server = createServer((_request, response) => {
@@ -75,10 +96,20 @@ export async function startLiveServer(
 
   server.on('upgrade', async (request: IncomingMessage, socket: Duplex, head: Buffer) => {
     const url = new URL(request.url ?? '/', 'http://worker');
-    if (url.pathname !== PATH) return refuse(socket, 404, 'Not Found');
+    if (url.pathname !== PATH && url.pathname !== WATCH_PATH) {
+      return refuse(socket, 404, 'Not Found');
+    }
     // Browsers always send the origin; a page of another site cannot open the live browser.
     if (!options.allowOrigin(request.headers.origin ?? '')) {
       return refuse(socket, 403, 'Forbidden');
+    }
+    if (url.pathname === WATCH_PATH) {
+      const { cipher, runs } = options;
+      const runId =
+        cipher && runs ? readWatchToken(cipher, url.searchParams.get('token') ?? '', now()) : null;
+      if (!runId || !runs) return refuse(socket, 401, 'Unauthorized');
+      if (watchers.size >= maxWatchers) return refuse(socket, 503, 'Service Unavailable');
+      return wss.handleUpgrade(request, socket, head, (ws) => void watch(ws, runId, runs));
     }
     if (sockets.size + starting >= maxSessions) return refuse(socket, 503, 'Service Unavailable');
 
@@ -142,12 +173,69 @@ export async function startLiveServer(
     await endRecordingSession(options.db, id, now()).catch(() => undefined);
   }
 
+  /**
+   * "Live zuschauen": streams one run while it goes. A run that has not started yet is waited
+   * for; one that is over already ends the connection right away.
+   */
+  async function watch(ws: WebSocket, runId: string, runs: RunWatchRegistry) {
+    watchers.add(ws);
+    const send = (message: WatchMessage) => {
+      if (ws.readyState !== ws.OPEN) return;
+      if (message.type === 'frame' && ws.bufferedAmount > MAX_BUFFERED_BYTES) return;
+      ws.send(JSON.stringify(message));
+    };
+    const leaving = new AbortController();
+    const closed = new Promise<void>((resolve) =>
+      ws.once('close', () => {
+        leaving.abort();
+        resolve();
+      }),
+    );
+    const timer = setTimeout(() => ws.close(1000), maxDurationMs);
+    let stop: (() => Promise<void>) | undefined;
+
+    // Over already (or unknown)? Otherwise wait until this worker starts it.
+    const over = async () => {
+      const status = await getRunStatus(options.db, runId).catch(() => 'queued' as const);
+      if (status === 'queued' || status === 'running') return false;
+      send(
+        status
+          ? { type: 'ended', status }
+          : { type: 'error', message: 'Diesen Durchlauf gibt es nicht.' },
+      );
+      ws.close(1000);
+      return true;
+    };
+    let watched = runs.find(runId);
+    if (!watched && !(await over())) {
+      send({ type: 'waiting' });
+      const checks = setInterval(() => void over(), WAITING_CHECK_MS);
+      watched = await Promise.race([
+        runs.started(runId, leaving.signal),
+        closed.then(() => undefined),
+      ]);
+      clearInterval(checks);
+    }
+    if (watched && ws.readyState === ws.OPEN) {
+      stop = streamRun(watched, (message) => {
+        send(message);
+        if (message.type === 'ended') ws.close(1000);
+      });
+    }
+
+    await closed;
+    clearTimeout(timer);
+    watchers.delete(ws);
+    await stop?.();
+  }
+
   await new Promise<void>((resolve) => server.listen(port, resolve));
   return {
     port: (server.address() as AddressInfo).port,
     activeSessions: () => sockets.size,
+    activeWatchers: () => watchers.size,
     async close() {
-      for (const ws of sockets) ws.close(1001);
+      for (const ws of [...sockets, ...watchers]) ws.close(1001);
       wss.close();
       await new Promise((resolve) => server.close(resolve));
     },

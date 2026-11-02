@@ -14,6 +14,7 @@ import { createBrowserManager, type BrowserManager } from './browser-manager';
 import { contextOptionsFor } from './devices';
 import { launchEngine } from './engines';
 import { originPolicy, startLiveServer } from './live-server';
+import { createRunWatchRegistry } from './run-watch';
 import { LIVE_VIEWPORT } from './live-session';
 import { createWorker } from './worker';
 
@@ -38,6 +39,8 @@ const artifactsDir =
   process.env.ARTIFACTS_DIR ?? fileURLToPath(new URL('../../../data/artifacts', import.meta.url));
 
 const connection = createDb(databaseUrl);
+// Runs going on right now, for "Live zuschauen".
+const watchable = createRunWatchRegistry();
 // One shared process per browser engine, started by the first run that needs it; after a crash
 // the next run starts a new one.
 const browsers = Object.fromEntries(
@@ -55,10 +58,12 @@ const worker = createWorker({
   artifacts: createFileArtifactStore(artifactsDir),
   maxConcurrent,
   workerId: `${hostname()}-${process.pid}`,
+  watch: watchable,
   log,
 });
 
-// "Im Browser aufnehmen": the live browser, in the shared Chromium, for the web app only.
+// "Im Browser aufnehmen" (the live browser, in the shared Chromium) and "Live zuschauen" (a run
+// as it goes), for the web app only.
 const liveServer = await startLiveServer(Number(process.env.LIVE_PORT ?? 4200), {
   db: connection.db,
   newContext: async () =>
@@ -69,6 +74,8 @@ const liveServer = await startLiveServer(Number(process.env.LIVE_PORT ?? 4200), 
     }),
   allowOrigin: originPolicy(process.env.APP_URL, process.env.NODE_ENV === 'production'),
   maxSessions: Number(process.env.LIVE_MAX_SESSIONS ?? 2),
+  cipher,
+  runs: watchable,
   log,
 });
 

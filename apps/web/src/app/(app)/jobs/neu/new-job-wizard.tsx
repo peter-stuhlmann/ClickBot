@@ -1,7 +1,7 @@
 'use client';
 
 import { runTargets, type Flow } from '@click-bot/shared';
-import { useEffect, useMemo, useState, useTransition, type ReactNode } from 'react';
+import { useCallback, useEffect, useMemo, useState, useTransition, type ReactNode } from 'react';
 import type { DraftSaveResult, DraftTestRunResult } from '@/app/actions';
 import { Badge } from '@/components/atoms/Badge';
 import { Button } from '@/components/atoms/Button';
@@ -51,8 +51,16 @@ import {
 } from '@/lib/job-draft';
 import { describeStep, FIXED_STEP_TYPES } from '@/lib/step-view';
 import { stepsFromTemplate } from '@/lib/template-draft';
-import type { FormState, StartRecordingAction, TemplateView, TestRunView } from '@/lib/views';
+import { describeWatch } from '@/lib/run-watch';
+import type {
+  FormState,
+  StartRecordingAction,
+  TemplateView,
+  TestRunView,
+  WatchRunAction,
+} from '@/lib/views';
 import type { WizardState } from '@/lib/wizard-state';
+import { useRunWatch } from '../../laeufe/use-run-watch';
 import { useDraftAutosave } from './use-draft-autosave';
 import { useLiveRecording } from './use-live-recording';
 
@@ -69,6 +77,8 @@ export type NewJobWizardProps = {
   startTestRun: (draftId: string | null, state: WizardState) => Promise<DraftTestRunResult>;
   /** How the test run stands, asked again while it waits or runs. */
   testRunStatus: (runId: string) => Promise<TestRunView | null>;
+  /** "Live zuschauen": the stream of the test run while it waits or runs. */
+  watchRun: WatchRunAction;
   /** "Entwurf löschen", with its test runs. */
   deleteAction: (state: FormState, formData: FormData) => Promise<FormState>;
   /** A saved draft to continue where it was left (`?entwurf=<id>`). */
@@ -101,6 +111,7 @@ export function NewJobWizard({
   saveDraft,
   startTestRun,
   testRunStatus,
+  watchRun,
   deleteAction,
   initial = null,
   startRecording,
@@ -137,6 +148,8 @@ export function NewJobWizard({
   const [testRun, setTestRun] = useState<TestRunView | null>(initial?.testRun ?? null);
   const [testing, startTesting] = useTransition();
   const [testError, setTestError] = useState<string>();
+  // The steps as the test run got them, for the step it is at; after a reload the form's.
+  const [testedSteps, setTestedSteps] = useState<StepDraft[] | null>(null);
 
   // What a reload brings back. Steps being recorded count already: they are the flow to be.
   const recordedSoFar =
@@ -160,6 +173,14 @@ export function NewJobWizard({
 
   // Asks again while the test run waits or runs; one question at a time.
   const pollRunId = testRun?.open ? testRun.runId : null;
+  // At the end of the run the result is there at once, not with the next question.
+  const refreshTestRun = useCallback(() => {
+    if (!pollRunId) return;
+    testRunStatus(pollRunId)
+      .then((next) => next && setTestRun(next))
+      .catch(() => undefined);
+  }, [pollRunId, testRunStatus]);
+  const live = useRunWatch(pollRunId, watchRun, refreshTestRun);
   useEffect(() => {
     if (!pollRunId) return;
     let cancelled = false;
@@ -233,6 +254,7 @@ export function NewJobWizard({
       if (general) return setTestError(general.message);
       if (result.issues.length > 0) return showIssues(result.issues);
       autosave.markSaved(sent, result.draftId);
+      setTestedSteps(sent.draft.steps);
       if (result.run) setTestRun(result.run);
     });
   }
@@ -299,6 +321,17 @@ export function NewJobWizard({
       hint={`Spielt den Ablauf einmal durch, auf ${deviceLabel(firstTarget.device)} in ${browserLabel(firstTarget.browser)}, sofort. Der Test bleibt ein Entwurf.`}
       busy={testing}
       error={testError}
+      live={
+        testRun?.open
+          ? {
+              frame: live.frame,
+              ...describeWatch(
+                live,
+                (testedSteps ?? draft.steps).map((flowStep) => describeStep(flowStep).title),
+              ),
+            }
+          : null
+      }
       onStart={runTest}
     />
   );

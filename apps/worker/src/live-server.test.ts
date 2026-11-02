@@ -1,4 +1,14 @@
-import { createRecordingSession, schema } from '@click-bot/db';
+import {
+  claimNextRun,
+  completeRun,
+  createCipher,
+  createJob,
+  createRecordingSession,
+  createWatchToken,
+  queueTestRun,
+  schema,
+} from '@click-bot/db';
+import { randomBytes, randomUUID } from 'node:crypto';
 import { eq } from 'drizzle-orm';
 import { afterAll, afterEach, beforeEach, describe, expect, it } from 'vitest';
 import WebSocket from 'ws';
@@ -6,6 +16,8 @@ import { useBrowser } from '../test/browser';
 import { db, resetDb, testConnection } from '../test/db';
 import { LIVE_VIEWPORT, type ServerMessage } from './live-session';
 import { originPolicy, startLiveServer, type LiveServer } from './live-server';
+import { createRunWatchRegistry, type RunWatchRegistry } from './run-watch';
+import type { WatchMessage } from './watch-stream';
 
 const browser = useBrowser();
 const APP = 'http://localhost:3000';
@@ -47,8 +59,10 @@ async function token(path = '/aufnahme.html') {
 }
 
 /** Opens a connection like the browser of the web app does; resolves once it is open. */
-function connect(query: string, origin = APP) {
-  const ws = new WebSocket(`ws://localhost:${server.port}/live?${query}`, { headers: { origin } });
+function connect(query: string, origin = APP, path = '/live') {
+  const ws = new WebSocket(`ws://localhost:${server.port}${path}?${query}`, {
+    headers: { origin },
+  });
   const messages: ServerMessage[] = [];
   ws.on('message', (raw) => messages.push(JSON.parse(String(raw)) as ServerMessage));
   const opened = new Promise<void>((resolve, reject) => {
@@ -173,5 +187,148 @@ describe('startLiveServer', () => {
       type: 'error',
       message: 'Die Aufnahme endet nach 15 Minuten.',
     });
+  });
+});
+
+describe('startLiveServer – watching a run', () => {
+  const cipher = createCipher(randomBytes(32));
+  let runs: RunWatchRegistry;
+
+  beforeEach(async () => {
+    await server.close();
+    runs = createRunWatchRegistry();
+    server = await startLiveServer(0, {
+      db,
+      newContext: () => browser.newContext({ viewport: LIVE_VIEWPORT }),
+      allowOrigin: (origin) => origin === APP,
+      cipher,
+      runs,
+    });
+  });
+
+  function watch(runId: string, origin = APP) {
+    const token = encodeURIComponent(createWatchToken(cipher, runId, new Date()));
+    const connection = connect(`token=${token}`, origin, '/watch');
+    return { ...connection, messages: connection.messages as unknown as WatchMessage[] };
+  }
+
+  const has = (messages: WatchMessage[], type: WatchMessage['type']) =>
+    messages.some((message) => message.type === type);
+
+  /** A run of a job in the database, still waiting, as "Testlauf" queues it. */
+  async function queuedRun() {
+    const [customer] = await db
+      .insert(schema.customers)
+      .values({ name: 'Beispiel GmbH', slug: 'beispiel' })
+      .returning();
+    const [campaign] = await db
+      .insert(schema.campaigns)
+      .values({ customerId: (customer as { id: string }).id, name: 'Allgemein' })
+      .returning();
+    const job = await createJob(db, {
+      campaignId: (campaign as { id: string }).id,
+      name: 'Kontakt',
+      startUrl: browser.origin(),
+      flow: { version: 1, steps: [{ id: 'open', type: 'open', url: '/kontakt.html' }] },
+      schedule: {
+        type: 'interval',
+        everyMinutes: 60,
+        maxRuns: 1,
+        startAt: new Date().toISOString(),
+      },
+    });
+    return (await queueTestRun(db, job.id, new Date(), { once: true })).runId;
+  }
+
+  it('streams the page and the steps of a running run, until it ends', async () => {
+    const context = await browser.newContext();
+    const page = await context.newPage();
+    const runId = randomUUID();
+    const tap = runs.start(runId, { engine: 'chromium', secrets: [], total: 2 });
+    tap.page(page);
+    await page.goto(`${browser.origin()}/kontakt.html`);
+
+    const { ws, messages, opened } = watch(runId);
+    await opened;
+    await expect.poll(() => has(messages, 'frame'), SESSION_START).toBe(true);
+    tap.step(0, 'running');
+    tap.step(0, 'passed');
+    await expect
+      .poll(() => messages.filter((message) => message.type === 'step'))
+      .toEqual([
+        { type: 'step', index: 0, total: 2, status: 'running' },
+        { type: 'step', index: 0, total: 2, status: 'passed' },
+      ]);
+
+    tap.end('passed');
+    await closed(ws);
+    expect(messages.at(-1)).toEqual({ type: 'ended', status: 'passed' });
+    await expect.poll(() => server.activeWatchers()).toBe(0);
+    await context.close();
+  });
+
+  it('waits for a run that has not started yet', async () => {
+    const runId = await queuedRun();
+    const { ws, messages, opened } = watch(runId);
+    await opened;
+    await expect.poll(() => messages).toEqual([{ type: 'waiting' }]);
+
+    const context = await browser.newContext();
+    const page = await context.newPage();
+    const tap = runs.start(runId, { engine: 'chromium', secrets: [], total: 1 });
+    tap.page(page);
+    await page.goto(`${browser.origin()}/kontakt.html`);
+    await expect.poll(() => has(messages, 'frame'), SESSION_START).toBe(true);
+    ws.close();
+    await closed(ws);
+    await context.close();
+  });
+
+  it('ends at once for a run that is over, and says so for one that does not exist', async () => {
+    const runId = await queuedRun();
+    await claimNextRun(db, new Date());
+    await completeRun(db, runId, { status: 'failed', finishedAt: new Date(), steps: [] });
+    const over = watch(runId);
+    await closed(over.ws);
+    expect(over.messages).toEqual([{ type: 'ended', status: 'failed' }]);
+
+    const unknown = watch(randomUUID());
+    await closed(unknown.ws);
+    expect(unknown.messages).toEqual([
+      { type: 'error', message: 'Diesen Durchlauf gibt es nicht.' },
+    ]);
+  });
+
+  it('shows no picture while the page shows a secret, and the page again once it is gone', async () => {
+    const context = await browser.newContext();
+    const page = await context.newPage();
+    await page.goto(`${browser.origin()}/kontakt.html`);
+    await page.getByLabel('Name').fill('geheim-123');
+    const runId = randomUUID();
+    const tap = runs.start(runId, { engine: 'chromium', secrets: ['geheim-123'], total: 2 });
+    tap.page(page);
+
+    const { ws, messages, opened } = watch(runId);
+    await opened;
+    await expect.poll(() => has(messages, 'hidden'), SESSION_START).toBe(true);
+    expect(has(messages, 'frame')).toBe(false);
+
+    await page.getByLabel('Name').fill('Erika');
+    await expect.poll(() => has(messages, 'frame'), SESSION_START).toBe(true);
+
+    // A step that types a secret hides the page before it starts.
+    const before = messages.length;
+    tap.step(1, 'running', true);
+    await expect
+      .poll(() => messages.slice(before).map((message) => message.type))
+      .toEqual(['hidden', 'step']);
+    ws.close();
+    await closed(ws);
+    await context.close();
+  });
+
+  it('refuses a token that is not valid, and other websites', async () => {
+    await expect(connect('token=erfunden', APP, '/watch').opened).rejects.toThrow('HTTP 401');
+    await expect(watch(randomUUID(), 'https://boese.example').opened).rejects.toThrow('HTTP 403');
   });
 });
