@@ -17,10 +17,12 @@ import {
   createRecordingSession,
   getCampaign,
   getJob,
+  getRunReport,
   getWorkerStatus,
   moveSlot,
   NotFoundError,
   queueTestRun,
+  saveJobDraft,
   secureStepPasswords,
   setJobActive,
   updateJob,
@@ -34,6 +36,7 @@ import { redirect } from 'next/navigation';
 import {
   jobToDraft,
   normaliseUrl,
+  suggestName,
   toJobUpdateInput,
   toNewJobInput,
   validateJobEdit,
@@ -46,12 +49,14 @@ import type { CustomerFormState } from '@/components/organisms/CustomerForm';
 import { startOfWeek } from '@/lib/calendar';
 import { field, toFormState } from '@/lib/form-state';
 import { toTemplateInput, validateTemplate, type TemplateDraft } from '@/lib/template-draft';
-import type { FormState, StartRecordingAction } from '@/lib/views';
+import type { FormState, StartRecordingAction, TestRunView } from '@/lib/views';
+import { restoreWizardState, storableState, type WizardState } from '@/lib/wizard-state';
 import { requireUser } from '@/server/auth';
 import { artifactsDir, removeRunArtifacts } from '@/server/artifacts';
 import { getCipher } from '@/server/cipher';
 import { getDb } from '@/server/db';
 import { getShell, PROJECT_COOKIE } from '@/server/shell';
+import { toTestRunView } from '@/server/test-run-view';
 
 /** Pauses or resumes a job from the status switch of the jobs table. */
 export async function toggleJobAction(formData: FormData): Promise<void> {
@@ -75,11 +80,27 @@ export async function runJobNowAction(formData: FormData): Promise<void> {
 
 export type CreateJobResult = { issues: Issue[] };
 
+/** A wizard draft that is still one: a stale tab never turns another job into this one. */
+async function wizardDraft(draftId: string | null) {
+  if (!draftId) return null;
+  try {
+    const job = await getJob(getDb(), draftId);
+    return job.status === 'draft' && job.wizardState !== null ? job : null;
+  } catch (error) {
+    if (error instanceof NotFoundError) return null;
+    throw error;
+  }
+}
+
 /**
- * Saves the job from the "Neuer Job" wizard as active and returns to the job list. Problems come
- * back as issues with field paths, so the wizard can show them at the right step.
+ * Saves the job from the "Neuer Job" wizard as active and returns to the job list. A draft the
+ * wizard saved on the way (`draftId`) becomes the job, with its test runs. Problems come back as
+ * issues with field paths, so the wizard can show them at the right step.
  */
-export async function createJobAction(draft: WizardDraft): Promise<CreateJobResult> {
+export async function createJobAction(
+  draft: WizardDraft,
+  draftId: string | null = null,
+): Promise<CreateJobResult> {
   await requireUser();
   const now = new Date();
   // The wizard checks the same, but a server action can be called by anyone: check again,
@@ -98,13 +119,133 @@ export async function createJobAction(draft: WizardDraft): Promise<CreateJobResu
       startUrl: input.startUrl,
       flow: input.flow,
     });
-    await createJob(db, { ...input, flow });
+    const saved = await wizardDraft(draftId);
+    if (saved) {
+      const { status: _status, ...fields } = input;
+      await updateJob(db, saved.id, { ...fields, flow, now, activate: true });
+    } else {
+      await createJob(db, { ...input, flow });
+    }
   } catch (error) {
     if (error instanceof ValidationError) return { issues: error.issues };
     throw error;
   }
   revalidatePath('/');
   redirect('/');
+}
+
+export type DraftSaveResult = {
+  /** The draft job; null when it is gone (deleted or created elsewhere), so a new one starts. */
+  draftId: string | null;
+  /** When it was saved (ISO); null when nothing was saved this time. */
+  savedAt: string | null;
+};
+
+/**
+ * Stores the form of the wizard as a draft job. Typed .htaccess passwords go into encrypted
+ * secrets only, never into the stored form.
+ */
+async function persistDraft(draftId: string | null, state: WizardState, now: Date) {
+  const db = getDb();
+  const input = toNewJobInput(state.draft, now);
+  const saved = draftId ? await getJob(db, draftId) : null;
+  const customerId = saved?.customerId ?? (await getCampaign(db, input.campaignId))?.customerId;
+  const flow = customerId
+    ? await secureStepPasswords(db, getCipher(), {
+        customerId,
+        startUrl: input.startUrl,
+        flow: input.flow,
+      })
+    : input.flow;
+  return saveJobDraft(db, draftId, {
+    ...input,
+    name: input.name || suggestName(state.draft),
+    flow,
+    wizardState: storableState(state, flow),
+    now,
+  });
+}
+
+/**
+ * Autosave of the wizard: keeps the form as a draft, so a reload loses nothing. The form is
+ * untrusted and read like a stored one (restoreWizardState).
+ */
+export async function saveDraftAction(
+  draftId: string | null,
+  form: WizardState,
+): Promise<DraftSaveResult> {
+  await requireUser();
+  const now = new Date();
+  const state = restoreWizardState(form, now);
+  if (!state) return { draftId, savedAt: null };
+  try {
+    const job = await persistDraft(draftId, state, now);
+    return { draftId: job.id, savedAt: now.toISOString() };
+  } catch (error) {
+    // Not valid enough to keep yet (no website): the next change tries again.
+    if (error instanceof ValidationError) return { draftId, savedAt: null };
+    if (error instanceof NotFoundError) return { draftId: null, savedAt: null };
+    throw error;
+  }
+}
+
+export type DraftTestRunResult = {
+  issues: Issue[];
+  draftId: string | null;
+  run?: TestRunView;
+};
+
+const DRAFT_GONE: Issue = { path: 'job', message: 'Diesen Entwurf gibt es nicht mehr.' };
+
+/**
+ * "Testlauf" in the wizard: saves the draft and plays its flow once, on the first device and
+ * browser, right away. Like the live browser, it visits the website before the test is approved
+ * for its schedule; a draft is never planned.
+ */
+export async function startDraftTestRunAction(
+  draftId: string | null,
+  form: WizardState,
+): Promise<DraftTestRunResult> {
+  await requireUser();
+  const now = new Date();
+  const state = restoreWizardState(form, now);
+  if (!state) return { issues: [DRAFT_GONE], draftId };
+  const issues = validateWizardStep(state.draft, 'test', now);
+  if (issues.length > 0) return { issues, draftId };
+  try {
+    const db = getDb();
+    const job = await persistDraft(draftId, state, now);
+    const batch = await queueTestRun(db, job.id, now, { once: true });
+    const [report, worker] = await Promise.all([
+      getRunReport(db, batch.runId),
+      getWorkerStatus(db, now),
+    ]);
+    return {
+      issues: [],
+      draftId: job.id,
+      run: toTestRunView(report, { workerOnline: worker.online }),
+    };
+  } catch (error) {
+    if (error instanceof ValidationError) return { issues: error.issues, draftId };
+    if (error instanceof NotFoundError) return { issues: [DRAFT_GONE], draftId: null };
+    throw error;
+  }
+}
+
+/** How the test run of the wizard stands; null when it is gone. */
+export async function testRunStatusAction(runId: string): Promise<TestRunView | null> {
+  await requireUser();
+  const db = getDb();
+  try {
+    const [report, worker] = await Promise.all([
+      getRunReport(db, runId),
+      getWorkerStatus(db, new Date()),
+    ]);
+    return toTestRunView(report, { workerOnline: worker.online });
+  } catch (error) {
+    if (error instanceof NotFoundError) return null;
+    throw error;
+  }
 }
 
 export type UpdateJobResult = { issues: Issue[] };

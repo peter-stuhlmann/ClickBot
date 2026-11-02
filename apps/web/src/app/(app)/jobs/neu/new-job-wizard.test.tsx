@@ -1,8 +1,10 @@
-import { act, fireEvent, render, screen, within } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import type { Issue, WizardDraft } from '@/lib/job-draft';
-import type { StartRecordingAction } from '@/lib/views';
+import type { DraftSaveResult, DraftTestRunResult } from '@/app/actions';
+import { emptyDraft, newStep, type Issue, type WizardDraft } from '@/lib/job-draft';
+import type { StartRecordingAction, TestRunView } from '@/lib/views';
+import type { WizardState } from '@/lib/wizard-state';
 import { NewJobWizard, type NewJobWizardProps } from './new-job-wizard';
 import { chooseOption } from '../../../../../test/select';
 
@@ -21,7 +23,7 @@ afterEach(() => {
   vi.useRealTimers();
 });
 
-type CreateAction = (draft: WizardDraft) => Promise<{ issues: Issue[] }>;
+type CreateAction = (draft: WizardDraft, draftId: string | null) => Promise<{ issues: Issue[] }>;
 
 const noRecording: StartRecordingAction = async () => ({ ok: false, message: 'nicht im Test' });
 
@@ -58,6 +60,10 @@ function renderWizard(
       campaigns={campaigns}
       now={NOW}
       createAction={createAction}
+      saveDraft={async (draftId) => ({ draftId, savedAt: null })}
+      startTestRun={async (draftId) => ({ issues: [], draftId })}
+      testRunStatus={async () => null}
+      deleteAction={async () => ({})}
       startRecording={noRecording}
       templates={[contactTemplate]}
       aiReady
@@ -464,5 +470,153 @@ describe('NewJobWizard', () => {
     expect(screen.getByLabelText('Uhrzeit Termin 1')).toHaveAccessibleDescription(
       'Der Termin liegt in der Vergangenheit.',
     );
+  });
+});
+
+type SaveDraft = (draftId: string | null, state: WizardState) => Promise<DraftSaveResult>;
+type StartTestRun = (draftId: string | null, state: WizardState) => Promise<DraftTestRunResult>;
+
+const waiting: TestRunView = {
+  runId: 'run-1',
+  href: '/laeufe/run-1',
+  status: { tone: 'neutral', label: 'Wartet' },
+  open: true,
+  where: 'Desktop · Chrome',
+  message: 'Wartet auf einen freien Browser.',
+  failedIndex: null,
+  failedStep: null,
+  reason: null,
+};
+
+const failedRun: TestRunView = {
+  ...waiting,
+  status: { tone: 'danger', label: 'Fehlgeschlagen' },
+  open: false,
+  message: 'Fehlgeschlagen bei Schritt 2.',
+  failedIndex: 1,
+  failedStep: 'Schritt 2 · Klicke auf „Absenden“',
+  reason: 'Element nicht gefunden: Rolle „button“ mit Name „Absenden“ (nach 10 s).',
+};
+
+describe('NewJobWizard – draft and test run', () => {
+  afterEach(() => {
+    window.history.replaceState(null, '', '/');
+  });
+
+  it('saves the flow as a draft as soon as there is one, and shows it in the address', async () => {
+    const user = userEvent.setup();
+    const saveDraft = vi.fn<SaveDraft>(async () => ({ draftId: 'd1', savedAt: NOW }));
+    renderWizard(undefined, { saveDraft });
+    expect(screen.getByText(/Sobald es einen Ablauf gibt/)).toBeInTheDocument();
+
+    await takeTemplate(user);
+    await waitFor(() => expect(saveDraft).toHaveBeenCalled());
+    // An address alone is no draft yet: every save has the flow.
+    expect(saveDraft.mock.calls.every(([, state]) => state.draft.steps.length === 2)).toBe(true);
+    expect(saveDraft.mock.calls[0]?.[0]).toBeNull();
+    expect(window.location.search).toBe('?entwurf=d1');
+    expect(screen.getByText(/Als Entwurf gespeichert um 13:30:00/)).toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: /Frei mit KI/ }));
+    await waitFor(() => expect(saveDraft.mock.lastCall?.[1].method).toBe('free'));
+    expect(saveDraft.mock.lastCall?.[0]).toBe('d1');
+  });
+
+  it('continues a stored draft where it was left, with its last test run', () => {
+    const open = newStep('open', [], 'https://beispiel.de');
+    const state: WizardState = {
+      version: 1,
+      draft: {
+        ...emptyDraft(new Date(NOW)),
+        campaignId: 'k1',
+        startUrl: 'beispiel.de',
+        steps: [open],
+      },
+      method: 'fixed',
+      goal: '',
+      fixedSteps: [],
+      current: 0,
+    };
+    renderWizard(undefined, {
+      initial: { draftId: 'd1', savedAt: NOW, state, testRun: failedRun },
+    });
+
+    expect(screen.getByRole('textbox', { name: 'Adresse der Website' })).toHaveValue('beispiel.de');
+    expect(screen.getByRole('button', { name: 'Schritt 1: Öffne beispiel.de' })).toBeVisible();
+    const testRun = within(screen.getByRole('region', { name: 'Testlauf' }));
+    expect(testRun.getByRole('status')).toHaveTextContent('Schritt 2 · Klicke auf „Absenden“');
+    expect(screen.getByRole('region', { name: 'Entwurf löschen' })).toBeInTheDocument();
+    expect(screen.getByText(/Als Entwurf gespeichert um 13:30:00/)).toBeInTheDocument();
+  });
+
+  it('plays the flow once and follows the run until it is done', { timeout: 10_000 }, async () => {
+    const user = userEvent.setup();
+    const startTestRun = vi.fn<StartTestRun>(async () => ({
+      issues: [],
+      draftId: 'd1',
+      run: waiting,
+    }));
+    const testRunStatus = vi.fn(async () => failedRun);
+    renderWizard(undefined, { startTestRun, testRunStatus });
+    await takeTemplate(user);
+
+    const card = within(screen.getByRole('region', { name: 'Testlauf' }));
+    expect(card.getByText(/einmal durch, auf Desktop in Chrome/)).toBeInTheDocument();
+    await user.click(card.getByRole('button', { name: 'Testlauf' }));
+
+    expect(startTestRun).toHaveBeenCalledOnce();
+    expect(startTestRun.mock.calls[0]?.[1].draft.steps).toHaveLength(2);
+    expect(await card.findByRole('status')).toHaveTextContent('Wartet auf einen freien Browser.');
+    expect(card.getByRole('button', { name: 'Erneut testen' })).toBeDisabled();
+    expect(window.location.search).toBe('?entwurf=d1');
+
+    await waitFor(() => expect(card.getByRole('status')).toHaveTextContent('Fehlgeschlagen'), {
+      timeout: 5_000,
+    });
+    expect(testRunStatus).toHaveBeenCalledWith('run-1');
+    expect(card.getByRole('button', { name: 'Erneut testen' })).toBeEnabled();
+  });
+
+  it('shows at the goal why the test run did not start, and a gone draft at the card', async () => {
+    const user = userEvent.setup();
+    const startTestRun = vi
+      .fn<StartTestRun>()
+      .mockResolvedValueOnce({
+        issues: [{ path: 'flow.steps.1.value', message: 'Bitte das Ziel beschreiben.' }],
+        draftId: null,
+      })
+      .mockResolvedValueOnce({
+        issues: [{ path: 'job', message: 'Diesen Entwurf gibt es nicht mehr.' }],
+        draftId: null,
+      });
+    renderWizard(undefined, { startTestRun });
+    await describeFreeTest(user, '');
+    const card = within(screen.getByRole('region', { name: 'Testlauf' }));
+
+    await user.click(card.getByRole('button', { name: 'Testlauf' }));
+    await waitFor(() =>
+      expect(
+        screen.getByRole('textbox', { name: 'Was soll auf der Website gelten?' }),
+      ).toHaveAccessibleDescription(expect.stringContaining('Bitte das Ziel beschreiben.')),
+    );
+
+    await user.click(card.getByRole('button', { name: 'Testlauf' }));
+    expect(await card.findByRole('alert')).toHaveTextContent('Diesen Entwurf gibt es nicht mehr.');
+  });
+
+  it('turns the saved draft into the test', async () => {
+    const user = userEvent.setup();
+    const createAction = renderWizard(undefined, {
+      saveDraft: async () => ({ draftId: 'd1', savedAt: NOW }),
+    });
+    await describeFreeTest(user);
+    await waitFor(() => expect(window.location.search).toBe('?entwurf=d1'));
+    await user.click(weiter());
+    await user.click(weiter());
+    await confirmApproval(user);
+    await user.click(screen.getByRole('button', { name: 'Test anlegen' }));
+
+    expect(createAction).toHaveBeenCalledOnce();
+    expect(createAction.mock.calls[0]?.[1]).toBe('d1');
   });
 });

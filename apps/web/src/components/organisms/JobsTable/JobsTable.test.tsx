@@ -7,6 +7,7 @@ import { JobsTable } from './JobsTable';
 const row = (overrides: Partial<JobRowView> = {}): JobRowView => ({
   id: 'job-1',
   name: 'Kontaktformular-Test',
+  href: '/jobs/job-1',
   campaign: 'Black Friday',
   url: 'beispiel.de/kontakt',
   schedule: { primary: 'alle 15 Min.', secondary: '20-mal' },

@@ -17,6 +17,7 @@ const row = (overrides: Partial<JobOverviewRow> = {}): JobOverviewRow => ({
   runsPlanned: 20,
   lastRun: { id: 'run-7', status: 'passed', finishedAt: new Date(now.getTime() - 3 * 60_000) },
   successRate: 1,
+  inWizard: false,
   ...overrides,
 });
 
@@ -25,6 +26,7 @@ describe('toJobRow', () => {
     expect(toJobRow(row(), now)).toEqual({
       id: 'job-1',
       name: 'Kontaktformular-Test',
+      href: '/jobs/job-1',
       campaign: 'Black Friday',
       url: 'beispiel.de/kontakt',
       schedule: { primary: 'alle 15 Min.', secondary: '20-mal' },
@@ -57,6 +59,13 @@ describe('toJobRow', () => {
     [0.84, 'danger'],
   ])('colours a success rate of %f as %s', (rate, tone) => {
     expect(toJobRow(row({ successRate: rate }), now).successRate?.tone).toBe(tone);
+  });
+
+  it('leads a draft of the wizard back to the wizard, every other job to the editor', () => {
+    expect(toJobRow(row({ status: 'draft', inWizard: true }), now).href).toBe(
+      '/jobs/neu?entwurf=job-1',
+    );
+    expect(toJobRow(row({ status: 'draft' }), now).href).toBe('/jobs/job-1');
   });
 
   it('shows no last run and no rate for a job that never ran', () => {

@@ -52,6 +52,18 @@ Projekte, die Anmeldung, das Profil und die Einstellungen der KI-Anbieter stehen
          `describeAdvanced` und Badge „Geändert“) und die Freigabe.
          Am Ende wird der Job aktiv angelegt und läuft nach Zeitplan. Die Zusammenfassung rechts
          zeigt Technik-Einstellungen nur, wenn sie vom Standard abweichen.
+      - Entwurf: Sobald es einen Ablauf gibt (Schritte, auch während der Aufnahme, oder ein
+        Ziel), speichert der Assistent 600 ms nach jeder Änderung als Job mit Status „Entwurf“
+        (`useDraftAutosave`, `saveDraftAction`, `saveJobDraft`). Die Adresse wird
+        `/jobs/neu?entwurf=<id>`; ein Reload bringt Formular, Modus und Schritt zurück
+        (`restoreWizardState`). In der Job-Liste führt der Name eines Entwurfs zurück in den
+        Assistenten. „Test anlegen“ macht den Entwurf zum aktiven Job, mit seinen Testläufen;
+        „Entwurf löschen“ steht unten im ersten Schritt.
+      - „Testlauf“ (Karte `TestRunCard` unter dem Ablauf bzw. dem Ziel): speichert den Entwurf
+        und spielt den Ablauf einmal auf dem ersten Gerät und Browser durch
+        (`startDraftTestRunAction`, `queueTestRun` mit `once`). Die Karte fragt alle 2 s nach
+        (`testRunStatusAction`), bis er fertig ist, und zeigt Ergebnis, fehlgeschlagenen
+        Schritt, Grund und den Link zum Report.
     - „Vorlagen“ (`/vorlagen`, ohne Figma-Entwurf): Abläufe für jede Website, für alle Projekte.
       Anlegen unter `/vorlagen/neu` (gleicher Baukasten, ohne Passwortschutz) oder im Editor eines
       Jobs mit „Als Vorlage speichern“ (`toTemplateFlow`: ohne das Öffnen der Start-URL am Anfang,
@@ -229,6 +241,18 @@ Die Pakete unter `packages/` liefern TypeScript-Quelltext aus, ohne eigenen Buil
     Modal hinter dem Zahnrad neben dem Namen („Kampagne bearbeiten“).
 - **Jobs** legt `createJob` als Entwurf an. Mit `status: 'active'` (Assistent) plant der
   Worker sie sofort ein.
+- **Entwürfe des Assistenten** (`job-drafts.ts`, Spalte `jobs.wizard_state`):
+  - `saveJobDraft` legt einen Job mit Status `draft` an oder ändert ihn, nur solange er noch
+    ein Entwurf des Assistenten ist (sonst `NotFoundError`, ein alter Tab überschreibt keinen
+    fertigen Job). Pflicht ist nur eine gültige Start-URL und eine Kampagne.
+  - Jedes Feld, das gerade nicht gültig ist (ein Schritt in Arbeit), behält seinen gespeicherten
+    Wert bzw. den Standard (Name „Neuer Test“, nur „Seite öffnen“, einmal ab jetzt). So bleiben
+    Editor, Liste und Testlauf mit gültigen Daten. Das Formular selbst liegt unverändert in
+    `wizard_state` (höchstens 200 KB, CHECK 256 KB).
+  - Passwörter stehen nie in `wizard_state`: getippte .htaccess-Passwörter gehen als Secret weg,
+    der Entwurf behält nur `{{secret.…}}` (`storableState`).
+  - `updateJob` leert `wizard_state` immer (gespeichert ist gespeichert); mit `activate: true`
+    wird der Job zudem aktiv („Test anlegen“).
 - **Jobs ändern** (`updateJob`, Editor):
   - Gleiche Prüfungen wie beim Anlegen. Der Status bleibt.
   - Läuft mit derselben Zeilensperre wie der Planer, damit kein Start aus einem halb
@@ -482,7 +506,8 @@ time, bots }]`, `stagger`) bilden die Bots eines Termins eine Welle.
        „Lauf konnte nicht ausgeführt werden: …“.
 - **Testläufe** (`queueTestRun`) sind Läufe ohne Termin (`slot_index` NULL), einer je Gerät und
   Browser des Jobs (`runTargets`), alle mit derselben `scheduled_at`: das macht sie zu einem
-  Start (`TestRunBatch`: `runId` ist der erste, `runIds` alle).
+  Start (`TestRunBatch`: `runId` ist der erste, `runIds` alle). Mit `once` nur einer, auf dem
+  ersten Gerät und Browser („Testlauf“ im Assistenten). `latestTestRun` findet den letzten.
   - `claimNextRun` nimmt sie auch bei pausierten, beendeten oder Entwurfs-Jobs an. Geplante
     Läufe nur bei aktiven Jobs.
   - Wartet oder läuft noch ein Testlauf des Jobs, gibt `queueTestRun` dessen Start zurück statt

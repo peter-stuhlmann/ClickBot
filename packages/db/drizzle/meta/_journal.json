@@ -127,6 +127,13 @@
       "when": 1793500847901,
       "tag": "0017_runs_scheduled_at_idx",
       "breakpoints": true
+    },
+    {
+      "idx": 18,
+      "version": "7",
+      "when": 1793649637226,
+      "tag": "0018_wizard_state",
+      "breakpoints": true
     }
   ]
 }

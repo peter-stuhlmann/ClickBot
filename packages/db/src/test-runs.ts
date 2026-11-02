@@ -1,5 +1,5 @@
 import { runTargets } from '@click-bot/shared';
-import { and, asc, eq, inArray, isNull } from 'drizzle-orm';
+import { and, asc, desc, eq, inArray, isNull } from 'drizzle-orm';
 import type { Database } from './client';
 import { NotFoundError } from './errors';
 import { isUuid } from './ids';
@@ -16,12 +16,18 @@ export type TestRunBatch = {
 };
 
 /**
- * "Jetzt ausführen": one run on every device and browser of the job, due now and outside the
+ * "Jetzt ausführen": one run on every device and browser of the job (or only the first, `once`), due now and outside the
  * schedule (no slot). The runs share the moment they were queued, which makes them one start
  * (see getWaveReport). While a test run of the job is still waiting or running, that start is
  * returned instead, so repeated clicks never pile up runs.
  */
-export async function queueTestRun(db: Database, jobId: string, now: Date): Promise<TestRunBatch> {
+export async function queueTestRun(
+  db: Database,
+  jobId: string,
+  now: Date,
+  /** once: a single run, on the first device and browser ("Testlauf" in the wizard). */
+  { once = false }: { once?: boolean } = {},
+): Promise<TestRunBatch> {
   if (!isUuid(jobId)) throw new NotFoundError('Test', jobId);
   return db.transaction(async (tx) => {
     // Serialises concurrent clicks: the second one sees the runs of the first.
@@ -60,8 +66,9 @@ export async function queueTestRun(db: Database, jobId: string, now: Date): Prom
       return { runId: runIds[0] as string, runIds, existing: true };
     }
 
-    const targets = runTargets(job.devices, job.deviceBrowsers);
-    if (targets.length === 0) targets.push({ device: 'desktop', browser: 'chromium' });
+    const all = runTargets(job.devices, job.deviceBrowsers);
+    if (all.length === 0) all.push({ device: 'desktop', browser: 'chromium' });
+    const targets = once ? all.slice(0, 1) : all;
     const runIds: string[] = [];
     for (const target of targets) {
       const runNr = await allocateRunNumber(tx, jobId);
@@ -82,4 +89,16 @@ export async function queueTestRun(db: Database, jobId: string, now: Date): Prom
     }
     return { runId: runIds[0] as string, runIds, existing: false };
   });
+}
+
+/** The latest test run of a job (no slot), e.g. to show it again in the wizard after a reload. */
+export async function latestTestRun(db: Database, jobId: string): Promise<string | null> {
+  if (!isUuid(jobId)) return null;
+  const [run] = await db
+    .select({ id: runs.id })
+    .from(runs)
+    .where(and(eq(runs.jobId, jobId), isNull(runs.slotIndex)))
+    .orderBy(desc(runs.scheduledAt), desc(runs.runNr))
+    .limit(1);
+  return run?.id ?? null;
 }

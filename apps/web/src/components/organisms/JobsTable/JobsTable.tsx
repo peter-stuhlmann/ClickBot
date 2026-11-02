@@ -126,7 +126,7 @@ export function JobsTable({ rows, toggleAction, runAction }: JobsTableProps) {
             >
               <td role="cell" className="col-span-2 min-w-0 xl:py-3.5 xl:pr-4 xl:pl-5">
                 <Link
-                  href={`/jobs/${row.id}`}
+                  href={row.href}
                   className="block truncate rounded-chip text-body font-medium text-text hover:underline focus-visible:outline-2 focus-visible:outline-primary"
                 >
                   {row.name}

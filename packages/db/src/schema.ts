@@ -212,6 +212,11 @@ export const jobs = pgTable(
     blockAds: boolean('block_ads').notNull().default(true),
     /** Last handed-out run number; increased atomically, see allocateRunNumber. */
     runCounter: integer('run_counter').notNull().default(0),
+    /**
+     * A draft of the "Neuer Job" wizard: its form as it was left, so a reload brings it back
+     * (saveJobDraft). Without passwords. Null once the job is created or saved in the editor.
+     */
+    wizardState: jsonb('wizard_state').$type<unknown>(),
     createdAt: createdAt(),
     updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
   },
@@ -225,6 +230,7 @@ export const jobs = pgTable(
     }).onDelete('restrict'),
     check('jobs_devices_not_empty', sql`cardinality(${t.devices}) > 0`),
     check('jobs_device_browsers_object', sql`jsonb_typeof(${t.deviceBrowsers}) = 'object'`),
+    check('jobs_wizard_state_size', sql`octet_length(${t.wizardState}::text) <= 262144`),
   ],
 );
 

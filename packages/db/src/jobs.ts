@@ -48,7 +48,7 @@ export type NewJobInput = {
 };
 
 /** The project of the campaign, or the problem with the campaign. */
-async function campaignProject(
+export async function campaignProject(
   db: Database,
   campaignId: string,
 ): Promise<{ customerId: string } | { issue: ValidationIssue }> {
@@ -76,7 +76,7 @@ const startUrlSchema = z.string().refine((value) => {
 
 const devicesSchema = z.array(z.enum(device.enumValues)).min(1, 'Mindestens ein Gerät wählen.');
 
-type JobFields = {
+export type JobFields = {
   name: string;
   startUrl: string;
   flow: Flow;
@@ -88,7 +88,7 @@ type JobFields = {
 };
 
 /** Checks the editable fields of a job; adds problems to `issues`, returns null if any. */
-function validateFields(
+export function validateFields(
   input: {
     name: string;
     startUrl: string;
@@ -202,6 +202,8 @@ export type JobUpdateInput = {
   campaignId?: string;
   /** When the change happens; a random plan draws its open starts anew from then on. */
   now?: Date;
+  /** "Test anlegen" for a wizard draft: the job becomes active, the planner takes it up. */
+  activate?: boolean;
 };
 
 /** Slots (times) and interval starts that already have runs, by position, in order. */
@@ -276,7 +278,7 @@ function rescheduleRandom(
     : { issues: issuesFromZod('schedule', parsed.error) };
 }
 
-/** Saves the editor (screen 02). The status stays as it is. */
+/** Saves the editor (screen 02). The status stays as it is, unless a draft is activated. */
 export async function updateJob(db: Database, jobId: string, input: JobUpdateInput): Promise<Job> {
   if (!isUuid(jobId)) throw new NotFoundError('Test', jobId);
   return db.transaction(async (tx) => {
@@ -318,7 +320,14 @@ export async function updateJob(db: Database, jobId: string, input: JobUpdateInp
 
     const [job] = await tx
       .update(jobs)
-      .set({ ...fields, campaignId, updatedAt: new Date() })
+      .set({
+        ...fields,
+        campaignId,
+        // The saved version counts from now on, not the form a wizard draft was left with.
+        wizardState: null,
+        ...(input.activate ? { status: 'active' as const } : {}),
+        updatedAt: new Date(),
+      })
       .where(eq(jobs.id, jobId))
       .returning();
     return job as Job;

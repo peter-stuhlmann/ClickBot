@@ -1,7 +1,8 @@
 'use client';
 
-import type { Flow } from '@click-bot/shared';
-import { useMemo, useState, useTransition, type ReactNode } from 'react';
+import { runTargets, type Flow } from '@click-bot/shared';
+import { useEffect, useMemo, useState, useTransition, type ReactNode } from 'react';
+import type { DraftSaveResult, DraftTestRunResult } from '@/app/actions';
 import { Badge } from '@/components/atoms/Badge';
 import { Button } from '@/components/atoms/Button';
 import { Icon } from '@/components/atoms/Icon';
@@ -9,6 +10,7 @@ import { AccordionItem } from '@/components/molecules/AccordionItem';
 import { AdBlockingForm } from '@/components/organisms/AdBlockingForm';
 import { AnalyticsMarkingForm } from '@/components/organisms/AnalyticsMarkingForm';
 import { ApprovalCard } from '@/components/organisms/ApprovalCard';
+import { DeleteSection } from '@/components/organisms/DeleteSection';
 import { DevicePicker } from '@/components/organisms/DevicePicker';
 import { GoalCard } from '@/components/organisms/GoalCard';
 import { JobBasicsForm } from '@/components/organisms/JobBasicsForm';
@@ -20,9 +22,11 @@ import { StartUrlCard } from '@/components/organisms/StartUrlCard';
 import { StepForm } from '@/components/organisms/StepForm';
 import { StepList } from '@/components/organisms/StepList';
 import { TemplatePicker } from '@/components/organisms/TemplatePicker';
+import { TestRunCard } from '@/components/organisms/TestRunCard';
 import { WizardStepper } from '@/components/organisms/WizardStepper';
 import { WizardLayout } from '@/components/templates/WizardLayout';
-import { toggleDevice, toggleDeviceBrowser } from '@/lib/devices';
+import { browserLabel, deviceLabel, toggleDevice, toggleDeviceBrowser } from '@/lib/devices';
+import { formatClock } from '@/lib/format';
 import {
   describeAdvanced,
   describeRunTotal,
@@ -47,7 +51,9 @@ import {
 } from '@/lib/job-draft';
 import { describeStep, FIXED_STEP_TYPES } from '@/lib/step-view';
 import { stepsFromTemplate } from '@/lib/template-draft';
-import type { StartRecordingAction, TemplateView } from '@/lib/views';
+import type { FormState, StartRecordingAction, TemplateView, TestRunView } from '@/lib/views';
+import type { WizardState } from '@/lib/wizard-state';
+import { useDraftAutosave } from './use-draft-autosave';
 import { useLiveRecording } from './use-live-recording';
 
 export type NewJobWizardProps = {
@@ -55,7 +61,23 @@ export type NewJobWizardProps = {
   campaigns: { id: string; name: string }[];
   /** Server time of the request, so the defaults are the same on server and client. */
   now: string;
-  createAction: (draft: WizardDraft) => Promise<{ issues: Issue[] }>;
+  /** "Test anlegen"; a saved draft (`draftId`) becomes the test. */
+  createAction: (draft: WizardDraft, draftId: string | null) => Promise<{ issues: Issue[] }>;
+  /** Keeps the form as a draft while it is filled in. */
+  saveDraft: (draftId: string | null, state: WizardState) => Promise<DraftSaveResult>;
+  /** "Testlauf": saves the draft and plays its flow once. */
+  startTestRun: (draftId: string | null, state: WizardState) => Promise<DraftTestRunResult>;
+  /** How the test run stands, asked again while it waits or runs. */
+  testRunStatus: (runId: string) => Promise<TestRunView | null>;
+  /** "Entwurf löschen", with its test runs. */
+  deleteAction: (state: FormState, formData: FormData) => Promise<FormState>;
+  /** A saved draft to continue where it was left (`?entwurf=<id>`). */
+  initial?: {
+    draftId: string;
+    savedAt: string;
+    state: WizardState;
+    testRun: TestRunView | null;
+  } | null;
   /** "Im Browser aufnehmen": a one-time address of the live browser. */
   startRecording: StartRecordingAction;
   /** "Aus Vorlage": the templates with their steps. */
@@ -68,14 +90,19 @@ export type NewJobWizardProps = {
   defaultCampaignId: string;
 };
 
-const NOT_SAVED =
-  'Gespeichert wird erst am Ende. Bis dahin ist der Test ein Entwurf und läuft nicht.';
+const NOT_PLANNED = 'Er läuft erst nach „Test anlegen“.';
+const TEST_POLL_MS = 2_000;
 
 /** State and navigation of the "Neuer Job" wizard (screens 05 and 05b). */
 export function NewJobWizard({
   campaigns,
   now,
   createAction,
+  saveDraft,
+  startTestRun,
+  testRunStatus,
+  deleteAction,
+  initial = null,
   startRecording,
   templates,
   aiReady,
@@ -83,23 +110,77 @@ export function NewJobWizard({
   defaultCampaignId,
 }: NewJobWizardProps) {
   const renderedAt = useMemo(() => new Date(now), [now]);
-  const [draft, setDraft] = useState(() => ({
-    ...emptyDraft(renderedAt),
-    // "Allgemein" to begin with: nobody has to choose a campaign to get started.
-    campaignId: defaultCampaignId,
-  }));
+  const restored = initial?.state;
+  const [draft, setDraft] = useState(
+    () =>
+      restored?.draft ?? {
+        ...emptyDraft(renderedAt),
+        // "Allgemein" to begin with: nobody has to choose a campaign to get started.
+        campaignId: defaultCampaignId,
+      },
+  );
   const [advancedOpen, setAdvancedOpen] = useState(false);
-  const [current, setCurrent] = useState(0);
+  const [current, setCurrent] = useState(restored?.current ?? 0);
   const [issues, setIssues] = useState<Issue[]>([]);
   const [selected, setSelected] = useState<number | null>(null);
   const [saving, startSaving] = useTransition();
-  const [method, setMethod] = useState<FlowMethod>('fixed');
+  const [method, setMethod] = useState<FlowMethod>(restored?.method ?? 'fixed');
   // Fixed flow: recording, choosing a template, or the steps to correct.
-  const [fixedView, setFixedView] = useState<'record' | 'template' | 'list'>('record');
+  const [fixedView, setFixedView] = useState<'record' | 'template' | 'list'>(() => {
+    const steps = restored?.method === 'free' ? restored.fixedSteps : restored?.draft.steps;
+    return steps && steps.length > 0 ? 'list' : 'record';
+  });
   // Each mode keeps its state while the other one is shown.
-  const [goal, setGoal] = useState('');
-  const [fixedSteps, setFixedSteps] = useState<StepDraft[]>([]);
+  const [goal, setGoal] = useState(restored?.goal ?? '');
+  const [fixedSteps, setFixedSteps] = useState<StepDraft[]>(restored?.fixedSteps ?? []);
   const recording = useLiveRecording(startRecording);
+  const [testRun, setTestRun] = useState<TestRunView | null>(initial?.testRun ?? null);
+  const [testing, startTesting] = useTransition();
+  const [testError, setTestError] = useState<string>();
+
+  // What a reload brings back. Steps being recorded count already: they are the flow to be.
+  const recordedSoFar =
+    method === 'fixed' && fixedView === 'record' && recording.steps.length > 0
+      ? recording.steps
+      : null;
+  const snapshot: WizardState = {
+    version: 1,
+    draft: recordedSoFar ? { ...draft, steps: recordedSoFar } : draft,
+    method,
+    goal,
+    fixedSteps,
+    current,
+  };
+  const autosave = useDraftAutosave({
+    state: snapshot,
+    worthKeeping: method === 'free' ? goal.trim() !== '' : snapshot.draft.steps.length > 0,
+    initial,
+    save: saveDraft,
+  });
+
+  // Asks again while the test run waits or runs; one question at a time.
+  const pollRunId = testRun?.open ? testRun.runId : null;
+  useEffect(() => {
+    if (!pollRunId) return;
+    let cancelled = false;
+    let timer: ReturnType<typeof setTimeout>;
+    const poll = () => {
+      timer = setTimeout(async () => {
+        try {
+          const next = await testRunStatus(pollRunId);
+          if (!cancelled && next) setTestRun(next);
+        } catch {
+          // Asked again with the next round.
+        }
+        if (!cancelled) poll();
+      }, TEST_POLL_MS);
+    };
+    poll();
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
+    };
+  }, [pollRunId, testRunStatus]);
 
   const step = WIZARD_STEPS[current] ?? WIZARD_STEPS[0];
   const isLast = current === WIZARD_STEPS.length - 1;
@@ -128,9 +209,31 @@ export function NewJobWizard({
   function save() {
     setIssues([]);
     startSaving(async () => {
-      // On success the action redirects to the job list.
-      const result = await createAction(draft);
-      if (result.issues.length > 0) showIssues(result.issues);
+      // After the saves before it; on success the action redirects to the job list, and the
+      // draft must not be saved again on the way.
+      const result = await autosave.exclusive(async (draftId) => {
+        autosave.pause(true);
+        return createAction(draft, draftId);
+      });
+      if (result.issues.length > 0) {
+        autosave.pause(false);
+        showIssues(result.issues);
+      }
+    });
+  }
+
+  function runTest() {
+    setIssues([]);
+    setTestError(undefined);
+    const sent = snapshot;
+    startTesting(async () => {
+      const result = await autosave.exclusive((draftId) => startTestRun(draftId, sent));
+      autosave.adopt(result.draftId);
+      const general = result.issues.find((issue) => issue.path === 'job');
+      if (general) return setTestError(general.message);
+      if (result.issues.length > 0) return showIssues(result.issues);
+      autosave.markSaved(sent, result.draftId);
+      if (result.run) setTestRun(result.run);
     });
   }
 
@@ -186,6 +289,24 @@ export function NewJobWizard({
   const selectedStep = selected === null ? undefined : draft.steps[selected];
   const runTotal = describeRunTotal(draft, renderedAt);
   const advanced = describeAdvanced(draft);
+  const firstTarget = runTargets(draft.devices, draft.deviceBrowsers)[0] ?? {
+    device: 'desktop',
+    browser: 'chromium',
+  };
+  const testRunCard = (
+    <TestRunCard
+      run={testRun}
+      hint={`Spielt den Ablauf einmal durch, auf ${deviceLabel(firstTarget.device)} in ${browserLabel(firstTarget.browser)}, sofort. Der Test bleibt ein Entwurf.`}
+      busy={testing}
+      error={testError}
+      onStart={runTest}
+    />
+  );
+  const draftNote = autosave.failed
+    ? 'Der Entwurf ließ sich gerade nicht speichern. Die nächste Änderung versucht es erneut.'
+    : autosave.savedAt
+      ? `Als Entwurf gespeichert um ${formatClock(new Date(autosave.savedAt))}. ${NOT_PLANNED}`
+      : `Sobald es einen Ablauf gibt, wird der Test als Entwurf gespeichert. ${NOT_PLANNED}`;
 
   let content: ReactNode;
   switch (step.key) {
@@ -199,12 +320,15 @@ export function NewJobWizard({
           />
           <MethodPicker method={method} onChoose={chooseMethod} />
           {method === 'free' ? (
-            <GoalCard
-              goal={goal}
-              error={stepErrors(issues, 1).value ?? errors['flow.steps']}
-              aiReady={aiReady}
-              onChange={changeGoal}
-            />
+            <>
+              <GoalCard
+                goal={goal}
+                error={stepErrors(issues, 1).value ?? errors['flow.steps']}
+                aiReady={aiReady}
+                onChange={changeGoal}
+              />
+              {testRunCard}
+            </>
           ) : fixedView === 'record' ? (
             <>
               <LiveBrowser
@@ -295,7 +419,17 @@ export function NewJobWizard({
                   }
                 />
               )}
+              {testRunCard}
             </>
+          )}
+          {autosave.draftId && (
+            <DeleteSection
+              title="Entwurf löschen"
+              description="Der Entwurf und seine Testläufe werden gelöscht. Das lässt sich nicht rückgängig machen."
+              buttonLabel="Entwurf löschen"
+              fields={{ id: autosave.draftId }}
+              action={deleteAction}
+            />
           )}
         </>
       );
@@ -393,7 +527,7 @@ export function NewJobWizard({
           note={
             current === DEVICES_STEP && runTotal
               ? `${runTotal}. Der Test startet direkt nach dem Anlegen.`
-              : NOT_SAVED
+              : draftNote
           }
         />
       }

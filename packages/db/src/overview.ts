@@ -28,6 +28,8 @@ export type JobOverviewRow = {
   lastRun: { id: string; status: RunStatus; finishedAt: Date } | null;
   /** Share of successful finished runs including test runs, 0–1; null without any. */
   successRate: number | null;
+  /** A draft the "Neuer Job" wizard keeps its form for; it is continued there. */
+  inWizard: boolean;
 };
 
 /** Restricts figures to one project (customer) or campaign; without it they cover everything. */
@@ -98,6 +100,7 @@ export async function listJobOverview(
         ? { id: lastRun.id, status: lastRun.status, finishedAt: lastRun.finishedAt }
         : null,
       successRate: finished > 0 ? successful / finished : null,
+      inWizard: job.wizardState !== null,
     };
   });
 }

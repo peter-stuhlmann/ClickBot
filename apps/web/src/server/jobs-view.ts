@@ -32,6 +32,8 @@ export function toJobRow(row: JobOverviewRow, now: Date): JobRowView {
   return {
     id: row.id,
     name: row.name,
+    // A draft the wizard keeps the form of is continued there, where it was left.
+    href: row.inWizard ? `/jobs/neu?entwurf=${row.id}` : `/jobs/${row.id}`,
     campaign: row.campaignName,
     url: displayUrl(row.startUrl),
     schedule: describeSchedule(row.schedule),

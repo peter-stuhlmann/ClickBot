@@ -47,6 +47,7 @@ export {
   type JobUpdateInput,
   type NewJobInput,
 } from './jobs';
+export { DRAFT_NAME, saveJobDraft, type JobDraftInput } from './job-drafts';
 export * as schema from './schema';
 export { createSecret, resolveSecretsForRun, saveSecret, type NewSecretInput } from './secrets';
 export { secureStepPasswords } from './step-secrets';
@@ -77,7 +78,7 @@ export {
   type TemplateInput,
   type TemplateRow,
 } from './templates';
-export { queueTestRun, type TestRunBatch } from './test-runs';
+export { latestTestRun, queueTestRun, type TestRunBatch } from './test-runs';
 export { listRuns, type RunFilter, type RunListRow } from './run-list';
 export {
   claimNextRun,

@@ -19,6 +19,9 @@ export default defineConfig({
   workers: 1,
   fullyParallel: false,
   forbidOnly: Boolean(process.env.CI),
+  // The dev server compiles each page on its first visit, which takes seconds more while the
+  // machine is busy (e.g. a local worker running browsers). Waiting longer is no retry.
+  expect: { timeout: 15_000 },
   reporter: 'list',
   use: {
     baseURL: `http://localhost:${PORT}`,

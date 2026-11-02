@@ -6,7 +6,7 @@ import { createJob, type Job } from './jobs';
 import { listJobOverview } from './overview';
 import { claimNextRun, completeRun } from './queue';
 import { jobs, runs } from './schema';
-import { queueTestRun } from './test-runs';
+import { latestTestRun, queueTestRun } from './test-runs';
 
 const now = new Date('2026-11-05T12:30:00Z');
 const later = (seconds: number) => new Date(now.getTime() + seconds * 1000);
@@ -54,6 +54,16 @@ describe('queueTestRun', () => {
     for (const run of queued) expect(run).toMatchObject({ status: 'queued', scheduledAt: now });
   });
 
+  it('queues a single run on the first device and browser when asked for one', async () => {
+    const job = await newJob('draft');
+    const { runIds } = await queueTestRun(db, job.id, now, { once: true });
+
+    expect(runIds).toHaveLength(1);
+    expect(await db.select().from(runs)).toMatchObject([
+      { id: runIds[0], device: 'iphone', browser: 'webkit', slotIndex: null },
+    ]);
+  });
+
   it('hands out the waiting test runs instead of queuing more', async () => {
     const job = await newJob();
     const first = await queueTestRun(db, job.id, now);
@@ -98,6 +108,21 @@ describe('queueTestRun', () => {
     ['a malformed', 'job-7'],
   ])('throws NotFoundError for %s job', async (_case, id) => {
     await expect(queueTestRun(db, id, now)).rejects.toBeInstanceOf(NotFoundError);
+  });
+});
+
+describe('latestTestRun', () => {
+  it('finds the most recent test run of a job, none for an unknown job or a bad id', async () => {
+    const job = await newJob();
+    expect(await latestTestRun(db, job.id)).toBeNull();
+    const first = await queueTestRun(db, job.id, now, { once: true });
+    await claimNextRun(db, now);
+    await completeRun(db, first.runId, { status: 'passed', finishedAt: later(3), steps: [] });
+    const second = await queueTestRun(db, job.id, later(10), { once: true });
+
+    expect(await latestTestRun(db, job.id)).toBe(second.runId);
+    expect(await latestTestRun(db, '00000000-0000-0000-0000-000000000000')).toBeNull();
+    expect(await latestTestRun(db, 'job-7')).toBeNull();
   });
 });
 

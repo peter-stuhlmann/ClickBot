@@ -16,6 +16,8 @@ export type StatCardView = {
 export type JobRowView = {
   id: string;
   name: string;
+  /** The editor, or the wizard for a draft it keeps the form of. */
+  href: string;
   /** Name of the campaign the job belongs to. */
   campaign: string;
   url: string;
@@ -97,6 +99,25 @@ export type WaveRunRowView = {
   reason: string | null;
   duration: string;
   failed: boolean;
+};
+
+/** The "Testlauf" of the job wizard: one run of the draft, below its flow. */
+export type TestRunView = {
+  runId: string;
+  /** The run report. */
+  href: string;
+  status: { tone: Tone; label: string };
+  /** Still waiting or running: the wizard asks again. */
+  open: boolean;
+  /** "Desktop · Chrome" */
+  where: string;
+  /** What happened, in one sentence. */
+  message: string;
+  /** The failed step, 0-based, to mark it in the flow. */
+  failedIndex: number | null;
+  /** "Schritt 7 · Klicke auf „Kurse“" */
+  failedStep: string | null;
+  reason: string | null;
 };
 
 /** Screen 03b "Welle-Report": every device and browser of one start, side by side. */
