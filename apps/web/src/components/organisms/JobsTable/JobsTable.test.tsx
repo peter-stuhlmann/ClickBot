@@ -12,7 +12,7 @@ const row = (overrides: Partial<JobRowView> = {}): JobRowView => ({
   url: 'beispiel.de/kontakt',
   schedule: { primary: 'alle 15 Min.', secondary: '20-mal' },
   progress: { label: '7 / 20 Durchläufe', value: 0.35 },
-  lastRun: { tone: 'success', label: 'Erfolgreich', when: 'vor 3 Min.', href: '/laeufe/run-7' },
+  lastRun: { tone: 'success', label: 'Bestanden', when: 'vor 3 Min.', href: '/laeufe/run-7' },
   successRate: { text: '100 %', tone: 'success' },
   status: { label: 'Aktiv', active: true, toggleable: true },
   ...overrides,
@@ -46,7 +46,7 @@ describe('JobsTable', () => {
     expect(
       cells.getByRole('progressbar', { name: 'Fortschritt Kontaktformular-Test' }),
     ).toHaveAttribute('aria-valuenow', '35');
-    expect(cells.getByText('Erfolgreich')).toBeInTheDocument();
+    expect(cells.getByText('Bestanden')).toBeInTheDocument();
     expect(cells.getByText('vor 3 Min.')).toBeInTheDocument();
     expect(cells.getByText('100 %')).toHaveClass('text-success');
   });
@@ -149,7 +149,7 @@ describe('JobsTable', () => {
     render(<JobsTable rows={[row()]} toggleAction={noop} runAction={noop} />);
     expect(
       screen.getByRole('link', {
-        name: 'Letzter Durchlauf von Kontaktformular-Test: Erfolgreich, vor 3 Min.',
+        name: 'Letzter Durchlauf von Kontaktformular-Test: Bestanden, vor 3 Min.',
       }),
     ).toHaveAttribute('href', '/laeufe/run-7');
   });

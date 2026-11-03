@@ -9,11 +9,13 @@ import { plural } from './format';
 export const PAGE_SIZE = 50;
 const DAY_MS = 86_400_000;
 
-type RunStatus = 'queued' | 'running' | 'passed' | 'warning' | 'failed' | 'cancelled';
+type RunStatus =
+  'queued' | 'running' | 'passed' | 'warning' | 'not_passed' | 'failed' | 'cancelled';
 
 const RESULTS = {
-  erfolgreich: { label: 'Erfolgreich', statuses: ['passed'] },
+  bestanden: { label: 'Bestanden', statuses: ['passed'] },
   hinweis: { label: 'Mit Hinweis', statuses: ['warning'] },
+  nichtbestanden: { label: 'Nicht bestanden', statuses: ['not_passed'] },
   fehlgeschlagen: { label: 'Fehlgeschlagen', statuses: ['failed'] },
   offen: { label: 'Geplant oder läuft', statuses: ['queued', 'running'] },
   abgebrochen: { label: 'Abgebrochen', statuses: ['cancelled'] },

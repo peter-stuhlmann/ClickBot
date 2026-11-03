@@ -1,6 +1,9 @@
 import type { Browser } from '@click-bot/db';
 import type { Page } from 'playwright';
 
+/** How a run ends. */
+export type RunEnd = 'passed' | 'warning' | 'not_passed' | 'failed';
+
 /** A step of a watched run: started, or how it ended. */
 export type StepStatus = 'running' | 'passed' | 'unclear' | 'failed';
 
@@ -8,13 +11,13 @@ export type RunEvent =
   /** The run works in this page from now on (the first one, or a new tab). */
   | { type: 'page'; page: Page }
   | { type: 'step'; index: number; total: number; status: StepStatus }
-  | { type: 'end'; status: 'passed' | 'warning' | 'failed' };
+  | { type: 'end'; status: RunEnd };
 
 /** What runFlow reports about a run while it goes. */
 export type RunTap = {
   page(page: Page): void;
   step(index: number, status: StepStatus): void;
-  end(status: 'passed' | 'warning' | 'failed'): void;
+  end(status: RunEnd): void;
 };
 
 /** A run being executed right now, as a watcher sees it. */

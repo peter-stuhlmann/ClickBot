@@ -4,8 +4,8 @@ import { Badge } from './Badge';
 
 describe('Badge', () => {
   it('shows its text', () => {
-    render(<Badge tone="success">Erfolgreich</Badge>);
-    expect(screen.getByText('Erfolgreich')).toBeInTheDocument();
+    render(<Badge tone="success">Bestanden</Badge>);
+    expect(screen.getByText('Bestanden')).toBeInTheDocument();
   });
 
   it.each([

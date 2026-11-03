@@ -4,7 +4,15 @@ import type { Ga4Recorder } from './analytics';
 import { basicAuthHeader, hasBasicAuth, useBasicAuth } from './basic-auth';
 import { openPage } from './navigate';
 import { waitForPdf } from './pdf';
-import { StepError, ambiguousCount, formatSeconds, isTimeout, refusedCredentials } from './errors';
+import {
+  ElementNotFoundError,
+  ExpectationError,
+  StepError,
+  ambiguousCount,
+  formatSeconds,
+  isTimeout,
+  refusedCredentials,
+} from './errors';
 import {
   describeTarget,
   findTarget,
@@ -212,19 +220,25 @@ export async function executeStep(
         case 'textVisible': {
           const expected = text(assertion.text);
           if (!(await waitForVisibleText(current, expected, timeout))) {
-            throw new StepError(`Text „${expected}“ ist nicht sichtbar (nach ${after}).`);
+            throw new ExpectationError(`Text „${expected}“ ist nicht sichtbar (nach ${after}).`);
           }
           return {};
         }
         case 'elementVisible':
-          await onTarget(current, assertion.target, timeout, (l, left) =>
-            l.waitFor({ state: 'visible', timeout: left }),
-          );
+          try {
+            await onTarget(current, assertion.target, timeout, (l, left) =>
+              l.waitFor({ state: 'visible', timeout: left }),
+            );
+          } catch (error) {
+            // Not there is what the check looks for; an ambiguous target is a fault of the step.
+            if (error instanceof ElementNotFoundError) throw new ExpectationError(error.message);
+            throw error;
+          }
           return {};
         case 'urlContains': {
           const expected = text(assertion.value);
           if (!(await waitUntil(() => pageOf(current).url().includes(expected), timeout))) {
-            throw new StepError(
+            throw new ExpectationError(
               `URL enthält „${expected}“ nicht (aktuell: ${pageOf(current).url()}).`,
             );
           }
@@ -237,7 +251,7 @@ export async function executeStep(
               .title()
               .catch(() => '');
           if (!(await waitUntil(async () => (await title()).includes(expected), timeout))) {
-            throw new StepError(
+            throw new ExpectationError(
               `Seitentitel enthält „${expected}“ nicht (aktuell: „${await title()}“).`,
             );
           }
@@ -340,7 +354,7 @@ export async function executeStep(
       const event = text(step.event);
       if (!(await ctx.analytics.waitFor(event, timeout))) {
         const sent = ctx.analytics.events();
-        throw new StepError(
+        throw new ExpectationError(
           `GA4-Event „${event}“ wurde nicht gesendet (nach ${after}). ` +
             `Gesendet: ${sent.length > 0 ? sent.join(', ') : 'keine'}.`,
         );

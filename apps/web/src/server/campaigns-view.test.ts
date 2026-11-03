@@ -39,7 +39,7 @@ describe('toCampaignRow', () => {
       runs: { label: '312 Durchläufe · 96,2 % ok', value: 300 / 312 },
       lastRun: {
         tone: 'success',
-        label: 'Erfolgreich',
+        label: 'Bestanden',
         when: 'vor 3 Min.',
         href: '/laeufe/run-1',
       },

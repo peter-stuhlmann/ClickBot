@@ -85,7 +85,7 @@ describe('toWaveReportView', () => {
       { label: 'Start', value: '16:17:01', hint: 'geplant 16:17:00' },
     ]);
     expect(view.rows.map((row) => [row.device, row.browser, row.status.label])).toEqual([
-      ['Desktop', 'Chrome', 'Erfolgreich'],
+      ['Desktop', 'Chrome', 'Bestanden'],
       ['Desktop', 'Firefox', 'Fehlgeschlagen'],
       ['iPhone 15', 'Safari', 'Fehlgeschlagen'],
       ['Android (Pixel 8)', 'Chrome', 'Mit Hinweis'],
@@ -185,7 +185,7 @@ describe('toWaveReportView', () => {
   it('is successful only when every run passed, and keeps a hint or an abort visible', () => {
     const passed = report([run({ id: 'a', device: 'desktop', browser: 'chromium' })]);
     expect(toWaveReportView(passed)).toMatchObject({
-      status: { tone: 'success', label: 'Erfolgreich' },
+      status: { tone: 'success', label: 'Bestanden' },
       summary: '1 Durchlauf',
     });
     expect(toWaveReportView(passed).stats[0]).toEqual({
@@ -211,5 +211,42 @@ describe('toWaveReportView', () => {
       status: { tone: 'neutral', label: 'Abgebrochen' },
       rows: [{ reason: 'Abgebrochen.' }],
     });
+  });
+
+  it('counts "nicht bestanden" and "fehlgeschlagen" apart; a broken flow weighs more', () => {
+    const notPassed = (id: string, device: WaveRun['device'], browser: WaveRun['browser']) =>
+      run({
+        id,
+        device,
+        browser,
+        status: 'not_passed',
+        error: 'Nicht erfüllt: Der Preis stimmt nicht.',
+        failedStep: {
+          stepIndex: 1,
+          stepId: 'kurs',
+          message: 'Nicht erfüllt: Der Preis stimmt nicht.',
+        },
+      });
+    const onlyNotPassed = toWaveReportView(
+      report([
+        run({ id: 'a', device: 'desktop', browser: 'chromium' }),
+        notPassed('b', 'desktop', 'firefox'),
+      ]),
+    );
+    expect(onlyNotPassed.status).toEqual({ tone: 'danger', label: 'Nicht bestanden' });
+    expect(onlyNotPassed.summary).toBe('2 Durchläufe · 1 nicht bestanden');
+    expect(onlyNotPassed.stats[0]).toMatchObject({ value: '1 / 2', hint: '1 nicht bestanden' });
+    expect(onlyNotPassed.rows[1]).toMatchObject({
+      status: { label: 'Nicht bestanden' },
+      failed: true,
+      reason: 'Nicht erfüllt: Der Preis stimmt nicht.',
+    });
+    expect(onlyNotPassed.failures).toHaveLength(1);
+
+    const both = toWaveReportView(
+      report([notPassed('a', 'desktop', 'chromium'), failedAt('b', 'iphone', 'webkit')]),
+    );
+    expect(both.status).toEqual({ tone: 'danger', label: 'Fehlgeschlagen' });
+    expect(both.summary).toBe('2 Durchläufe · 1 nicht bestanden · 1 fehlgeschlagen');
   });
 });

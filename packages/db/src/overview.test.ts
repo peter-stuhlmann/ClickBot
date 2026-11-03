@@ -28,7 +28,7 @@ async function job(name: string, overrides: Record<string, unknown> = {}): Promi
 let runNr = 0;
 async function finishedRun(
   jobId: string,
-  status: 'passed' | 'warning' | 'failed' | 'cancelled',
+  status: 'passed' | 'warning' | 'not_passed' | 'failed' | 'cancelled',
   finishedAt: Date,
 ) {
   runNr += 1;
@@ -189,6 +189,17 @@ describe('getDashboardStats', () => {
       count: 2,
       jobNames: ['Login'],
     });
+  });
+
+  it('counts a run that is "nicht bestanden" as finished and as not successful, like a failed one', async () => {
+    const login = await job('Login');
+    await finishedRun(login.id, 'passed', minutesAgo(30));
+    await finishedRun(login.id, 'not_passed', minutesAgo(20));
+    await finishedRun(login.id, 'failed', minutesAgo(10));
+
+    const stats = await getDashboardStats(db, now);
+    expect(stats.successRate7d).toEqual({ successful: 1, finished: 3 });
+    expect(stats.failures24h).toEqual({ count: 2, jobNames: ['Login'] });
   });
 
   it('returns zeros for an empty database', async () => {

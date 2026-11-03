@@ -44,6 +44,8 @@ export type VideoCue = { step: number | null; from: number; to: number };
 
 export const userRole = pgEnum('user_role', ['admin', 'member']);
 export const jobStatus = pgEnum('job_status', ['draft', 'active', 'paused', 'finished']);
+// not_passed: the flow ran, but the expectation of the test was not met ("Nicht bestanden": an
+// assertion, a GA4 event or the verdict of an AI step). failed: the flow itself broke.
 export const runStatus = pgEnum('run_status', [
   'queued',
   'running',
@@ -51,6 +53,7 @@ export const runStatus = pgEnum('run_status', [
   'warning',
   'failed',
   'cancelled',
+  'not_passed',
 ]);
 // unclear: an AI step could not check every sub-goal of its test ("Mit Hinweis").
 export const stepStatus = pgEnum('step_status', [

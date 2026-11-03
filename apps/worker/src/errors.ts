@@ -5,6 +5,19 @@ export class StepError extends Error {
   override name = 'StepError';
 }
 
+/**
+ * The flow worked, but what the test expects is not so: text, element, URL or title not there,
+ * a GA4 event not sent. The run ends "Nicht bestanden", not "Fehlgeschlagen".
+ */
+export class ExpectationError extends StepError {
+  override name = 'ExpectationError';
+}
+
+/** No element matched the target in time. A failed click, but for a check an unmet expectation. */
+export class ElementNotFoundError extends StepError {
+  override name = 'ElementNotFoundError';
+}
+
 export function formatSeconds(ms: number): string {
   return `${(ms / 1000).toLocaleString('de-DE', { maximumFractionDigits: 1 })} s`;
 }

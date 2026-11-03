@@ -169,17 +169,18 @@ Was als „geplant“ markiert ist, existiert noch nicht.
 Die Oberfläche spricht Alltagsdeutsch, Code, Datenbank und diese Datei behalten die
 Fachbegriffe. Wer UI-Texte schreibt, nutzt die linke Spalte:
 
-| Oberfläche             | Code / Datenbank / hier            |
-| ---------------------- | ---------------------------------- |
-| Test, Tests            | Job, `jobs`                        |
-| Durchlauf, Durchläufe  | Lauf, Run, `runs`                  |
-| „Jetzt ausführen“      | Testlauf (`queueTestRun`)          |
-| „manuell gestartet“    | Testlauf im Report, Chip „Manuell“ |
-| Testsystem             | Worker                             |
-| Adresse der Website    | Start-URL (`start_url`)            |
-| Browser 1, Browser 2 … | Bot 1, Bot 2 (`bot_nr`)            |
-| Projekt                | Kunde, `customer`                  |
-| Start                  | Welle (alle Läufe eines Termins)   |
+| Oberfläche                                 | Code / Datenbank / hier                      |
+| ------------------------------------------ | -------------------------------------------- |
+| Test, Tests                                | Job, `jobs`                                  |
+| Durchlauf, Durchläufe                      | Lauf, Run, `runs`                            |
+| „Jetzt ausführen“                          | Testlauf (`queueTestRun`)                    |
+| „manuell gestartet“                        | Testlauf im Report, Chip „Manuell“           |
+| Testsystem                                 | Worker                                       |
+| Adresse der Website                        | Start-URL (`start_url`)                      |
+| Browser 1, Browser 2 …                     | Bot 1, Bot 2 (`bot_nr`)                      |
+| Projekt                                    | Kunde, `customer`                            |
+| Start                                      | Welle (alle Läufe eines Termins)             |
+| Bestanden, Nicht bestanden, Fehlgeschlagen | Lauf-Status `passed`, `not_passed`, `failed` |
 
 „Bot“ kommt in der Oberfläche nur noch im Produktnamen Click-Bot und in GA4-Begriffen wie
 „Bot-Kennung“ vor. Die Umbenennung lief über ein Skript, das nur Strings, Template-Strings,
@@ -430,6 +431,14 @@ time, bots }]`, `stagger`) bilden die Bots eines Termins eine Welle.
   Browser-Contexts aus.
   - Beim ersten fehlgeschlagenen Schritt hört er auf. Die übrigen Schritte gelten als
     `skipped`.
+  - Ergebnis des Laufs: „Fehlgeschlagen“ (`failed`), wenn der Ablauf nicht funktioniert (Element
+    nicht gefunden, Timeout, Seitenfehler, KI nicht erreichbar, mehrdeutiges Ziel). „Nicht
+    bestanden“ (`not_passed`), wenn der Ablauf lief, aber die Erwartung nicht erfüllt ist: ein
+    Schritt „prüfen“ trifft nicht zu (Text, Element, URL, Titel; `ExpectationError`, bei Elementen
+    nur „nicht gefunden“, nie „mehrdeutig“), ein GA4-Ereignis blieb aus oder die KI hat ein Teilziel
+    als „failed“ bewertet. Der Schritt selbst bleibt `failed`; beide Läufe brechen ab, zählen in der
+    Erfolgsquote nicht als Erfolg und in „Fehler der letzten 24 Stunden“. „Mit Hinweis“ bleibt ein
+    Erfolg.
   - Ein fehlgeschlagener Schritt bekommt ein Bildschirmfoto. Das Foto hat ein eigenes kurzes
     Zeitlimit, damit eine hängende Seite den Browser-Platz nicht blockiert.
   - Öffnet ein Schritt einen neuen Tab, machen die folgenden Schritte dort weiter (auch Foto bei

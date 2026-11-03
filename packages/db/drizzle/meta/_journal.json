@@ -148,6 +148,13 @@
       "when": 1793673313807,
       "tag": "0020_recording_device",
       "breakpoints": true
+    },
+    {
+      "idx": 21,
+      "version": "7",
+      "when": 1793709029055,
+      "tag": "0021_clumsy_rumiko_fujikawa",
+      "breakpoints": true
     }
   ]
 }

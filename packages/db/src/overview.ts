@@ -9,7 +9,7 @@ type JobStatus = Job['status'];
 type RunStatus = (typeof runs.$inferSelect)['status'];
 
 /** Runs that reached a verdict. Cancelled runs say nothing about the website. */
-export const FINISHED = ['passed', 'warning', 'failed'] as const;
+export const FINISHED = ['passed', 'warning', 'not_passed', 'failed'] as const;
 /** A warning means the site worked but needed help (e.g. AI fallback): still a success. */
 const SUCCESSFUL = ['passed', 'warning'] as const;
 
@@ -171,7 +171,7 @@ export async function getDashboardStats(
     .select({ jobName: jobs.name })
     .from(runs)
     .innerJoin(jobs, eq(jobs.id, runs.jobId))
-    .where(and(inProject(scope), eq(runs.status, 'failed'), gte(at, dayAgo)))
+    .where(and(inProject(scope), inArray(runs.status, ['not_passed', 'failed']), gte(at, dayAgo)))
     .orderBy(asc(jobs.name));
 
   return {

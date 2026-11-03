@@ -11,7 +11,7 @@ import { AiStepError, runAiStep, type AgentDriver } from './ai-step';
 import { createGa4Recorder } from './analytics';
 import { markBotTraffic } from './bot-marking';
 import { concealSecrets, exposesSecret } from './conceal';
-import { toStepMessage } from './errors';
+import { ExpectationError, toStepMessage } from './errors';
 import { waitForPdf } from './pdf';
 import type { RunTap } from './run-watch';
 import { executeStep } from './steps';
@@ -52,8 +52,12 @@ export type StepResult = {
 };
 
 export type RunResult = {
-  /** warning: every step passed, but an AI step could not check everything. */
-  status: 'passed' | 'warning' | 'failed';
+  /**
+   * warning: every step passed, but an AI step could not check everything. not_passed: the flow
+   * worked, but an expectation was not met (check, GA4 event, verdict of an AI step). failed: a
+   * step could not be carried out.
+   */
+  status: 'passed' | 'warning' | 'not_passed' | 'failed';
   steps: StepResult[];
   extracted: Record<string, string>;
   screenshots: { stepId: string; image: Buffer }[];
@@ -107,7 +111,7 @@ export async function runFlow(
   };
 
   for (const [index, step] of flow.steps.entries()) {
-    if (result.status === 'failed') {
+    if (result.status === 'failed' || result.status === 'not_passed') {
       result.steps.push({ stepId: step.id, index, status: 'skipped', durationMs: 0 });
       continue;
     }
@@ -138,7 +142,7 @@ export async function runFlow(
         });
         if (judged.screenshot)
           result.screenshots.push({ stepId: step.id, image: judged.screenshot });
-        if (judged.outcome === 'failed') result.status = 'failed';
+        if (judged.outcome === 'failed') result.status = 'not_passed';
         if (judged.outcome === 'unclear' && result.status === 'passed') result.status = 'warning';
         options.tap?.step(index, judged.outcome);
         continue;
@@ -158,7 +162,7 @@ export async function runFlow(
       });
       options.tap?.step(index, 'passed');
     } catch (error) {
-      result.status = 'failed';
+      result.status = error instanceof ExpectationError ? 'not_passed' : 'failed';
       result.steps.push({
         stepId: step.id,
         index,

@@ -32,7 +32,9 @@ function failedStepTitle(report: WaveReport, run: WaveRun): string | null {
 }
 
 function reasonOf(run: WaveRun): string | null {
-  if (run.status !== 'failed' && run.status !== 'cancelled') return null;
+  if (run.status !== 'failed' && run.status !== 'not_passed' && run.status !== 'cancelled') {
+    return null;
+  }
   return run.failedStep?.message ?? run.error;
 }
 
@@ -41,6 +43,7 @@ function overallStatus(runs: WaveRun[]): { tone: Tone; label: string } {
   if (statuses.has('running')) return RUN_BADGE.running;
   if (statuses.has('queued')) return RUN_BADGE.queued;
   if (statuses.has('failed')) return RUN_BADGE.failed;
+  if (statuses.has('not_passed')) return RUN_BADGE.not_passed;
   if (statuses.has('warning')) return RUN_BADGE.warning;
   if (statuses.has('cancelled')) return RUN_BADGE.cancelled;
   return RUN_BADGE.passed;
@@ -61,7 +64,7 @@ function liveHint(runs: WaveRun[], workerOnline: boolean): string | null {
 function failures(report: WaveReport): WaveReportView['failures'] {
   const groups = new Map<string, { title: string; message: string; where: string[] }>();
   for (const run of report.runs) {
-    if (run.status !== 'failed') continue;
+    if (run.status !== 'failed' && run.status !== 'not_passed') continue;
     const title = failedStepTitle(report, run) ?? 'Durchlauf konnte nicht ausgeführt werden';
     const message = reasonOf(run) ?? '';
     const key = `${title}\n${message}`;
@@ -76,6 +79,7 @@ function stats(report: WaveReport, startedAt: Date | null): StatCardView[] {
   const { runs } = report;
   const passed = runs.filter((run) => run.status === 'passed' || run.status === 'warning');
   const failed = runs.filter((run) => run.status === 'failed');
+  const notPassed = runs.filter((run) => run.status === 'not_passed');
   const open = runs.filter((run) => run.status === 'queued' || run.status === 'running');
   const durations = runs.map(durationOf).filter((ms): ms is number => ms !== null);
   const longest = durations.length > 0 ? Math.max(...durations) : null;
@@ -84,6 +88,7 @@ function stats(report: WaveReport, startedAt: Date | null): StatCardView[] {
       ? Math.round(durations.reduce((sum, ms) => sum + ms, 0) / durations.length)
       : null;
   const resultHint = [
+    notPassed.length > 0 && `${notPassed.length} nicht bestanden`,
     failed.length > 0 && `${failed.length} fehlgeschlagen`,
     open.length > 0 && `${open.length} noch offen`,
   ]
@@ -126,6 +131,7 @@ export function toWaveReportView(
     started.length > 0 ? new Date(Math.min(...started.map((at) => at.getTime()))) : null;
   const devices = new Set(runs.map((run) => run.device)).size;
   const failed = runs.filter((run) => run.status === 'failed').length;
+  const notPassed = runs.filter((run) => run.status === 'not_passed').length;
 
   return {
     jobName: report.job.name,
@@ -140,6 +146,7 @@ export function toWaveReportView(
     stats: stats(report, startedAt),
     summary: [
       plural(runs.length, 'Durchlauf', 'Durchläufe'),
+      notPassed > 0 ? `${notPassed} nicht bestanden` : null,
       failed > 0 ? `${failed} fehlgeschlagen` : null,
     ]
       .filter(Boolean)
@@ -153,7 +160,7 @@ export function toWaveReportView(
       failedStep: failedStepTitle(report, run),
       reason: reasonOf(run),
       duration: durationOf(run) === null ? DASH : formatDuration(durationOf(run) as number),
-      failed: run.status === 'failed',
+      failed: run.status === 'failed' || run.status === 'not_passed',
     })),
     failures: failures(report),
     live: liveHint(runs, workerOnline),

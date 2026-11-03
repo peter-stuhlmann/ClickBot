@@ -11,7 +11,7 @@ const rows: WaveRunRowView[] = [
     href: '/laeufe/a',
     device: 'Desktop',
     browser: 'Chrome',
-    status: { tone: 'success', label: 'Erfolgreich' },
+    status: { tone: 'success', label: 'Bestanden' },
     failedStep: null,
     reason: null,
     duration: '8,0 s',
@@ -44,7 +44,7 @@ describe('WaveRunsTable', () => {
       '/laeufe/a',
     );
     expect(first).toHaveTextContent('Chrome');
-    expect(first).toHaveTextContent('Erfolgreich');
+    expect(first).toHaveTextContent('Bestanden');
     expect(first).toHaveTextContent('8,0 s');
     expect(within(second as HTMLElement).getByRole('link', { name: 'iPhone 15' })).toHaveAttribute(
       'href',
@@ -70,7 +70,7 @@ describe('WaveRunsTable', () => {
       'Gerät',
       'Browser',
       'Ergebnis',
-      'Fehlgeschlagen bei',
+      'Problem bei',
       'Dauer',
     ]);
   });

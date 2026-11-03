@@ -208,7 +208,7 @@ export type StepRecord = {
 };
 
 export type RunOutcome = {
-  status: 'passed' | 'warning' | 'failed';
+  status: 'passed' | 'warning' | 'not_passed' | 'failed';
   finishedAt: Date;
   error?: string | null;
   steps: StepRecord[];

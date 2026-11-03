@@ -33,7 +33,7 @@ describe('toJobRow', () => {
       progress: { label: '7 / 20 Durchläufe', value: 0.35 },
       lastRun: {
         tone: 'success',
-        label: 'Erfolgreich',
+        label: 'Bestanden',
         when: 'vor 3 Min.',
         href: '/laeufe/run-7',
       },
@@ -43,7 +43,7 @@ describe('toJobRow', () => {
   });
 
   it.each([
-    ['passed', 'success', 'Erfolgreich'],
+    ['passed', 'success', 'Bestanden'],
     ['warning', 'warning', 'Mit Hinweis'],
     ['failed', 'danger', 'Fehlgeschlagen'],
   ] as const)('shows a %s run as %s badge', (status, tone, label) => {

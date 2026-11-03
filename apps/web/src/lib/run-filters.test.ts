@@ -76,8 +76,9 @@ describe('toRunQuery', () => {
   });
 
   it.each([
-    ['erfolgreich', ['passed']],
+    ['bestanden', ['passed']],
     ['hinweis', ['warning']],
+    ['nichtbestanden', ['not_passed']],
     ['fehlgeschlagen', ['failed']],
     ['abgebrochen', ['cancelled']],
   ] as const)('maps the result %s', (ergebnis, statuses) => {

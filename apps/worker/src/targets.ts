@@ -1,6 +1,6 @@
 import { unknownTagHint, type Target } from '@click-bot/shared';
 import type { Frame, Locator, Page } from 'playwright';
-import { StepError, formatSeconds } from './errors';
+import { ElementNotFoundError, StepError, formatSeconds } from './errors';
 
 type AriaRole = Parameters<Page['getByRole']>[0];
 
@@ -90,10 +90,10 @@ export async function findTarget(
  * „Element nicht gefunden …“, for a CSS selector like „decline“ with what it really looks for
  * (an element <decline>) and what was probably meant.
  */
-export function notFound(target: Target, timeoutMs: number): StepError {
+export function notFound(target: Target, timeoutMs: number): ElementNotFoundError {
   const message = `Element nicht gefunden: ${describeTarget(target)} (nach ${formatSeconds(timeoutMs)}).`;
   const hint = target.by === 'css' ? unknownTagHint(target.selector) : null;
-  return new StepError(hint ? `${message} ${hint}` : message);
+  return new ElementNotFoundError(hint ? `${message} ${hint}` : message);
 }
 
 /** Waits until `text` is visible in the page or one of its iframes. */

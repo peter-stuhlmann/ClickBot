@@ -21,6 +21,6 @@ export function toRunListRow(row: RunListRow): RunListRowView {
         ? formatDuration(row.finishedAt.getTime() - row.startedAt.getTime())
         : '–',
     status: RUN_BADGE[row.status],
-    failed: row.status === 'failed',
+    failed: row.status === 'failed' || row.status === 'not_passed',
   };
 }

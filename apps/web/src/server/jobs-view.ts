@@ -6,8 +6,11 @@ import { describeSchedule, displayUrl, formatPercent, formatRelative, plural } f
 import type { JobRowView, StatCardView, Tone } from '@/lib/views';
 
 export const RUN_BADGE: Record<RunStatus, { tone: Tone; label: string }> = {
-  passed: { tone: 'success', label: 'Erfolgreich' },
+  passed: { tone: 'success', label: 'Bestanden' },
   warning: { tone: 'warning', label: 'Mit Hinweis' },
+  // The flow ran, but the expectation of the test is not met.
+  not_passed: { tone: 'danger', label: 'Nicht bestanden' },
+  // The flow itself broke, e.g. an element was not found.
   failed: { tone: 'danger', label: 'Fehlgeschlagen' },
   cancelled: { tone: 'neutral', label: 'Abgebrochen' },
   running: { tone: 'neutral', label: 'Läuft' },

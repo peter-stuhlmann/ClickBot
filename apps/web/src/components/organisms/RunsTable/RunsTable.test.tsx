@@ -12,7 +12,7 @@ const row = (overrides: Partial<RunListRowView> = {}): RunListRowView => ({
   campaign: 'Black Friday',
   when: '05.11. 14:30',
   duration: '8,4 s',
-  status: { tone: 'success', label: 'Erfolgreich' },
+  status: { tone: 'success', label: 'Bestanden' },
   failed: false,
   ...overrides,
 });
@@ -41,7 +41,7 @@ describe('RunsTable', () => {
     expect(cells.getByText('Black Friday')).toBeVisible();
     // On one line, never broken inside.
     expect(cells.getByText('05.11. 14:30 · 8,4 s')).toHaveClass('whitespace-nowrap');
-    expect(cells.getByText('Erfolgreich')).toBeVisible();
+    expect(cells.getByText('Bestanden')).toBeVisible();
   });
 
   it('marks test runs and colours failed runs red', () => {

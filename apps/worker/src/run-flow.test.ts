@@ -860,3 +860,83 @@ describe('runFlow – failures', () => {
     expect(result.steps[1]?.message).not.toContain('\n');
   });
 });
+
+describe('runFlow – "Nicht bestanden" (expectation not met) against "Fehlgeschlagen" (flow broke)', () => {
+  const open = step('open', { type: 'open', url: '/kontakt.html' });
+  const more = step('more', { type: 'open', url: '/kontakt.html' });
+
+  it('a text that is not on the page: not passed, the step after it is skipped', async () => {
+    const result = await run([
+      open,
+      step('see', { type: 'assert', assertion: { kind: 'textVisible', text: 'Gibt es nicht' } }),
+      more,
+    ]);
+    expect(result.status).toBe('not_passed');
+    expect(result.steps.map((s) => s.status)).toEqual(['passed', 'failed', 'skipped']);
+  });
+
+  it('a URL, a title and an element that do not match: not passed', async () => {
+    for (const assertion of [
+      { kind: 'urlContains', value: '/gibt-es-nicht' },
+      { kind: 'titleContains', value: 'Gibt es nicht' },
+      { kind: 'elementVisible', target: role('button', 'Gibt es nicht') },
+    ]) {
+      const result = await run([
+        open,
+        step('check', { type: 'assert', assertion, timeoutMs: 500 }),
+      ]);
+      expect(result.status, JSON.stringify(assertion)).toBe('not_passed');
+    }
+  });
+
+  it('a GA4 event that was not sent: not passed', async () => {
+    const result = await run([
+      open,
+      step('ga', { type: 'analytics', provider: 'ga4', event: 'gibt_es_nicht', timeoutMs: 300 }),
+    ]);
+    expect(result.status).toBe('not_passed');
+  });
+
+  it('a click on an element that is not there: failed, the flow broke', async () => {
+    const result = await run([
+      open,
+      step('click', { type: 'click', target: role('button', 'Gibt es nicht'), timeoutMs: 500 }),
+    ]);
+    expect(result.status).toBe('failed');
+  });
+
+  it('a check on an ambiguous element: failed, the step itself is wrong', async () => {
+    const result = await run([
+      step('open', { type: 'open', url: '/consent-iframe.html' }),
+      step('wait', {
+        type: 'wait',
+        until: { kind: 'element', target: role('button', 'Einwilligen und weiter') },
+      }),
+      step('check', {
+        type: 'assert',
+        assertion: { kind: 'elementVisible', target: { by: 'text', text: 'Kontakt', exact: true } },
+      }),
+    ]);
+    expect(result.status).toBe('failed');
+    expect(result.steps[2]?.message).toContain('Mehrdeutig');
+  });
+
+  it('a page that answers with an error before a check: failed', async () => {
+    const result = await run([
+      step('open', { type: 'open', url: '/fehler' }),
+      step('see', { type: 'assert', assertion: { kind: 'textVisible', text: 'Willkommen' } }),
+    ]);
+    expect(result.status).toBe('failed');
+    expect(result.steps[0]?.status).toBe('failed');
+    expect(result.steps[1]?.status).toBe('skipped');
+  });
+
+  it('an unmet check after a step that already failed does not change that: failed', async () => {
+    const result = await run([
+      open,
+      step('click', { type: 'click', target: role('button', 'Gibt es nicht'), timeoutMs: 500 }),
+      step('see', { type: 'assert', assertion: { kind: 'textVisible', text: 'Gibt es nicht' } }),
+    ]);
+    expect(result.status).toBe('failed');
+  });
+});

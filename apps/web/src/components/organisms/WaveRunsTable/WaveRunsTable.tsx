@@ -8,7 +8,7 @@ const COLUMNS = [
   { label: 'Gerät', width: 'w-44' },
   { label: 'Browser', width: 'w-28' },
   { label: 'Ergebnis', width: 'w-36' },
-  { label: 'Fehlgeschlagen bei', width: 'w-auto' },
+  { label: 'Problem bei', width: 'w-auto' },
   { label: 'Dauer', width: 'w-24' },
 ];
 

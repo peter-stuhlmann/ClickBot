@@ -129,7 +129,7 @@ describe('toRunReportView', () => {
       jobHref: '/jobs/job-1',
       runLabel: 'Durchlauf 7',
       title: 'Durchlauf 7 von 20',
-      status: { tone: 'success', label: 'Erfolgreich' },
+      status: { tone: 'success', label: 'Bestanden' },
       meta: 'Do., 05.11.2026 · 14:30:01 Uhr · ausgelöst durch Zeitplan',
       stepsSummary: '3 Schritte · 8,4 s',
       failure: null,
@@ -167,6 +167,18 @@ describe('toRunReportView', () => {
         screenshotHref: null,
       },
     ]);
+  });
+
+  it('titles an unmet expectation "nicht bestanden", a broken flow "fehlgeschlagen"', () => {
+    const notPassed = toRunReportView(
+      report({ run: { status: 'not_passed', error: SEND_ERROR }, steps: failedSteps }),
+    );
+    expect(notPassed.status).toEqual({ tone: 'danger', label: 'Nicht bestanden' });
+    expect(notPassed.failure).toEqual({ title: 'Schritt 2 nicht bestanden', message: SEND_ERROR });
+    const failed = toRunReportView(
+      report({ run: { status: 'failed', error: SEND_ERROR }, steps: failedSteps }),
+    );
+    expect(failed.failure?.title).toBe('Schritt 2 fehlgeschlagen');
   });
 
   it('shows where a failed run stopped, with the message and the screenshot', () => {

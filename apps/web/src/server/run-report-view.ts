@@ -172,6 +172,12 @@ export function toVideoCaptions(report: RunReport): string {
   return toWebVtt(report.run.videoCues ?? [], titles);
 }
 
+/** "Schritt 2 nicht bestanden" (the expectation) or "Schritt 2 fehlgeschlagen" (the flow broke). */
+function failureTitle(status: 'failed' | 'not_passed', stepIndex: number | null): string {
+  const what = status === 'not_passed' ? 'nicht bestanden' : 'fehlgeschlagen';
+  return stepIndex === null ? `Durchlauf ${what}` : `Schritt ${stepIndex + 1} ${what}`;
+}
+
 /** Screen 03: one run with its steps, timing and, if it failed, where and why. */
 export function toRunReportView(
   report: RunReport,
@@ -230,11 +236,9 @@ export function toRunReportView(
       .join(' · '),
     steps,
     failure:
-      run.status === 'failed' && run.error
+      (run.status === 'failed' || run.status === 'not_passed') && run.error
         ? {
-            title: failed
-              ? `Schritt ${failed.stepIndex + 1} fehlgeschlagen`
-              : 'Durchlauf fehlgeschlagen',
+            title: failureTitle(run.status, failed?.stepIndex ?? null),
             message: run.error,
           }
         : null,

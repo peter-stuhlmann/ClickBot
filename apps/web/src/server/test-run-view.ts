@@ -26,10 +26,14 @@ function message(report: RunReport, workerOnline: boolean, failedIndex: number |
     }
     case 'warning':
       return 'Durchgelaufen, mit Hinweis. Was nicht prüfbar war, steht im Report.';
+    case 'not_passed':
+      return failedIndex === null
+        ? 'Nicht bestanden.'
+        : `Nicht bestanden: Der Ablauf lief durch, aber die Erwartung bei Schritt ${failedIndex + 1} ist nicht erfüllt.`;
     case 'failed':
       return failedIndex === null
-        ? 'Der Testlauf konnte nicht ausgeführt werden.'
-        : `Fehlgeschlagen bei Schritt ${failedIndex + 1}.`;
+        ? 'Fehlgeschlagen: Der Testlauf konnte nicht ausgeführt werden.'
+        : `Fehlgeschlagen: Der Ablauf bricht bei Schritt ${failedIndex + 1} ab.`;
     case 'cancelled':
       return 'Der Testlauf wurde abgebrochen.';
   }
@@ -46,7 +50,8 @@ export function toTestRunView(
   const step = failed && report.job.flow.steps.find((candidate) => candidate.id === failed.stepId);
   const draft = step ? toStepDraft(step) : null;
   const number = failedIndex === null ? null : `Schritt ${failedIndex + 1}`;
-  const ended = run.status === 'failed' || run.status === 'cancelled';
+  const ended =
+    run.status === 'failed' || run.status === 'not_passed' || run.status === 'cancelled';
   return {
     runId: run.id,
     href: `/laeufe/${run.id}`,

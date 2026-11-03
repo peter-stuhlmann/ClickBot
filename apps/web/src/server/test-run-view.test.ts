@@ -100,7 +100,7 @@ describe('toTestRunView', () => {
       ]),
     );
     expect(view).toMatchObject({
-      status: { tone: 'success', label: 'Erfolgreich' },
+      status: { tone: 'success', label: 'Bestanden' },
       open: false,
       message: 'Alle 2 Schritte bestanden, in 4,0 s.',
     });
@@ -116,17 +116,37 @@ describe('toTestRunView', () => {
     expect(view).toMatchObject({
       status: { tone: 'danger', label: 'Fehlgeschlagen' },
       open: false,
-      message: 'Fehlgeschlagen bei Schritt 2.',
+      message: 'Fehlgeschlagen: Der Ablauf bricht bei Schritt 2 ab.',
       failedIndex: 1,
       failedStep: 'Schritt 2 · Klicke auf „Kurse“',
       reason: NOT_FOUND,
     });
   });
 
+  it('tells "Nicht bestanden" (the flow ran, the expectation is not met) from "Fehlgeschlagen"', () => {
+    const reason =
+      'Nicht erfüllt: Der Ab-Preis beträgt 1.999,00 €. Auf der Seite steht 2.009,00 €.';
+    const view = toTestRunView(
+      report(
+        { status: 'not_passed', startedAt: seconds(1), finishedAt: seconds(12), error: reason },
+        [stepRow(0, 'open', 'passed'), stepRow(1, 'kurs', 'failed', reason)],
+      ),
+    );
+    expect(view).toMatchObject({
+      status: { tone: 'danger', label: 'Nicht bestanden' },
+      open: false,
+      message:
+        'Nicht bestanden: Der Ablauf lief durch, aber die Erwartung bei Schritt 2 ist nicht erfüllt.',
+      failedIndex: 1,
+      reason,
+    });
+    expect(view.message).not.toContain('Fehlgeschlagen');
+  });
+
   it('gives the error of a run that never reached a step', () => {
     const error = 'Lauf konnte nicht ausgeführt werden: Browser abgestürzt.';
     expect(toTestRunView(report({ status: 'failed', error }))).toMatchObject({
-      message: 'Der Testlauf konnte nicht ausgeführt werden.',
+      message: 'Fehlgeschlagen: Der Testlauf konnte nicht ausgeführt werden.',
       failedIndex: null,
       reason: error,
     });

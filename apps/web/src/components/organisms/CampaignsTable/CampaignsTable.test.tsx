@@ -9,7 +9,7 @@ const row = (overrides: Partial<CampaignRowView> = {}): CampaignRowView => ({
   detail: '20.11.–30.11.2026 · beispiel.de · 3 Websites',
   jobs: { primary: '4 Tests', secondary: '3 aktiv · 1 beendet' },
   runs: { label: '312 Durchläufe · 96,2 % ok', value: 0.962 },
-  lastRun: { tone: 'success', label: 'Erfolgreich', when: 'vor 3 Min.', href: '/laeufe/run-1' },
+  lastRun: { tone: 'success', label: 'Bestanden', when: 'vor 3 Min.', href: '/laeufe/run-1' },
   successRate: { text: '96,2 %', tone: 'success' },
   ...overrides,
 });
@@ -54,7 +54,7 @@ describe('CampaignsTable', () => {
     ).toHaveAttribute('aria-valuenow', '96');
     expect(
       cells.getByRole('link', {
-        name: 'Letzter Durchlauf von Black Friday: Erfolgreich, vor 3 Min.',
+        name: 'Letzter Durchlauf von Black Friday: Bestanden, vor 3 Min.',
       }),
     ).toHaveAttribute('href', '/laeufe/run-1');
     expect(cells.getByText('96,2 %')).toHaveClass('text-success');

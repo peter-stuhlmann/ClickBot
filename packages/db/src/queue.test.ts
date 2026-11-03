@@ -287,6 +287,40 @@ describe('claimNextRun', () => {
 });
 
 describe('completeRun', () => {
+  it('stores "nicht bestanden": the flow ran, but the expectation was not met', async () => {
+    await activeJob(wave(1));
+    await planDueRuns(db, { now, lookaheadMs: 2 * MIN });
+    const runId = (await claimNextRun(db, at(2 * MIN)))?.run.id as string;
+    const reason = 'Nicht erfüllt: Der Preis stimmt nicht.';
+
+    await completeRun(db, runId, {
+      status: 'not_passed',
+      finishedAt: at(2 * MIN + 5_000),
+      error: reason,
+      steps: [
+        {
+          stepId: 'open',
+          index: 0,
+          status: 'passed',
+          durationMs: 800,
+          message: null,
+          screenshotPath: null,
+        },
+        {
+          stepId: 'send',
+          index: 1,
+          status: 'failed',
+          durationMs: 900,
+          message: reason,
+          screenshotPath: null,
+        },
+      ],
+    });
+
+    const [run] = await db.select().from(runs).where(eq(runs.id, runId));
+    expect(run).toMatchObject({ status: 'not_passed', error: reason });
+  });
+
   it('stores the verdict and every step', async () => {
     await activeJob(wave(1));
     await planDueRuns(db, { now, lookaheadMs: 2 * MIN });

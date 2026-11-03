@@ -91,7 +91,8 @@ describe('AI steps (free tests)', () => {
     );
     const again = { ...open, id: 'open-2' };
     const result = await run([open, goalStep('Ein blauer Button.'), again], { ai: drive });
-    expect(result.status).toBe('failed');
+    // The flow worked, the expectation of the test is not met: "Nicht bestanden".
+    expect(result.status).toBe('not_passed');
     expect(result.steps[1]).toMatchObject({
       status: 'failed',
       message: 'Nicht erfüllt: Der Button ist blau. Er ist grau.',
