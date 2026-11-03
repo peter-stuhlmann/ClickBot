@@ -2,6 +2,7 @@ import Link from 'next/link';
 import { Badge } from '@/components/atoms/Badge';
 import { Icon } from '@/components/atoms/Icon';
 import { ProgressBar } from '@/components/atoms/ProgressBar';
+import { CostPopover } from '@/components/molecules/CostPopover';
 import { SubmitButton } from '@/components/molecules/SubmitButton';
 import { SubmitToggle } from '@/components/molecules/SubmitToggle';
 import type { JobRowView, Tone } from '@/lib/views';
@@ -125,16 +126,21 @@ export function JobsTable({ rows, toggleAction, runAction }: JobsTableProps) {
               className="grid grid-flow-row-dense grid-cols-2 gap-x-4 gap-y-3 border-b border-divider p-4 last:border-0 xl:table-row xl:p-0"
             >
               <td role="cell" className="col-span-2 min-w-0 xl:py-3.5 xl:pr-4 xl:pl-5">
-                <Link
-                  href={row.href}
-                  className="block truncate rounded-chip text-body font-medium text-text hover:underline focus-visible:outline-2 focus-visible:outline-primary"
-                >
-                  {row.name}
-                </Link>
-                <div className="mt-0.5 truncate text-small text-text-muted">
-                  <span className="font-medium text-text-secondary">{row.campaign}</span>
-                  {' · '}
-                  <span className="font-mono">{row.url}</span>
+                <div className="flex items-start justify-between gap-2">
+                  <div className="min-w-0">
+                    <Link
+                      href={row.href}
+                      className="block truncate rounded-chip text-body font-medium text-text hover:underline focus-visible:outline-2 focus-visible:outline-primary"
+                    >
+                      {row.name}
+                    </Link>
+                    <div className="mt-0.5 truncate text-small text-text-muted">
+                      <span className="font-medium text-text-secondary">{row.campaign}</span>
+                      {' · '}
+                      <span className="font-mono">{row.url}</span>
+                    </div>
+                  </div>
+                  <CostPopover label={`KI-Kosten von ${row.name}`} cost={row.cost} />
                 </div>
               </td>
               <td role="cell" className="xl:py-3.5">

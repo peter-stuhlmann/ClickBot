@@ -18,6 +18,7 @@ export type RunStepRow = Pick<
   | 'screenshotPath'
   | 'aiActions'
   | 'aiVerdict'
+  | 'aiSummary'
 >;
 
 export type RunReport = {
@@ -66,6 +67,7 @@ export async function getRunReport(db: Database, runId: string): Promise<RunRepo
         screenshotPath: runSteps.screenshotPath,
         aiActions: runSteps.aiActions,
         aiVerdict: runSteps.aiVerdict,
+        aiSummary: runSteps.aiSummary,
       })
       .from(runSteps)
       .where(eq(runSteps.runId, run.id))

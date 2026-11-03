@@ -3,6 +3,7 @@ import {
   createCipher,
   createJob,
   createSecret,
+  getRunUsage,
   getWorkerStatus,
   queueTestRun,
   saveAiProvider,
@@ -132,6 +133,7 @@ describe('worker', () => {
       '{"type":"click","target":{"by":"role","role":"button","name":"Alle akzeptieren"}}',
       JSON.stringify({
         type: 'verdict',
+        summary: 'Die Cookies lassen sich akzeptieren.',
         criteria: [{ goal: 'Cookies lassen sich akzeptieren.', status: 'met', evidence: 'Weg.' }],
       }),
     ];
@@ -159,7 +161,56 @@ describe('worker', () => {
       status: 'passed',
       aiActions: ['Klick auf Rolle „button“ mit Name „Alle akzeptieren“: ok'],
       aiVerdict: [{ goal: 'Cookies lassen sich akzeptieren.', status: 'met', evidence: 'Weg.' }],
+      aiSummary: 'Die Cookies lassen sich akzeptieren.',
     });
+  });
+
+  it('stores the tokens the AI used, with its model, and none for a flow without AI', async () => {
+    await saveAiProvider(db, cipher, {
+      kind: 'custom',
+      model: 'test-modell',
+      baseUrl: 'http://127.0.0.1:1/v1',
+    });
+    const answers = [
+      '{"type":"click","target":{"by":"role","role":"button","name":"Alle akzeptieren"}}',
+      JSON.stringify({
+        type: 'verdict',
+        summary: 'Die Cookies lassen sich akzeptieren.',
+        criteria: [{ goal: 'Cookies lassen sich akzeptieren.', status: 'met', evidence: 'Weg.' }],
+      }),
+    ];
+    await dueJob([
+      { id: 'open', type: 'open', url: '/kontakt.html' },
+      { id: 'ki', type: 'ai', instruction: 'Akzeptiere die Cookies.' },
+    ]);
+    const w = startWorker({
+      createAiClient: (_config, deps) => ({
+        complete: async () => {
+          // Each answer reports its tokens, as a provider does.
+          deps?.onUsage?.({ inputTokens: 1000, outputTokens: 50, cachedTokens: 400 });
+          return answers.shift() ?? '';
+        },
+        listModels: async () => null,
+      }),
+    });
+    await w.tick();
+    await w.idle();
+    const [run] = await allRuns();
+    expect(await getRunUsage(db, run?.id as string)).toEqual({
+      provider: 'custom',
+      model: 'test-modell',
+      // Two answers: the action and the verdict.
+      usage: { inputTokens: 2000, outputTokens: 100, cachedTokens: 800 },
+    });
+  });
+
+  it('stores no tokens for a run that used no AI', async () => {
+    await dueJob([{ id: 'open', type: 'open', url: '/kontakt.html' }]);
+    const w = startWorker();
+    await w.tick();
+    await w.idle();
+    const [run] = await allRuns();
+    expect(await getRunUsage(db, run?.id as string)).toBeNull();
   });
 
   it('fails an AI step clearly while no AI provider is set up', async () => {

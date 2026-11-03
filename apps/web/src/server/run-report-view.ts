@@ -1,6 +1,7 @@
 import 'server-only';
 import type { RunReport, RunStepRow } from '@click-bot/db';
 import { describeMarking, markingState, type AnalyticsMarking, type Step } from '@click-bot/shared';
+import { NO_AI_COST } from '@/lib/cost';
 import { browserLabel, deviceLabel } from '@/lib/devices';
 import { formatClock, formatDateLong, formatDuration, plural } from '@/lib/format';
 import { toStepDraft } from '@/lib/job-draft';
@@ -8,6 +9,7 @@ import { screenshotAnchor } from '@/lib/screenshots';
 import { describeStep } from '@/lib/step-view';
 import { toWebVtt } from '@/lib/video-captions';
 import type {
+  CostView,
   RunReportView,
   RunStepView,
   ScreenshotView,
@@ -59,6 +61,7 @@ function stepViews(report: RunReport): RunStepView[] {
       screenshotHref: row.screenshotPath ? `#${screenshotAnchor(row.stepIndex + 1)}` : null,
       ...(row.aiActions ? { aiActions: row.aiActions } : {}),
       ...(row.aiVerdict ? { aiVerdict: row.aiVerdict } : {}),
+      ...(row.aiSummary ? { aiSummary: row.aiSummary } : {}),
     };
   });
 }
@@ -181,7 +184,7 @@ function failureTitle(status: 'failed' | 'not_passed', stepIndex: number | null)
 /** Screen 03: one run with its steps, timing and, if it failed, where and why. */
 export function toRunReportView(
   report: RunReport,
-  { workerOnline = true }: { workerOnline?: boolean } = {},
+  { workerOnline = true, cost = NO_AI_COST }: { workerOnline?: boolean; cost?: CostView } = {},
 ): RunReportView {
   const { run, job } = report;
   const steps = stepViews(report);
@@ -254,5 +257,6 @@ export function toRunReportView(
         : null,
     screenshots: screenshotViews(report, steps),
     video: toVideoView(report),
+    cost,
   };
 }

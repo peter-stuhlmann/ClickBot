@@ -2,11 +2,11 @@ import 'server-only';
 import type { RunListRow } from '@click-bot/db';
 import { browserLabel, deviceLabel } from '@/lib/devices';
 import { formatDuration, formatShortDateTime } from '@/lib/format';
-import type { RunListRowView } from '@/lib/views';
+import type { CostView, RunListRowView } from '@/lib/views';
 import { RUN_BADGE } from './jobs-view';
 
 /** Screen 14: one run in the list of all runs. */
-export function toRunListRow(row: RunListRow): RunListRowView {
+export function toRunListRow(row: RunListRow, cost: CostView): RunListRowView {
   const startedOrPlanned = row.startedAt ?? row.scheduledAt;
   return {
     id: row.id,
@@ -22,5 +22,6 @@ export function toRunListRow(row: RunListRow): RunListRowView {
         : '–',
     status: RUN_BADGE[row.status],
     failed: row.status === 'failed' || row.status === 'not_passed',
+    cost,
   };
 }

@@ -3,6 +3,7 @@ import { Badge } from '@/components/atoms/Badge';
 import { Button, buttonVariants } from '@/components/atoms/Button';
 import { Card } from '@/components/atoms/Card';
 import { Icon } from '@/components/atoms/Icon';
+import { CostPopover } from '@/components/molecules/CostPopover';
 import { LiveScreen, type LiveScreenProps } from '@/components/molecules/LiveScreen';
 import { VideoPlayer } from '@/components/molecules/VideoPlayer';
 import type { TestRunView } from '@/lib/views';
@@ -57,8 +58,14 @@ export function TestRunCard({ run, hint, busy, error, live, onStart }: TestRunCa
             >
               Report öffnen
             </Link>
+            <CostPopover label="KI-Kosten dieses Testlaufs" cost={run.cost} />
           </div>
           <p className="text-body text-text">{run.message}</p>
+          {run.summary && (
+            <p className="rounded-input bg-neutral-soft px-3 py-2 text-body text-text">
+              <span className="font-semibold">Testergebnis:</span> {run.summary}
+            </p>
+          )}
           {run.failedStep && <p className="text-body font-medium text-text">{run.failedStep}</p>}
           {run.reason && <p className="text-body break-words text-danger">{run.reason}</p>}
           {run.open && <p className="text-meta text-text-muted">Wird als Video aufgenommen.</p>}

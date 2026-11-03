@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import { Badge } from '@/components/atoms/Badge';
 import { Card } from '@/components/atoms/Card';
+import { CostPopover } from '@/components/molecules/CostPopover';
 import { cn } from '@/lib/cn';
 import type { WaveRunRowView } from '@/lib/views';
 
@@ -73,7 +74,13 @@ export function WaveRunsTable({ rows, summary }: WaveRunsTableProps) {
                 role="cell"
                 className="row-start-1 justify-self-end md:table-cell md:py-3 md:pr-3"
               >
-                <Badge tone={row.status.tone}>{row.status.label}</Badge>
+                <div className="flex items-center gap-1">
+                  <Badge tone={row.status.tone}>{row.status.label}</Badge>
+                  <CostPopover
+                    label={`KI-Kosten von ${row.device} in ${row.browser}`}
+                    cost={row.cost}
+                  />
+                </div>
               </td>
               <td role="cell" className="col-span-2 min-w-0 md:table-cell md:py-3 md:pr-3">
                 {row.failedStep || row.reason ? (

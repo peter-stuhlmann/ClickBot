@@ -2,6 +2,7 @@ import { act, fireEvent, render, screen, waitFor, within } from '@testing-librar
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { DraftSaveResult, DraftTestRunResult } from '@/app/actions';
+import { NO_AI_COST } from '@/lib/cost';
 import { emptyDraft, newStep, type Issue, type WizardDraft } from '@/lib/job-draft';
 import type { StartRecordingAction, TestRunView, WatchRunAction } from '@/lib/views';
 import type { WizardState } from '@/lib/wizard-state';
@@ -518,6 +519,8 @@ const waiting: TestRunView = {
   failedStep: null,
   reason: null,
   video: null,
+  summary: null,
+  cost: NO_AI_COST,
 };
 
 const failedRun: TestRunView = {

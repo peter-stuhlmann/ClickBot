@@ -1,6 +1,7 @@
 // @vitest-environment node
 import type { WaveReport, WaveRun } from '@click-bot/db';
 import { describe, expect, it } from 'vitest';
+import { NO_AI_COST } from '@/lib/cost';
 import { toWaveReportView } from './wave-report-view';
 
 // 16:17:00 in Berlin.
@@ -248,5 +249,17 @@ describe('toWaveReportView', () => {
     );
     expect(both.status).toEqual({ tone: 'danger', label: 'Fehlgeschlagen' });
     expect(both.summary).toBe('2 Durchläufe · 1 nicht bestanden · 1 fehlgeschlagen');
+  });
+
+  it('gives each run its own cost, and a run without one the view of a test without AI', () => {
+    const cost = { model: 'Claude · claude-x', rows: [], total: '1,00\u00a0$', note: null };
+    const view = toWaveReportView(
+      report([
+        run({ id: 'a', device: 'desktop', browser: 'chromium' }),
+        run({ id: 'b', device: 'iphone', browser: 'webkit' }),
+      ]),
+      { costs: new Map([['b', cost]]) },
+    );
+    expect(view.rows.map((row) => row.cost)).toEqual([NO_AI_COST, cost]);
   });
 });

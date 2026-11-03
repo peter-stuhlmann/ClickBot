@@ -2,6 +2,7 @@ import Link from 'next/link';
 import { Fragment } from 'react';
 import { Badge } from '@/components/atoms/Badge';
 import { Card } from '@/components/atoms/Card';
+import { CostPopover } from '@/components/molecules/CostPopover';
 import { Pager, type PagerProps } from '@/components/molecules/Pager';
 import { cn } from '@/lib/cn';
 import type { RunListRowView } from '@/lib/views';
@@ -113,7 +114,13 @@ export function RunsTable({ rows, summary, pager }: RunsTableProps) {
                 {row.when} · {row.duration}
               </td>
               <td role="cell" className="mt-1 justify-self-end md:mt-0 md:py-3">
-                <Badge tone={row.status.tone}>{row.status.label}</Badge>
+                <div className="flex items-center gap-1">
+                  <Badge tone={row.status.tone}>{row.status.label}</Badge>
+                  <CostPopover
+                    label={`KI-Kosten von ${row.jobName}, ${row.when}`}
+                    cost={row.cost}
+                  />
+                </div>
               </td>
             </tr>
           ))}

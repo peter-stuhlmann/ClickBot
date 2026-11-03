@@ -1,6 +1,7 @@
 // @vitest-environment node
 import type { RunListRow } from '@click-bot/db';
 import { describe, expect, it } from 'vitest';
+import { NO_AI_COST } from '@/lib/cost';
 import { toRunListRow } from './run-list-view';
 
 // 14:30:00 in Berlin.
@@ -26,7 +27,7 @@ const row = (overrides: Partial<RunListRow> = {}): RunListRow => ({
 
 describe('toRunListRow', () => {
   it('builds one row of the run list', () => {
-    expect(toRunListRow(row())).toEqual({
+    expect(toRunListRow(row(), NO_AI_COST)).toEqual({
       id: 'run-7',
       href: '/laeufe/run-7',
       jobName: 'Kontaktformular-Test',
@@ -37,11 +38,12 @@ describe('toRunListRow', () => {
       duration: '8,4 s',
       status: { tone: 'warning', label: 'Mit Hinweis' },
       failed: false,
+      cost: NO_AI_COST,
     });
   });
 
   it('marks test runs and failed runs', () => {
-    expect(toRunListRow(row({ slotIndex: null, status: 'failed' }))).toMatchObject({
+    expect(toRunListRow(row({ slotIndex: null, status: 'failed' }), NO_AI_COST)).toMatchObject({
       testRun: true,
       failed: true,
       status: { tone: 'danger', label: 'Fehlgeschlagen' },
@@ -50,7 +52,7 @@ describe('toRunListRow', () => {
 
   it('shows no duration before a run has finished, and its planned time', () => {
     expect(
-      toRunListRow(row({ status: 'queued', startedAt: null, finishedAt: null })),
+      toRunListRow(row({ status: 'queued', startedAt: null, finishedAt: null }), NO_AI_COST),
     ).toMatchObject({
       when: '05.11. 14:30',
       duration: '–',

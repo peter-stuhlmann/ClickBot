@@ -140,6 +140,15 @@ Projekte, die Anmeldung, das Profil und die Einstellungen der KI-Anbieter stehen
       (`/einstellungen/ki`): API-Schlüssel, Modell und Standard-Anbieter. Nur Admins ändern,
       die anderen sehen den Stand. Die Anbieter sind ein Accordion (`AccordionItem`): anfangs
       alle zu, höchstens einer offen.
+    - KI-Kosten: Jeder Test (Zeile in der Job-Liste, neben dem Namen), jeder Lauf-Report (Kopf) und
+      die Karte „Testlauf“ hat einen Münzen-Knopf (`CostPopover`, Portal am Seitenrand, weil die
+      Tabelle Überstehendes abschneidet). Er zeigt Token und Preis für Eingabe, Ausgabe und
+      (nur wenn der Anbieter welche meldet) Zwischengespeichertes, dazu die Summe
+      (`toCostView` in `src/lib/cost.ts`). Ein Test summiert alle seine Läufe. Kosten werden beim
+      Anzeigen mit den heutigen Preisen gerechnet. Die Preise je Modell pflegen Admins unter
+      „Einstellungen → KI & API → Preise je Modell“ (US-Dollar je 1 Mio. Token; alle Felder leer
+      entfernt den Preis, ein leerer Zwischenspeicher-Preis heißt „wie Eingabe“). Ohne Preis zeigt
+      der Knopf die Token und sagt, wofür der Preis fehlt (Summe dann „mind.“ oder „–“).
     - „Profil“ (`/profil`, über Name und Bild unten in der Sidebar): eigenen Namen und
       Profilbild ändern. E-Mail und Rolle stehen nur da.
   - `apps/worker`:
@@ -342,6 +351,16 @@ Die Pakete unter `packages/` liefern TypeScript-Quelltext aus, ohne eigenen Buil
   - Genau ein Anbieter ist Standard (Index `ai_providers_one_default`). Der erste gespeicherte
     wird es; wird der Standard entfernt, übernimmt der nächste in der Liste.
   - `getAiConfig` liefert den entschlüsselten Schlüssel für einen Aufruf, nur auf dem Server.
+- **KI-Kosten** (`ai-usage.ts`, Tabellen `run_ai_usage`, `ai_model_prices`):
+  - `run_ai_usage`: eine Zeile je Lauf mit Anbieter, Modell und den Token aller KI-Antworten des
+    Laufs (`completeRun` schreibt sie mit, auch bei einem Lauf, der danach scheitert; ohne Token
+    keine Zeile). `listJobUsage` summiert je Test und Modell.
+  - Token sind vergleichbar gemacht (`AiUsage` in `packages/shared/src/ai-pricing.ts`):
+    `inputTokens` sind die zum vollen Preis abgerechneten, `cachedTokens` stehen daneben (OpenAI
+    und Gemini zählen sie im Prompt mit, sie werden herausgerechnet; bei Claude kommen
+    Cache-Schreibzugriffe zur Eingabe), „Denk“-Token von Gemini zählen zur Ausgabe.
+  - `ai_model_prices`: Preis je Anbieter und Modell in US-Dollar je 1 Mio. Token (`saveModelPrice`
+    prüft und meldet alle Fehler gesammelt). Kein Preis ist kein Fehler: die Kosten fehlen dann.
 - **Laufnummern** (`{{run_nr}}`) vergibt `allocateRunNumber` atomar per
   `UPDATE … RETURNING`, nie über `max()+1`.
 - **Löschregeln:**
@@ -496,17 +515,31 @@ time, bots }]`, `stagger`) bilden die Bots eines Termins eine Welle.
   Live-Browser blockiert immer; es gibt dort noch keinen Job.
 - **KI-Schritt** (`ai-step.ts`, Typ `ai`, `instruction` ist das Ziel des Tests): ein freier Test.
   `runFlow` führt ihn aus, nicht `executeStep`.
+  - Vor jeder Runde wartet `waitForPageToSettle` (`page-structure.ts`), bis die Seite zur Ruhe
+    kommt: Netzwerk ruhig (höchstens 3 s), 1 s ohne Änderung am DOM und kein Ladeindikator
+    (`aria-busy`, `role=progressbar`), höchstens 4 s. Sonst sähe die KI bei Seiten, die ihren Inhalt
+    per JavaScript nachladen, nur den Spinner und meldete „nicht prüfbar“. Eine Seite, die nie zur
+    Ruhe kommt, wird nach der Frist so genommen, wie sie ist.
   - Je Runde: Seitenaufbau (`readStructure` in `page-structure.ts`, Aria-Snapshot der Seite und
     ihrer iframes) und Bildschirmfoto (JPEG) an die KI, sie antwortet mit genau einer Aktion
     (`nextAgentAction` in `packages/ai`) oder ihrer Bewertung. Eine Aktion läuft wie ein Schritt
     (`executeStep`, höchstens 10 s), das Ergebnis oder die Fehlermeldung geht in die nächste Runde.
     Nach `MAX_AI_ACTIONS` (25) Aktionen muss sie bewerten (`final`); tut sie es nicht, scheitert
     der Schritt.
+  - Jede Bewertung enthält ein Testergebnis (`summary`, Pflicht): ein Satz, der das Ziel eindeutig
+    beantwortet und die gemessenen Werte nennt („h1-Überschriften sind rot (#C80000)“). Der Report
+    zeigt ihn als „Testergebnis: …“ über den Teilzielen (`run_steps.ai_summary`), die Karte
+    „Testlauf“ ebenso.
   - Bewertung (`Criterion[]` in `packages/shared/src/ai-verdict.ts`): das Ziel in Teilziele
     zerlegt, je „met“, „failed“ oder „unknown“ mit dem, was sie gesehen hat. `verdictOutcome`:
     alle erfüllt → bestanden; eines nicht erfüllt → fehlgeschlagen, der Lauf bricht ab; eines nicht
     prüfbar → Schrittstatus `unclear`, der Lauf läuft weiter und endet „Mit Hinweis“ (`warning`).
   - Erlaubte Aktionen: klicken, ausfüllen, auswählen, Taste, scrollen, Seite öffnen, warten.
+    Dazu „Eigenschaften lesen“ (`inspect`, `inspect.ts`): Text, Schriftfarbe als `rgb(…)` und
+    `#HEX`, der wirklich sichtbare Hintergrund (der erste nicht transparente nach oben), Größe,
+    Stärke und Schriftart des einen Elements, das das Ziel trifft. Sie verändert nichts, zählt
+    zu den 25 Aktionen und liefert der KI den gemessenen Wert, statt dass sie ihn am Foto
+    schätzt (Farben, Größen und Schriften misst sie, Lage und Aussehen beurteilt sie am Foto).
     „Seite öffnen“ nur auf der Website der Start-URL (`www.` egal). Erfundene echte E-Mail-Adressen
     werden `{{faker.email}}` (`safeMail`).
   - Zugangsdaten sieht die KI nur als Namen (`{{secret.name}}`). Adresse, Titel, Seitenaufbau und
@@ -698,6 +731,9 @@ time, bots }]`, `stagger`) bilden die Bots eines Termins eine Welle.
 - **„Verbindung testen“** (`testAiConnection`) lädt die Modelle des Anbieters und sagt, ob das
   eingetragene dabei ist. Perplexity kann seine Modelle nicht auflisten, dort geht eine
   Anfrage mit 5 Tokens raus.
+- **Token** (`usageOf`, `AiDeps.onUsage`): Jede Antwort, die Token meldet (auch eine mit leerem
+  Text), geht an `onUsage`; der Worker summiert sie je Lauf. Anbieter ohne Angabe (manche
+  OpenAI-kompatible APIs) melden nichts, dann gibt es für den Lauf keine Kosten.
 - **Bilder:** Eine Nachricht kann Bildschirmfotos mitbringen (`AiMessage.images`). Claude bekommt
   sie als Bild-Blöcke, Gemini als `inline_data`, OpenAI, Perplexity und Custom als `image_url`
   mit Data-Adresse.

@@ -1,3 +1,15 @@
+export {
+  deleteModelPrice,
+  getRunUsage,
+  listJobUsage,
+  listKnownModels,
+  listRunsUsage,
+  listModelPrices,
+  saveModelPrice,
+  type ModelPriceInput,
+  type ModelPriceRow,
+  type ModelUsage,
+} from './ai-usage';
 export { createDb, type Database, type DbConnection } from './client';
 export { createCipher, parseKey, type Cipher } from './crypto';
 export {

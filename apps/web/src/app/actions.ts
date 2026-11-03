@@ -63,6 +63,7 @@ import { artifactsDir, removeRunArtifacts } from '@/server/artifacts';
 import { getCipher } from '@/server/cipher';
 import { getDb } from '@/server/db';
 import { getShell, PROJECT_COOKIE } from '@/server/shell';
+import { loadRunCost } from '@/server/cost-data';
 import { toTestRunView } from '@/server/test-run-view';
 
 /** Pauses or resumes a job from the status switch of the jobs table. */
@@ -223,14 +224,15 @@ export async function startDraftTestRunAction(
     const db = getDb();
     const job = await persistDraft(draftId, state, now);
     const batch = await queueTestRun(db, job.id, now, { once: true });
-    const [report, worker] = await Promise.all([
+    const [report, worker, cost] = await Promise.all([
       getRunReport(db, batch.runId),
       getWorkerStatus(db, now),
+      loadRunCost(db, batch.runId),
     ]);
     return {
       issues: [],
       draftId: job.id,
-      run: toTestRunView(report, { workerOnline: worker.online }),
+      run: toTestRunView(report, { workerOnline: worker.online, cost }),
     };
   } catch (error) {
     if (error instanceof ValidationError) return { issues: error.issues, draftId };
@@ -244,11 +246,12 @@ export async function testRunStatusAction(runId: string): Promise<TestRunView | 
   await requireUser();
   const db = getDb();
   try {
-    const [report, worker] = await Promise.all([
+    const [report, worker, cost] = await Promise.all([
       getRunReport(db, runId),
       getWorkerStatus(db, new Date()),
+      loadRunCost(db, runId),
     ]);
-    return toTestRunView(report, { workerOnline: worker.online });
+    return toTestRunView(report, { workerOnline: worker.online, cost });
   } catch (error) {
     if (error instanceof NotFoundError) return null;
     throw error;

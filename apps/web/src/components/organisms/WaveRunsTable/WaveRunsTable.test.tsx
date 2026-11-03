@@ -1,5 +1,7 @@
 import { render, screen, within } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { describe, expect, it } from 'vitest';
+import { NO_AI_COST } from '@/lib/cost';
 import type { WaveRunRowView } from '@/lib/views';
 import { WaveRunsTable } from './WaveRunsTable';
 
@@ -16,6 +18,7 @@ const rows: WaveRunRowView[] = [
     reason: null,
     duration: '8,0 s',
     failed: false,
+    cost: NO_AI_COST,
   },
   {
     id: 'b',
@@ -27,6 +30,12 @@ const rows: WaveRunRowView[] = [
     reason: NOT_FOUND,
     duration: '21,0 s',
     failed: true,
+    cost: {
+      model: 'Gemini · gemini-x',
+      rows: [{ label: 'Eingabe', tokens: '500', price: '0,01 $' }],
+      total: '0,01 $',
+      note: null,
+    },
   },
 ];
 
@@ -73,5 +82,13 @@ describe('WaveRunsTable', () => {
       'Problem bei',
       'Dauer',
     ]);
+  });
+
+  it('has a coin button per run that shows what its AI cost', async () => {
+    const user = userEvent.setup();
+    render(<WaveRunsTable rows={rows} summary="2 Durchläufe" />);
+    expect(screen.getAllByRole('button', { name: /^KI-Kosten von / })).toHaveLength(2);
+    await user.click(screen.getByRole('button', { name: 'KI-Kosten von iPhone 15 in Safari' }));
+    expect(screen.getByRole('dialog')).toHaveTextContent('Gemini · gemini-x');
   });
 });

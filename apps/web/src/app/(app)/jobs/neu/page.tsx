@@ -14,6 +14,7 @@ import { restoreWizardState } from '@/lib/wizard-state';
 import { getDb } from '@/server/db';
 import { getShell, projectScope } from '@/server/shell';
 import { toTemplateView } from '@/server/templates-view';
+import { loadRunCost } from '@/server/cost-data';
 import { toTestRunView } from '@/server/test-run-view';
 import {
   createJobAction,
@@ -61,7 +62,10 @@ export default async function NewJobPage({ searchParams }: Props) {
       savedAt: job.updatedAt.toISOString(),
       state,
       testRun: runId
-        ? toTestRunView(await getRunReport(db, runId), { workerOnline: shell.worker.online })
+        ? toTestRunView(await getRunReport(db, runId), {
+            workerOnline: shell.worker.online,
+            cost: await loadRunCost(db, runId),
+          })
         : null,
     };
   }

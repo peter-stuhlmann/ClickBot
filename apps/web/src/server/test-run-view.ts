@@ -1,10 +1,11 @@
 import 'server-only';
 import type { RunReport } from '@click-bot/db';
 import { browserLabel, deviceLabel } from '@/lib/devices';
+import { NO_AI_COST } from '@/lib/cost';
 import { formatDuration, plural } from '@/lib/format';
 import { toStepDraft } from '@/lib/job-draft';
 import { describeStep } from '@/lib/step-view';
-import type { TestRunView } from '@/lib/views';
+import type { CostView, TestRunView } from '@/lib/views';
 import { RUN_BADGE } from './jobs-view';
 import { toVideoView } from './run-report-view';
 
@@ -42,7 +43,7 @@ function message(report: RunReport, workerOnline: boolean, failedIndex: number |
 /** The "Testlauf" of the wizard: one run of the draft, shown below its flow until it is done. */
 export function toTestRunView(
   report: RunReport,
-  { workerOnline = true }: { workerOnline?: boolean } = {},
+  { workerOnline = true, cost = NO_AI_COST }: { workerOnline?: boolean; cost?: CostView } = {},
 ): TestRunView {
   const { run } = report;
   const failed = report.steps.find((step) => step.status === 'failed') ?? null;
@@ -63,5 +64,7 @@ export function toTestRunView(
     failedStep: number && draft ? `${number} · ${describeStep(draft).title}` : number,
     reason: ended ? (failed?.message ?? run.error) : null,
     video: toVideoView(report),
+    summary: report.steps.find((row) => row.aiSummary)?.aiSummary ?? null,
+    cost,
   };
 }

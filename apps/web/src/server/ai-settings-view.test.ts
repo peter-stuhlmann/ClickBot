@@ -1,6 +1,6 @@
 // @vitest-environment node
 import { describe, expect, it } from 'vitest';
-import { toAiProviderViews } from './ai-settings-view';
+import { toAiProviderViews, toModelPriceViews } from './ai-settings-view';
 
 describe('toAiProviderViews', () => {
   it('lists all five providers, set up or not, in the order of the page', () => {
@@ -52,5 +52,63 @@ describe('toAiProviderViews', () => {
 
   it('offers Perplexity its model names, which its API cannot list', () => {
     expect(toAiProviderViews([])[2]?.modelSuggestions).toContain('sonar');
+  });
+});
+
+describe('toModelPriceViews', () => {
+  it('shows the price of a model as typed, and empty fields for a model without one', () => {
+    const views = toModelPriceViews(
+      [
+        { provider: 'anthropic', model: 'claude-x' },
+        { provider: 'gemini', model: 'gemini-x' },
+      ],
+      [
+        {
+          provider: 'anthropic',
+          model: 'claude-x',
+          inputPerMillion: 3.5,
+          outputPerMillion: 15,
+          cachedPerMillion: null,
+          updatedAt: new Date(),
+        },
+      ],
+    );
+    expect(views).toEqual([
+      {
+        provider: 'anthropic',
+        providerLabel: 'Claude',
+        model: 'claude-x',
+        input: '3,5',
+        output: '15',
+        cached: '',
+        priced: true,
+      },
+      {
+        provider: 'gemini',
+        providerLabel: 'Gemini',
+        model: 'gemini-x',
+        input: '',
+        output: '',
+        cached: '',
+        priced: false,
+      },
+    ]);
+  });
+
+  it('keeps a price of the same model name apart per provider', () => {
+    const views = toModelPriceViews(
+      [{ provider: 'openai', model: 'm' }],
+      [
+        {
+          provider: 'custom',
+          model: 'm',
+          inputPerMillion: 1,
+          outputPerMillion: 2,
+          cachedPerMillion: null,
+          updatedAt: new Date(),
+        },
+      ],
+    );
+    expect(views[0]?.priced).toBe(false);
   });
 });

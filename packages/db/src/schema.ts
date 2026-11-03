@@ -382,6 +382,8 @@ export const runSteps = pgTable(
     aiActions: jsonb('ai_actions').$type<string[]>(),
     /** AI step: every sub-goal of the test with the verdict of the AI. Already masked. */
     aiVerdict: jsonb('ai_verdict').$type<Criterion[]>(),
+    /** AI step: the result of the test in one sentence, with the measured values. Masked. */
+    aiSummary: text('ai_summary'),
     createdAt: createdAt(),
   },
   (t) => [
@@ -459,6 +461,53 @@ export const aiProviders = pgTable(
     check(
       'ai_providers_key',
       sql`${t.kind} = 'custom' OR (${t.apiKeyEnc} IS NOT NULL AND ${t.apiKeyHint} IS NOT NULL)`,
+    ),
+  ],
+);
+
+/**
+ * Price of a model in US dollars per million tokens, kept by hand ("Einstellungen → KI & API").
+ * Costs are worked out from these when shown, so a price entered later also covers old runs.
+ */
+export const aiModelPrices = pgTable(
+  'ai_model_prices',
+  {
+    id: id(),
+    provider: aiProviderKind('provider').notNull(),
+    model: text('model').notNull(),
+    inputPerMillion: doublePrecision('input_per_million').notNull(),
+    outputPerMillion: doublePrecision('output_per_million').notNull(),
+    /** Null: cached tokens cost the input price. */
+    cachedPerMillion: doublePrecision('cached_per_million'),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    unique('ai_model_prices_model_unique').on(t.provider, t.model),
+    check(
+      'ai_model_prices_not_negative',
+      sql`${t.inputPerMillion} >= 0 AND ${t.outputPerMillion} >= 0 AND (${t.cachedPerMillion} IS NULL OR ${t.cachedPerMillion} >= 0)`,
+    ),
+    check('ai_model_prices_model_filled', sql`length(btrim(${t.model})) > 0`),
+  ],
+);
+
+/** The tokens the AI used in a run (all its AI steps), with the model that was called. */
+export const runAiUsage = pgTable(
+  'run_ai_usage',
+  {
+    runId: uuid('run_id')
+      .primaryKey()
+      .references(() => runs.id, { onDelete: 'cascade' }),
+    provider: aiProviderKind('provider').notNull(),
+    model: text('model').notNull(),
+    inputTokens: integer('input_tokens').notNull(),
+    outputTokens: integer('output_tokens').notNull(),
+    cachedTokens: integer('cached_tokens').notNull(),
+  },
+  (t) => [
+    check(
+      'run_ai_usage_not_negative',
+      sql`${t.inputTokens} >= 0 AND ${t.outputTokens} >= 0 AND ${t.cachedTokens} >= 0`,
     ),
   ],
 );

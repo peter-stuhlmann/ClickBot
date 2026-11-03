@@ -2,7 +2,8 @@ import type { AgentAction, AgentInput } from '@click-bot/ai';
 import { verdictOutcome, type Criterion, type Step, type VerdictOutcome } from '@click-bot/shared';
 import type { Page } from 'playwright';
 import { StepError, toStepMessage } from './errors';
-import { readStructure } from './page-structure';
+import { inspectTarget } from './inspect';
+import { readStructure, waitForPageToSettle } from './page-structure';
 import { showsSecret } from './secret-check';
 import { executeStep, type StepContext } from './steps';
 import { describeTarget, pageOf, type PageSource } from './targets';
@@ -38,6 +39,8 @@ export type AiStepContext = StepContext & {
 export type AiStepResult = {
   outcome: VerdictOutcome;
   criteria: Criterion[];
+  /** The result of the test in one sentence, with the measured values; masked. */
+  summary: string;
   actions: string[];
   /** The page as the AI judged it, for the report; none while a secret is on the page. */
   screenshot: Buffer | null;
@@ -130,6 +133,8 @@ export async function runAiStep(
 
   for (let count = 0; ; count += 1) {
     const page = pageOf(current);
+    // After an action the page may still be loading its content: look only when it has.
+    await waitForPageToSettle(page);
     const image = await safeScreenshot(page, secrets, 'jpeg');
     let action: AgentAction;
     try {
@@ -162,6 +167,7 @@ export async function runAiStep(
       return {
         outcome: verdictOutcome(criteria),
         criteria,
+        summary: mask(action.summary),
         actions,
         screenshot: await safeScreenshot(pageOf(current), secrets, 'png'),
       };
@@ -172,6 +178,18 @@ export async function runAiStep(
         `Die KI hat nach ${MAX_AI_ACTIONS} Aktionen keine Bewertung geliefert.`,
         actions,
       );
+    }
+    if (action.kind === 'inspect') {
+      // Reading changes nothing; the line it gives is what the AI quotes in its verdict.
+      let result: string;
+      try {
+        result = mask(await inspectTarget(current, action.target, ACTION_TIMEOUT_MS));
+      } catch (error) {
+        result = mask(toStepMessage(error));
+      }
+      history.push({ action: { type: 'inspect', target: action.target }, result });
+      actions.push(`Eigenschaften gelesen: ${result}`);
+      continue;
     }
     const { id: _id, timeoutMs, aiFallback: _fallback, ...shown } = action.step;
     let result = 'ok';

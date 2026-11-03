@@ -10,10 +10,18 @@ import {
   type ClaimedRun,
   type Database,
   type Device,
+  type ModelUsage,
   type PlanOptions,
   type VideoCue,
 } from '@click-bot/db';
-import { createAiClient, nextAgentAction, type AiClient, type AiConfig } from '@click-bot/ai';
+import {
+  createAiClient,
+  nextAgentAction,
+  type AiClient,
+  type AiConfig,
+  type AiDeps,
+} from '@click-bot/ai';
+import { addUsage, hasUsage, NO_USAGE } from '@click-bot/shared';
 import { rm } from 'node:fs/promises';
 import type { BrowserContext } from 'playwright';
 import type { AgentDriver } from './ai-step';
@@ -33,7 +41,7 @@ export type WorkerDeps = {
   maxConcurrent: number;
   workerId: string;
   /** Talks to the AI provider of AI steps; tests replace it. */
-  createAiClient?: (config: AiConfig) => AiClient;
+  createAiClient?: (config: AiConfig, deps?: AiDeps) => AiClient;
   clock?: () => Date;
   planning?: Omit<PlanOptions, 'now'>;
   /** Runs that can be watched live while they go ("Live zuschauen"), and recorded as video. */
@@ -52,19 +60,32 @@ export type Worker = {
   stop(): Promise<void>;
 };
 
+/** The AI of a run: the driver for its AI steps, and what it has used so far. */
+type RunAi = { driver: AgentDriver; usage(): ModelUsage | null };
+
 /**
  * The AI for the AI steps of a flow: the default provider, read for each run so a changed key
  * applies right away. Undefined without AI steps or without a provider; the step then says so.
+ * The tokens of every answer are added up for the cost of the run.
  */
 async function agentFor(
   deps: WorkerDeps,
   steps: readonly { type: string }[],
-): Promise<AgentDriver | undefined> {
+): Promise<RunAi | undefined> {
   if (!steps.some((step) => step.type === 'ai')) return undefined;
   const config = await getAiConfig(deps.db, deps.cipher);
   if (!config) return undefined;
-  const client = (deps.createAiClient ?? createAiClient)(config);
-  return (input) => nextAgentAction(client, input);
+  let total = NO_USAGE;
+  const client = (deps.createAiClient ?? createAiClient)(config, {
+    onUsage: (usage) => {
+      total = addUsage(total, usage);
+    },
+  });
+  return {
+    driver: (input) => nextAgentAction(client, input),
+    usage: () =>
+      hasUsage(total) ? { provider: config.kind, model: config.model, usage: total } : null,
+  };
 }
 
 /**
@@ -98,6 +119,7 @@ async function executeRun(
   let tap: RunTap | undefined;
   let recorder: VideoRecorder | null = null;
   let result: RunResult | undefined;
+  let ai: RunAi | undefined;
   try {
     context = await deps.newContext(run.device, run.browser);
     const secrets = await resolveSecretsForRun(deps.db, deps.cipher, {
@@ -118,9 +140,10 @@ async function executeRun(
         return null;
       });
     }
+    ai = await agentFor(deps, job.flow.steps);
     result = await runFlow(context, job.flow, {
       tap,
-      ai: await agentFor(deps, job.flow.steps),
+      ai: ai?.driver,
       baseUrl: job.startUrl,
       runNr: run.runNr,
       botNr: run.botNr,
@@ -155,8 +178,10 @@ async function executeRun(
         screenshotPath: screenshots.get(step.stepId) ?? null,
         aiActions: step.aiActions ?? null,
         aiVerdict: step.aiVerdict ?? null,
+        aiSummary: step.aiSummary ?? null,
       })),
       blockedAdRequests: result.blockedAdRequests,
+      aiUsage: ai?.usage() ?? null,
     });
   } catch (error) {
     // Anything outside the flow itself (secrets, browser, storage) still ends the run cleanly.
@@ -165,6 +190,8 @@ async function executeRun(
       finishedAt: now(),
       error: `Durchlauf konnte nicht ausgeführt werden: ${toStepMessage(error)}`,
       steps: [],
+      // Tokens already used are billed, whatever happened after.
+      aiUsage: ai?.usage() ?? null,
     }).catch((reason: unknown) => deps.log?.(`Durchlauf ${run.id}: ${toStepMessage(reason)}`));
   } finally {
     // Stopped without a video when the run could not be completed.

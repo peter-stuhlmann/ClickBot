@@ -45,6 +45,7 @@ function stepRow(
     screenshotPath: null,
     aiActions: null,
     aiVerdict: null,
+    aiSummary: null,
     ...extra,
   };
 }
@@ -119,6 +120,11 @@ describe('toRunReportView', () => {
       label: 'Alle 7 Durchläufe dieses Starts',
     });
     expect(toRunReportView(report()).wave).toBeNull();
+  });
+
+  it('carries the cost of the run it is given', () => {
+    const cost = { model: null, rows: [], total: '1,00\u00a0$', note: null };
+    expect(toRunReportView(report({ run: { status: 'passed' } }), { cost }).cost).toBe(cost);
   });
 
   it('describes a passed run like the design', () => {
@@ -477,6 +483,36 @@ describe('toRunReportView', () => {
       value: '0 / 1',
       hint: '1 nicht ganz prüfbar',
     });
+  });
+
+  it('carries the result of a free test with the measured values to its step', () => {
+    const view = toRunReportView(
+      report({
+        job: {
+          flow: {
+            version: 1,
+            steps: [
+              {
+                id: 'ziel',
+                type: 'ai',
+                instruction: 'Prüfe die Farbe der h1.',
+                timeoutMs: 10_000,
+                aiFallback: true,
+              },
+            ],
+          },
+        },
+        steps: [
+          stepRow(0, 'ziel', 'passed', 6_000, {
+            aiSummary: 'h1-Überschriften sind rot (#C80000)',
+          }),
+        ],
+      }),
+    );
+    expect(view.steps[0]).toMatchObject({ aiSummary: 'h1-Überschriften sind rot (#C80000)' });
+    expect(
+      toRunReportView(report({ steps: [stepRow(0, 'open', 'passed', 100)] })).steps[0],
+    ).not.toHaveProperty('aiSummary');
   });
 
   describe('ads of the run', () => {

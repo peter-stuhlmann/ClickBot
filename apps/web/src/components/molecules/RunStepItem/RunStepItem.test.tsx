@@ -94,4 +94,28 @@ describe('RunStepItem', () => {
     const { container } = render(<RunStepItem {...step({ detail: '' })} />);
     expect(container.querySelectorAll('.truncate')).toHaveLength(0);
   });
+
+  it('puts the Testergebnis of a free test above its sub-goals, with the measured values', () => {
+    render(
+      <RunStepItem
+        {...step({
+          status: 'passed',
+          title: 'Prüfe die Schriftfarbe der h1.',
+          aiSummary: 'h1-Überschriften sind rot (#C80000)',
+          aiVerdict: [
+            { goal: 'Die h1 ist rot.', status: 'met', evidence: 'rgb(200, 0, 0) / #C80000' },
+          ],
+        })}
+      />,
+    );
+    const summary = screen.getByText('Testergebnis:').parentElement as HTMLElement;
+    expect(summary).toHaveTextContent('Testergebnis: h1-Überschriften sind rot (#C80000)');
+    const list = screen.getByRole('list', { name: 'Ergebnis der KI' });
+    expect(summary.compareDocumentPosition(list) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
+
+  it('shows no Testergebnis for a step without one', () => {
+    render(<RunStepItem {...step({ status: 'passed' })} />);
+    expect(screen.queryByText('Testergebnis:')).not.toBeInTheDocument();
+  });
 });

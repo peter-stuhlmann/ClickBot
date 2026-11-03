@@ -3,7 +3,7 @@ import type { DashboardStats, JobOverviewRow } from '@click-bot/db';
 
 type RunStatus = NonNullable<JobOverviewRow['lastRun']>['status'];
 import { describeSchedule, displayUrl, formatPercent, formatRelative, plural } from '@/lib/format';
-import type { JobRowView, StatCardView, Tone } from '@/lib/views';
+import type { CostView, JobRowView, StatCardView, Tone } from '@/lib/views';
 
 export const RUN_BADGE: Record<RunStatus, { tone: Tone; label: string }> = {
   passed: { tone: 'success', label: 'Bestanden' },
@@ -30,7 +30,7 @@ export function successTone(rate: number): Tone {
   return 'danger';
 }
 
-export function toJobRow(row: JobOverviewRow, now: Date): JobRowView {
+export function toJobRow(row: JobOverviewRow, now: Date, cost: CostView): JobRowView {
   const progress = row.runsPlanned > 0 ? Math.min(1, row.runsDone / row.runsPlanned) : 0;
   return {
     id: row.id,
@@ -53,6 +53,7 @@ export function toJobRow(row: JobOverviewRow, now: Date): JobRowView {
         ? null
         : { text: formatPercent(row.successRate), tone: successTone(row.successRate) },
     status: JOB_STATUS[row.status],
+    cost,
   };
 }
 

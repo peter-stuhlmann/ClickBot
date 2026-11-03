@@ -9,4 +9,5 @@ export * from './analytics-marking';
 export * from './ai-providers';
 export * from './browsers';
 export * from './ai-verdict';
+export * from './ai-pricing';
 export * from './css-selector';

@@ -1,6 +1,7 @@
 // @vitest-environment node
 import type { RunReport, RunStepRow } from '@click-bot/db';
 import { describe, expect, it } from 'vitest';
+import { NO_AI_COST } from '@/lib/cost';
 import { toTestRunView } from './test-run-view';
 
 const scheduled = new Date('2026-11-02T15:17:00Z');
@@ -31,6 +32,7 @@ const stepRow = (
   screenshotPath: null,
   aiActions: null,
   aiVerdict: null,
+  aiSummary: null,
 });
 
 function report(run: Partial<RunReport['run']>, steps: RunStepRow[] = []): RunReport {
@@ -78,6 +80,9 @@ describe('toTestRunView', () => {
       failedStep: null,
       reason: null,
       video: null,
+      summary: null,
+      // No cost given: shown like a test without AI.
+      cost: NO_AI_COST,
     });
     expect(toTestRunView(report({}), { workerOnline: false }).message).toBe(
       'Das Testsystem ist nicht verbunden. Der Testlauf startet, sobald es läuft.',
@@ -141,6 +146,25 @@ describe('toTestRunView', () => {
       reason,
     });
     expect(view.message).not.toContain('Fehlgeschlagen');
+  });
+
+  it('shows the result of a free test as the Testergebnis of the run', () => {
+    const summary = 'h1-Überschriften sind rot (#C80000)';
+    const view = toTestRunView(
+      report({ status: 'passed' }, [
+        stepRow(0, 'open', 'passed'),
+        { ...stepRow(1, 'ki', 'passed'), aiSummary: summary },
+      ]),
+    );
+    expect(view.summary).toBe(summary);
+    expect(
+      toTestRunView(report({ status: 'passed' }, [stepRow(0, 'open', 'passed')])).summary,
+    ).toBeNull();
+  });
+
+  it('carries the cost of the run it is given', () => {
+    const cost = { model: null, rows: [], total: '1,00\u00a0$', note: null };
+    expect(toTestRunView(report({ status: 'passed' }), { cost }).cost).toBe(cost);
   });
 
   it('gives the error of a run that never reached a step', () => {

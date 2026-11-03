@@ -49,6 +49,8 @@ export type StepResult = {
   aiActions?: string[];
   /** AI step: the verdict per sub-goal, masked. */
   aiVerdict?: Criterion[];
+  /** AI step: the result of the test in one sentence, with the measured values, masked. */
+  aiSummary?: string;
 };
 
 export type RunResult = {
@@ -139,6 +141,7 @@ export async function runFlow(
               : {}),
           aiActions: judged.actions,
           aiVerdict: judged.criteria,
+          aiSummary: judged.summary,
         });
         if (judged.screenshot)
           result.screenshots.push({ stepId: step.id, image: judged.screenshot });

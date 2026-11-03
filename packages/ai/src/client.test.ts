@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { AiError, createAiClient, testAiConnection, type AiConfig } from './client';
+import { AiError, createAiClient, testAiConnection, usageOf, type AiConfig } from './client';
 
 type Call = { url: string; method: string; headers: Record<string, string>; body: unknown };
 
@@ -439,5 +439,100 @@ describe('odd answers', () => {
       { fetch: api.fetch },
     );
     expect(await client.listModels()).toEqual([]);
+  });
+});
+
+describe('token usage of an answer', () => {
+  const ask = { messages: [{ role: 'user' as const, content: 'Hi' }] };
+  const reported = async (config: AiConfig, answer: unknown) => {
+    const seen: unknown[] = [];
+    const api = fakeApi(() => json(answer));
+    const client = createAiClient(config, {
+      fetch: api.fetch,
+      onUsage: (usage) => seen.push(usage),
+    });
+    await client.complete(ask);
+    return seen;
+  };
+
+  it('Claude: input without cache reads, cache writes counted as input, cache reads apart', async () => {
+    const seen = await reported(
+      { kind: 'anthropic', apiKey: KEY, model: 'claude-x' },
+      {
+        content: [{ type: 'text', text: 'OK' }],
+        usage: {
+          input_tokens: 100,
+          cache_creation_input_tokens: 50,
+          cache_read_input_tokens: 400,
+          output_tokens: 20,
+        },
+      },
+    );
+    expect(seen).toEqual([{ inputTokens: 150, outputTokens: 20, cachedTokens: 400 }]);
+  });
+
+  it('OpenAI, Perplexity and Custom: cached tokens are taken out of the prompt tokens', async () => {
+    for (const kind of ['openai', 'perplexity', 'custom'] as const) {
+      const seen = await reported(
+        { kind, apiKey: KEY, model: 'm', baseUrl: 'http://localhost:11434/v1' },
+        {
+          choices: [{ message: { content: 'OK' } }],
+          usage: {
+            prompt_tokens: 1000,
+            completion_tokens: 30,
+            prompt_tokens_details: { cached_tokens: 600 },
+          },
+        },
+      );
+      expect(seen, kind).toEqual([{ inputTokens: 400, outputTokens: 30, cachedTokens: 600 }]);
+    }
+  });
+
+  it('Gemini: cached out of the prompt, thinking tokens billed as output', async () => {
+    const seen = await reported(
+      { kind: 'gemini', apiKey: KEY, model: 'gemini-x' },
+      {
+        candidates: [{ content: { parts: [{ text: 'OK' }] } }],
+        usageMetadata: {
+          promptTokenCount: 900,
+          cachedContentTokenCount: 300,
+          candidatesTokenCount: 40,
+          thoughtsTokenCount: 60,
+        },
+      },
+    );
+    expect(seen).toEqual([{ inputTokens: 600, outputTokens: 100, cachedTokens: 300 }]);
+  });
+
+  it('is reported for every answer, also when its text is empty', async () => {
+    const seen: unknown[] = [];
+    const api = fakeApi(() =>
+      json({
+        choices: [{ message: { content: '' } }],
+        usage: { prompt_tokens: 5, completion_tokens: 0 },
+      }),
+    );
+    const client = createAiClient(
+      { kind: 'openai', apiKey: KEY, model: 'm' },
+      { fetch: api.fetch, onUsage: (usage) => seen.push(usage) },
+    );
+    await expect(client.complete(ask)).rejects.toBeInstanceOf(AiError);
+    expect(seen).toEqual([{ inputTokens: 5, outputTokens: 0, cachedTokens: 0 }]);
+  });
+
+  it('reports nothing when the answer has no usage, and ignores odd numbers', async () => {
+    expect(
+      await reported(
+        { kind: 'openai', apiKey: KEY, model: 'm' },
+        { choices: [{ message: { content: 'OK' } }] },
+      ),
+    ).toEqual([]);
+    expect(usageOf('openai', { usage: { prompt_tokens: -3, completion_tokens: 'x' } })).toEqual({
+      inputTokens: 0,
+      outputTokens: 0,
+      cachedTokens: 0,
+    });
+    expect(usageOf('gemini', {})).toBeNull();
+    expect(usageOf('anthropic', {})).toBeNull();
   });
 });

@@ -10,7 +10,9 @@ import { JobsTable } from '@/components/organisms/JobsTable';
 import { PageHeader } from '@/components/organisms/PageHeader';
 import { describePeriod } from '@/server/campaigns-view';
 import { requireUser } from '@/server/auth';
+import { loadJobCosts } from '@/server/cost-data';
 import { getDb } from '@/server/db';
+import { NO_AI_COST } from '@/lib/cost';
 import { toJobRow } from '@/server/jobs-view';
 import {
   deleteCampaignAction,
@@ -40,6 +42,10 @@ export default async function CampaignPage({ params }: Props) {
     getCustomer(db, campaign.customerId),
     listJobOverview(db, { campaignId: campaign.id }),
   ]);
+  const costs = await loadJobCosts(
+    db,
+    rows.map((row) => row.id),
+  );
   const period = describePeriod(campaign.startsOn, campaign.endsOn);
 
   return (
@@ -77,7 +83,7 @@ export default async function CampaignPage({ params }: Props) {
         }
       />
       <JobsTable
-        rows={rows.map((row) => toJobRow(row, now))}
+        rows={rows.map((row) => toJobRow(row, now, costs.get(row.id) ?? NO_AI_COST))}
         toggleAction={toggleJobAction}
         runAction={runJobNowAction}
       />

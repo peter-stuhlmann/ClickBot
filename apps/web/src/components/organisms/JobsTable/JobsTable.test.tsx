@@ -1,6 +1,7 @@
 import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
+import { NO_AI_COST } from '@/lib/cost';
 import type { JobRowView } from '@/lib/views';
 import { JobsTable } from './JobsTable';
 
@@ -15,6 +16,7 @@ const row = (overrides: Partial<JobRowView> = {}): JobRowView => ({
   lastRun: { tone: 'success', label: 'Bestanden', when: 'vor 3 Min.', href: '/laeufe/run-7' },
   successRate: { text: '100 %', tone: 'success' },
   status: { label: 'Aktiv', active: true, toggleable: true },
+  cost: NO_AI_COST,
   ...overrides,
 });
 
@@ -160,5 +162,26 @@ describe('JobsTable', () => {
       'href',
       '/jobs/job-1',
     );
+  });
+
+  it('has a coin button for every test that shows what its AI cost', async () => {
+    const user = userEvent.setup();
+    const cost = {
+      model: 'Claude · claude-x',
+      rows: [{ label: 'Eingabe', tokens: '1.000', price: '0,01 $' }],
+      total: '0,01 $',
+      note: null,
+    };
+    render(
+      <JobsTable
+        rows={[row({ cost }), row({ id: 'job-2', name: 'Login-Test' })]}
+        toggleAction={noop}
+        runAction={noop}
+      />,
+    );
+    expect(screen.getAllByRole('button', { name: /^KI-Kosten von / })).toHaveLength(2);
+    await user.click(screen.getByRole('button', { name: 'KI-Kosten von Kontaktformular-Test' }));
+    expect(screen.getByRole('dialog')).toHaveTextContent('Claude · claude-x');
+    expect(screen.getByRole('dialog')).toHaveTextContent('0,01 $');
   });
 });

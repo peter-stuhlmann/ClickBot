@@ -1,16 +1,18 @@
-import { listAiProviders } from '@click-bot/db';
+import { listAiProviders, listKnownModels, listModelPrices } from '@click-bot/db';
 import type { Metadata } from 'next';
 import { InfoCard } from '@/components/molecules/InfoCard';
 import { Tabs } from '@/components/molecules/Tabs';
+import { ModelPriceForm } from '@/components/organisms/ModelPriceForm';
 import { PageHeader } from '@/components/organisms/PageHeader';
 import { SettingsLayout } from '@/components/templates/SettingsLayout';
 import { SETTINGS_TABS } from '@/lib/settings-tabs';
-import { toAiProviderViews } from '@/server/ai-settings-view';
+import { toAiProviderViews, toModelPriceViews } from '@/server/ai-settings-view';
 import { requireUser } from '@/server/auth';
 import { getDb } from '@/server/db';
 import {
   deleteAiProviderAction,
   saveAiProviderAction,
+  saveModelPriceAction,
   setDefaultAiProviderAction,
   testAiProviderAction,
 } from '@/app/ai-actions';
@@ -47,7 +49,11 @@ export default async function AiSettingsPage() {
   const signedIn = await requireUser();
   const isAdmin = signedIn.role === 'admin';
   const db = getDb();
-  const providers = await listAiProviders(db);
+  const [providers, models, prices] = await Promise.all([
+    listAiProviders(db),
+    listKnownModels(db),
+    listModelPrices(db),
+  ]);
 
   return (
     <>
@@ -64,6 +70,10 @@ export default async function AiSettingsPage() {
         <AiProviderList
           providers={toAiProviderViews(providers)}
           actions={isAdmin ? ACTIONS : undefined}
+        />
+        <ModelPriceForm
+          models={toModelPriceViews(models, prices)}
+          action={isAdmin ? saveModelPriceAction : undefined}
         />
       </SettingsLayout>
     </>

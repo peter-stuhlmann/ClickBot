@@ -1,11 +1,13 @@
 import {
   expandSchedule,
+  hasUsage,
   runTargets,
   type BotStart,
   type Criterion,
   type RunTarget,
 } from '@click-bot/shared';
 import { and, asc, count, eq, inArray, isNotNull, isNull, lt, lte, max, or } from 'drizzle-orm';
+import { insertRunUsage, type ModelUsage } from './ai-usage';
 import type { Database } from './client';
 import type { Job } from './jobs';
 import { jobs, runSteps, runs, workerHeartbeats, type VideoCue } from './schema';
@@ -205,6 +207,8 @@ export type StepRecord = {
   aiActions?: string[] | null;
   /** AI step: the verdict per sub-goal. Must already be masked. */
   aiVerdict?: Criterion[] | null;
+  /** AI step: the result of the test in one sentence. Must already be masked. */
+  aiSummary?: string | null;
 };
 
 export type RunOutcome = {
@@ -218,6 +222,8 @@ export type RunOutcome = {
   videoPath?: string | null;
   /** When each step ran in the video. */
   videoCues?: VideoCue[] | null;
+  /** The tokens the AI used in this run, with its model; nothing without AI. */
+  aiUsage?: ModelUsage | null;
 };
 
 /** Stores the verdict of a running run and its steps in one transaction. */
@@ -237,6 +243,10 @@ export async function completeRun(db: Database, runId: string, outcome: RunOutco
       .returning({ id: runs.id });
     if (updated.length === 0) throw new Error(`Durchlauf ${runId} läuft nicht (mehr).`);
 
+    if (outcome.aiUsage && hasUsage(outcome.aiUsage.usage)) {
+      await insertRunUsage(tx, runId, outcome.aiUsage);
+    }
+
     if (outcome.steps.length > 0) {
       await tx.insert(runSteps).values(
         outcome.steps.map((step) => ({
@@ -249,6 +259,7 @@ export async function completeRun(db: Database, runId: string, outcome: RunOutco
           screenshotPath: step.screenshotPath,
           aiActions: step.aiActions ?? null,
           aiVerdict: step.aiVerdict ?? null,
+          aiSummary: step.aiSummary ?? null,
         })),
       );
     }

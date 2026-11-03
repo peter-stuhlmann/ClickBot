@@ -3,7 +3,7 @@
  * components never depend on the database shape.
  */
 
-import type { Criterion } from '@click-bot/shared';
+import type { AiProviderKind, Criterion } from '@click-bot/shared';
 
 export type Tone = 'success' | 'warning' | 'danger' | 'neutral';
 
@@ -27,6 +27,8 @@ export type JobRowView = {
   lastRun: { tone: Tone; label: string; when: string; href: string } | null;
   successRate: { text: string; tone: Tone } | null;
   status: { label: string; active: boolean; toggleable: boolean };
+  /** What the AI of all runs of the test cost. */
+  cost: CostView;
 };
 
 /** One line of a label/value list, e.g. the summary next to the job wizard. */
@@ -54,6 +56,8 @@ export type RunStepView = {
   aiActions?: string[];
   /** AI step: every sub-goal of the test with the verdict of the AI. */
   aiVerdict?: Criterion[];
+  /** AI step: the result of the test in one sentence, with the measured values. */
+  aiSummary?: string;
 };
 
 /** One screenshot of a run, in the gallery of its report. */
@@ -97,6 +101,8 @@ export type RunReportView = {
   ads: { title: string; message: string } | null;
   /** The other runs of the same start (every device and browser); null when it ran alone. */
   wave: { href: string; label: string } | null;
+  /** What the AI of this run cost. */
+  cost: CostView;
 };
 
 /** One run in the report of a start (screen 03b): a device in a browser. */
@@ -115,6 +121,8 @@ export type WaveRunRowView = {
   reason: string | null;
   duration: string;
   failed: boolean;
+  /** What the AI of this run cost. */
+  cost: CostView;
 };
 
 /** The "Testlauf" of the job wizard: one run of the draft, below its flow. */
@@ -136,6 +144,10 @@ export type TestRunView = {
   reason: string | null;
   /** Once the run is done: its video (test runs are always recorded). */
   video: VideoView | null;
+  /** A free test (AI step): its result in one sentence, with the measured values. */
+  summary: string | null;
+  /** What the AI of this run cost. */
+  cost: CostView;
 };
 
 /** Screen 03b "Welle-Report": every device and browser of one start, side by side. */
@@ -193,6 +205,8 @@ export type RunListRowView = {
   duration: string;
   status: { tone: Tone; label: string };
   failed: boolean;
+  /** What the AI of this run cost. */
+  cost: CostView;
 };
 
 /** Answer of a server action to a form (login, registration, invitation). */
@@ -339,4 +353,30 @@ export type TemplateView = {
   /** "3 Schritte · geändert vor 2 Std. von Peter Stuhlmann" */
   meta: string;
   steps: StepItemView[];
+};
+
+/** What an AI test cost, for the coin button of a test or run. */
+export type CostView = {
+  /** "Claude · claude-sonnet-5-5", "2 Modelle", or null without AI. */
+  model: string | null;
+  /** Input, output and (only if there were any) cached tokens, each with its price. */
+  rows: { label: string; tokens: string; price: string }[];
+  /** "0,0123 $", "mind. 0,0123 $" when a model has no price, "–" when none has. */
+  total: string;
+  /** Why something is missing: no AI used, or a model without a price. */
+  note: string | null;
+};
+
+/** The price of one model in "Einstellungen → KI & API", as the form shows it. */
+export type ModelPriceView = {
+  provider: AiProviderKind;
+  /** "Claude" */
+  providerLabel: string;
+  model: string;
+  /** US dollars per million tokens, as typed: "3,5"; empty where there is no price. */
+  input: string;
+  output: string;
+  cached: string;
+  /** Whether a price is kept for this model at all. */
+  priced: boolean;
 };

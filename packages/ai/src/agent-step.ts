@@ -1,4 +1,10 @@
-import { stepSchema, type Criterion, type CriterionStatus, type Step } from '@click-bot/shared';
+import {
+  stepSchema,
+  type Criterion,
+  type CriterionStatus,
+  type Step,
+  type Target,
+} from '@click-bot/shared';
 import { AiError, type AiClient, type AiImage, type AiMessage, type AiRequest } from './client';
 
 /** What the browser shows right now; the snapshot is the accessibility tree, secrets masked. */
@@ -23,7 +29,12 @@ export type AgentInput = {
   final?: boolean;
 };
 
-export type AgentAction = { kind: 'step'; step: Step } | { kind: 'verdict'; criteria: Criterion[] };
+export type AgentAction =
+  | { kind: 'step'; step: Step }
+  /** Reads what the browser computed for an element: colour, size, weight … Changes nothing. */
+  | { kind: 'inspect'; target: Target }
+  /** `summary`: the result of the test in one sentence, with the values that were measured. */
+  | { kind: 'verdict'; criteria: Criterion[]; summary: string };
 
 /** What the model may do in a run: the actions of a user, no reading out, no other AI step. */
 const ACTION_TYPES = new Set<Step['type']>([
@@ -71,9 +82,16 @@ Actions:
   {"kind":"by","direction":"down","distance":600} (down, up, right, left) or {"kind":"bottom"}
 - {"type":"open","url":"/path"} – only pages of the website under test.
 - {"type":"wait","until":{"kind":"duration","ms":1000}} or {"kind":"element","target":TARGET}
+- {"type":"inspect","target":TARGET} – reads what the browser computed for that element: its text,
+  font colour (as rgb and #HEX), background colour, font size, weight, family. Use it for every
+  claim about colours, sizes or fonts; it changes nothing on the page.
 
 Verdict, once every sub-goal is decided:
-{"type":"verdict","criteria":[{"goal":"…","status":"met","evidence":"…"}]}
+{"type":"verdict","summary":"…","criteria":[{"goal":"…","status":"met","evidence":"…"}]}
+- "summary": the result of the whole test in ONE German sentence that answers the goal
+  unmistakably and names the concrete values you measured, e.g. "h1-Überschriften auf 3
+  Produktseiten sind rot (#C80000)" or "Die h1 ist auf „Seite A“ rot (#C80000), auf „Seite B" aber
+  schwarz (#000000)". No "Testergebnis:" prefix, no hedging, no repeating of the goal.
 - "met": you saw it in this run. Evidence: what you saw.
 - "failed": you checked it and it is not so. Evidence: what you saw instead.
 - "unknown": you could not check it (captcha, login without a fitting secret, page did not
@@ -95,7 +113,11 @@ Rules for a reliable verdict:
   results of your actions. Never by assumptions or what websites usually do.
 - Check behaviour by doing it. E.g. for validation: enter an invalid value, send it and look at
   the result; then a valid one.
-- Colours, sizes and positions: judge them on the screenshot.
+- Colours, font sizes, weights and fonts: measure them with "inspect" on the element and quote
+  the exact value (e.g. rgb and #HEX) in the evidence and the summary. Never estimate a colour
+  from the screenshot when you can measure it. Positions and layout: judge them on the screenshot.
+- If the goal covers several pages or elements (e.g. "on 3 product pages"), check every one and
+  name each result in the summary.
 - If an action failed, try another way (another target, scroll, close an overlay) instead of
   sending the same action again.
 - Accept or close a cookie banner if it is in the way.
@@ -171,8 +193,20 @@ function readCriteria(raw: unknown): Criterion[] {
 /** Reads the model's answer: one allowed action, checked like a stored step, or the verdict. */
 export function parseAgentAction(text: string, { final = false } = {}): AgentAction {
   const raw = readJson(text);
-  if (raw.type === 'verdict') return { kind: 'verdict', criteria: readCriteria(raw.criteria) };
+  if (raw.type === 'verdict') {
+    const summary = sentence(raw.summary);
+    if (!summary) throw new AiError('Bewertung ohne Testergebnis („summary“).');
+    return { kind: 'verdict', criteria: readCriteria(raw.criteria), summary };
+  }
   if (final) throw new AiError('Es sind keine Aktionen mehr übrig: Bitte jetzt bewerten.');
+  if (raw.type === 'inspect') {
+    // The target is checked like the target of a click.
+    const probe = stepSchema.safeParse({ type: 'click', target: raw.target, id: 'ki' });
+    if (!probe.success || probe.data.type !== 'click') {
+      throw new AiError(`KI-Aktion ungültig: ${probe.error?.issues[0]?.message ?? 'Ziel fehlt'}`);
+    }
+    return { kind: 'inspect', target: probe.data.target };
+  }
   if (!ACTION_TYPES.has(raw.type as Step['type'])) {
     throw new AiError(`Die KI-Aktion „${String(raw.type)}“ ist nicht erlaubt.`);
   }

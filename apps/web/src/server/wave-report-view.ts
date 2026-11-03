@@ -1,10 +1,11 @@
 import 'server-only';
 import type { WaveReport, WaveRun } from '@click-bot/db';
+import { NO_AI_COST } from '@/lib/cost';
 import { browserLabel, deviceLabel } from '@/lib/devices';
 import { formatClock, formatDateLong, formatDuration, plural } from '@/lib/format';
 import { toStepDraft } from '@/lib/job-draft';
 import { describeStep } from '@/lib/step-view';
-import type { StatCardView, Tone, WaveReportView, WaveRunRowView } from '@/lib/views';
+import type { CostView, StatCardView, Tone, WaveReportView, WaveRunRowView } from '@/lib/views';
 import { RUN_BADGE } from './jobs-view';
 
 const DASH = '–';
@@ -123,7 +124,10 @@ function stats(report: WaveReport, startedAt: Date | null): StatCardView[] {
 /** Screen 03b: one start of a job on every device and browser, with where and why it failed. */
 export function toWaveReportView(
   report: WaveReport,
-  { workerOnline = true }: { workerOnline?: boolean } = {},
+  {
+    workerOnline = true,
+    costs = new Map(),
+  }: { workerOnline?: boolean; costs?: ReadonlyMap<string, CostView> } = {},
 ): WaveReportView {
   const { runs } = report;
   const started = runs.map((run) => run.startedAt).filter((at): at is Date => at !== null);
@@ -161,6 +165,7 @@ export function toWaveReportView(
       reason: reasonOf(run),
       duration: durationOf(run) === null ? DASH : formatDuration(durationOf(run) as number),
       failed: run.status === 'failed' || run.status === 'not_passed',
+      cost: costs.get(run.id) ?? NO_AI_COST,
     })),
     failures: failures(report),
     live: liveHint(runs, workerOnline),

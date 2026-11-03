@@ -44,6 +44,13 @@ const verdictChip = cva('w-fit shrink-0 rounded-chip px-1.5 py-0.5 text-small fo
 
 export type RunStepItemProps = RunStepView;
 
+// The result of a free test, tinted like its outcome; the text stays dark for contrast.
+const SUMMARY_TONE: Partial<Record<RunStepView['status'], string>> = {
+  passed: 'bg-success-soft',
+  failed: 'bg-danger-soft',
+  unclear: 'bg-warning-soft',
+};
+
 /** One step of a run: status, what it did, how long it took and its screenshot. */
 export function RunStepItem({
   number,
@@ -54,6 +61,7 @@ export function RunStepItem({
   screenshotHref,
   aiActions = [],
   aiVerdict = [],
+  aiSummary,
 }: RunStepItemProps) {
   const { icon, label } = STATUS[status];
   const muted = status === 'skipped' || status === 'pending';
@@ -80,6 +88,16 @@ export function RunStepItem({
           >
             {detail}
           </span>
+        )}
+        {aiSummary && (
+          <p
+            className={cn(
+              'mt-2 rounded-input px-3 py-2 text-body text-text',
+              SUMMARY_TONE[status] ?? 'bg-neutral-soft',
+            )}
+          >
+            <span className="font-semibold">Testergebnis:</span> {aiSummary}
+          </p>
         )}
         {aiVerdict.length > 0 && (
           <ul aria-label="Ergebnis der KI" className="mt-2 flex flex-col gap-2">

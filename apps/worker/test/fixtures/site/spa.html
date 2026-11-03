@@ -1,0 +1,22 @@
+<!doctype html>
+<html lang="de">
+  <head>
+    <meta charset="utf-8" />
+    <title>Produktseite</title>
+  </head>
+  <body>
+    <!-- Like a single-page app: the page is only a loading indicator until its data is there. -->
+    <div id="app">
+      <div role="progressbar" aria-busy="true" aria-label="Lädt">Lädt …</div>
+    </div>
+    <script>
+      // First a skeleton, then, after another pause, the content: two stages, like real apps.
+      setTimeout(() => {
+        document.querySelector('#app').innerHTML = '<div class="skeleton">…</div>';
+      }, 500);
+      setTimeout(() => {
+        document.querySelector('#app').innerHTML = '<h1>Seehaus 7</h1><p>Ab 1.999,00 €</p>';
+      }, 1300);
+    </script>
+  </body>
+</html>

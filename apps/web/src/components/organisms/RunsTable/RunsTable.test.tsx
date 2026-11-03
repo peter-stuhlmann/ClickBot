@@ -1,5 +1,7 @@
 import { render, screen, within } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { describe, expect, it } from 'vitest';
+import { NO_AI_COST } from '@/lib/cost';
 import type { RunListRowView } from '@/lib/views';
 import { RunsTable } from './RunsTable';
 
@@ -14,6 +16,7 @@ const row = (overrides: Partial<RunListRowView> = {}): RunListRowView => ({
   duration: '8,4 s',
   status: { tone: 'success', label: 'Bestanden' },
   failed: false,
+  cost: NO_AI_COST,
   ...overrides,
 });
 
@@ -74,5 +77,28 @@ describe('RunsTable', () => {
     );
     expect(screen.getByText('Keine Durchläufe für diese Filter.')).toBeVisible();
     expect(screen.getByRole('link', { name: 'Neuere' })).toHaveAttribute('href', '/laeufe');
+  });
+
+  it('has a coin button for every run that shows what its AI cost', async () => {
+    const user = userEvent.setup();
+    const cost = {
+      model: 'Claude · claude-x',
+      rows: [{ label: 'Eingabe', tokens: '1.000', price: '0,01 $' }],
+      total: '0,01 $',
+      note: null,
+    };
+    render(
+      <RunsTable
+        rows={[row({ cost }), row({ id: 'run-8', jobName: 'Login-Test' })]}
+        summary="2 Durchläufe"
+        pager={pager}
+      />,
+    );
+    expect(screen.getAllByRole('button', { name: /^KI-Kosten von / })).toHaveLength(2);
+    await user.click(
+      screen.getByRole('button', { name: 'KI-Kosten von Kontaktformular-Test, 05.11. 14:30' }),
+    );
+    expect(screen.getByRole('dialog')).toHaveTextContent('Claude · claude-x');
+    expect(screen.getByRole('dialog')).toHaveTextContent('0,01 $');
   });
 });

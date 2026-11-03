@@ -1,6 +1,7 @@
 // @vitest-environment node
 import type { DashboardStats, JobOverviewRow } from '@click-bot/db';
 import { describe, expect, it } from 'vitest';
+import { NO_AI_COST } from '@/lib/cost';
 import { toJobRow, toStatCards } from './jobs-view';
 
 const now = new Date('2026-11-05T12:30:00Z');
@@ -23,7 +24,7 @@ const row = (overrides: Partial<JobOverviewRow> = {}): JobOverviewRow => ({
 
 describe('toJobRow', () => {
   it('builds the row of the jobs table', () => {
-    expect(toJobRow(row(), now)).toEqual({
+    expect(toJobRow(row(), now, NO_AI_COST)).toEqual({
       id: 'job-1',
       name: 'Kontaktformular-Test',
       href: '/jobs/job-1',
@@ -39,6 +40,7 @@ describe('toJobRow', () => {
       },
       successRate: { text: '100 %', tone: 'success' },
       status: { label: 'Aktiv', active: true, toggleable: true },
+      cost: NO_AI_COST,
     });
   });
 
@@ -47,7 +49,11 @@ describe('toJobRow', () => {
     ['warning', 'warning', 'Mit Hinweis'],
     ['failed', 'danger', 'Fehlgeschlagen'],
   ] as const)('shows a %s run as %s badge', (status, tone, label) => {
-    const view = toJobRow(row({ lastRun: { id: 'run-1', status, finishedAt: now } }), now);
+    const view = toJobRow(
+      row({ lastRun: { id: 'run-1', status, finishedAt: now } }),
+      now,
+      NO_AI_COST,
+    );
     expect(view.lastRun).toMatchObject({ tone, label });
   });
 
@@ -58,25 +64,27 @@ describe('toJobRow', () => {
     [0.85, 'warning'],
     [0.84, 'danger'],
   ])('colours a success rate of %f as %s', (rate, tone) => {
-    expect(toJobRow(row({ successRate: rate }), now).successRate?.tone).toBe(tone);
+    expect(toJobRow(row({ successRate: rate }), now, NO_AI_COST).successRate?.tone).toBe(tone);
   });
 
   it('leads a draft of the wizard back to the wizard, every other job to the editor', () => {
-    expect(toJobRow(row({ status: 'draft', inWizard: true }), now).href).toBe(
+    expect(toJobRow(row({ status: 'draft', inWizard: true }), now, NO_AI_COST).href).toBe(
       '/jobs/neu?entwurf=job-1',
     );
-    expect(toJobRow(row({ status: 'draft' }), now).href).toBe('/jobs/job-1');
+    expect(toJobRow(row({ status: 'draft' }), now, NO_AI_COST).href).toBe('/jobs/job-1');
   });
 
   it('shows no last run and no rate for a job that never ran', () => {
-    const view = toJobRow(row({ runsDone: 0, lastRun: null, successRate: null }), now);
+    const view = toJobRow(row({ runsDone: 0, lastRun: null, successRate: null }), now, NO_AI_COST);
     expect(view).toMatchObject({ lastRun: null, successRate: null });
     expect(view.progress).toEqual({ label: '0 / 20 Durchläufe', value: 0 });
   });
 
   it('keeps progress between 0 and 1, also without planned runs', () => {
-    expect(toJobRow(row({ runsDone: 3, runsPlanned: 0 }), now).progress.value).toBe(0);
-    expect(toJobRow(row({ runsDone: 30, runsPlanned: 20 }), now).progress.value).toBe(1);
+    expect(toJobRow(row({ runsDone: 3, runsPlanned: 0 }), now, NO_AI_COST).progress.value).toBe(0);
+    expect(toJobRow(row({ runsDone: 30, runsPlanned: 20 }), now, NO_AI_COST).progress.value).toBe(
+      1,
+    );
   });
 
   it.each([
@@ -85,7 +93,11 @@ describe('toJobRow', () => {
     ['draft', 'Entwurf', false, false],
     ['finished', 'Beendet', false, false],
   ] as const)('shows status %s as %s', (status, label, active, toggleable) => {
-    expect(toJobRow(row({ status }), now).status).toEqual({ label, active, toggleable });
+    expect(toJobRow(row({ status }), now, NO_AI_COST).status).toEqual({
+      label,
+      active,
+      toggleable,
+    });
   });
 });
 

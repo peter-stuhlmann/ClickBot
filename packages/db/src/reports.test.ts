@@ -94,6 +94,7 @@ describe('getRunReport', () => {
         screenshotPath: null,
         aiActions: null,
         aiVerdict: null,
+        aiSummary: null,
       },
       {
         stepIndex: 1,
@@ -104,6 +105,7 @@ describe('getRunReport', () => {
         screenshotPath: `runs/${failed.id}/1-send.png`,
         aiActions: null,
         aiVerdict: null,
+        aiSummary: null,
       },
     ]);
     // (4 s + 2 s) / 2; the queued run does not count.

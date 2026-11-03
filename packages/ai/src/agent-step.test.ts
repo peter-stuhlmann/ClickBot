@@ -20,7 +20,9 @@ const input: AgentInput = {
   ],
 };
 
-const verdict = (criteria: unknown) => JSON.stringify({ type: 'verdict', criteria });
+const SUMMARY = 'h1-Überschriften sind rot (#C80000)';
+const verdict = (criteria: unknown, summary: unknown = SUMMARY) =>
+  JSON.stringify({ type: 'verdict', summary, criteria });
 const met = {
   goal: 'Es gibt einen blauen Button „Newsletter abonnieren“.',
   status: 'met',
@@ -110,7 +112,42 @@ describe('parseAgentAction', () => {
     expect(parseAgentAction(verdict([met, failed, unknown]))).toEqual({
       kind: 'verdict',
       criteria: [met, failed, unknown],
+      summary: SUMMARY,
     });
+  });
+
+  it('needs the result of the test in one sentence with the verdict', () => {
+    for (const summary of [null, '', '   ', 42]) {
+      expect(() => parseAgentAction(verdict([met], summary))).toThrow(/Testergebnis/);
+    }
+  });
+
+  it('reads the inspect action: reading what the browser computed for an element', () => {
+    expect(
+      parseAgentAction(
+        '{"type":"inspect","target":{"by":"role","role":"heading","name":"Seehaus 7"}}',
+      ),
+    ).toEqual({ kind: 'inspect', target: { by: 'role', role: 'heading', name: 'Seehaus 7' } });
+    expect(parseAgentAction('{"type":"inspect","target":{"by":"css","selector":"h1"}}')).toEqual({
+      kind: 'inspect',
+      target: { by: 'css', selector: 'h1' },
+    });
+  });
+
+  it('rejects an inspect action without a usable target, and one when no actions are left', () => {
+    expect(() => parseAgentAction('{"type":"inspect"}')).toThrow(AiError);
+    expect(() => parseAgentAction('{"type":"inspect","target":{"by":"nope"}}')).toThrow(AiError);
+    expect(() =>
+      parseAgentAction('{"type":"inspect","target":{"by":"css","selector":"h1"}}', { final: true }),
+    ).toThrow(/keine Aktionen mehr/);
+  });
+
+  it('tells the model to measure, and to answer with a concrete summary', () => {
+    const { system } = agentPrompt(input);
+    expect(system).toContain('"type":"inspect"');
+    expect(system).toMatch(/measure them with "inspect"/);
+    expect(system).toContain('"summary"');
+    expect(system).toMatch(/names the concrete values/);
   });
 
   it('replaces a made-up real e-mail address with test data', () => {
@@ -157,6 +194,7 @@ describe('nextAgentAction', () => {
     expect(await nextAgentAction(client, { ...input, final: true })).toEqual({
       kind: 'verdict',
       criteria: [met],
+      summary: SUMMARY,
     });
   });
 

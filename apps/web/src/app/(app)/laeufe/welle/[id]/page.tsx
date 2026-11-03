@@ -6,6 +6,7 @@ import { PageHeader } from '@/components/organisms/PageHeader';
 import { StatGrid } from '@/components/organisms/StatGrid';
 import { WaveRunsTable } from '@/components/organisms/WaveRunsTable';
 import { ReportLayout } from '@/components/templates/ReportLayout';
+import { loadRunCosts } from '@/server/cost-data';
 import { getDb } from '@/server/db';
 import { getShell } from '@/server/shell';
 import { toWaveReportView } from '@/server/wave-report-view';
@@ -31,7 +32,13 @@ export default async function WaveReportPage({ params }: Props) {
     throw error;
   });
   if (!report) notFound();
-  const view = toWaveReportView(report, { workerOnline: shell.worker.online });
+  const view = toWaveReportView(report, {
+    workerOnline: shell.worker.online,
+    costs: await loadRunCosts(
+      db,
+      report.runs.map((run) => run.id),
+    ),
+  });
 
   const aside =
     view.failures.length > 0 ? (

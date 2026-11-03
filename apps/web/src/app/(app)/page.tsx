@@ -4,9 +4,11 @@ import { Icon } from '@/components/atoms/Icon';
 import { JobsTable } from '@/components/organisms/JobsTable';
 import { PageHeader } from '@/components/organisms/PageHeader';
 import { StatGrid } from '@/components/organisms/StatGrid';
+import { loadJobCosts } from '@/server/cost-data';
 import { getDb } from '@/server/db';
 import { toJobRow, toStatCards } from '@/server/jobs-view';
 import { getShell, projectScope } from '@/server/shell';
+import { NO_AI_COST } from '@/lib/cost';
 import { runJobNowAction, toggleJobAction } from '@/app/actions';
 
 // Live data: never prerender at build time.
@@ -22,6 +24,10 @@ export default async function JobsPage() {
     listJobOverview(db, scope),
     getDashboardStats(db, now, scope),
   ]);
+  const costs = await loadJobCosts(
+    db,
+    rows.map((row) => row.id),
+  );
 
   return (
     <>
@@ -36,7 +42,7 @@ export default async function JobsPage() {
       />
       <StatGrid cards={toStatCards(stats)} />
       <JobsTable
-        rows={rows.map((row) => toJobRow(row, now))}
+        rows={rows.map((row) => toJobRow(row, now, costs.get(row.id) ?? NO_AI_COST))}
         toggleAction={toggleJobAction}
         runAction={runJobNowAction}
       />

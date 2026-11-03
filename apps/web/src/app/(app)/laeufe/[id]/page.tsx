@@ -3,6 +3,7 @@ import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 import { Button } from '@/components/atoms/Button';
 import { Icon } from '@/components/atoms/Icon';
+import { CostPopover } from '@/components/molecules/CostPopover';
 import { Notice } from '@/components/molecules/Notice';
 import { PageHeader } from '@/components/organisms/PageHeader';
 import { RunStepList } from '@/components/organisms/RunStepList';
@@ -12,6 +13,7 @@ import { StatGrid } from '@/components/organisms/StatGrid';
 import { ReportLayout } from '@/components/templates/ReportLayout';
 import { getDb } from '@/server/db';
 import { getShell } from '@/server/shell';
+import { loadRunCost } from '@/server/cost-data';
 import { toRunReportView } from '@/server/run-report-view';
 import { AutoRefresh } from '../auto-refresh';
 
@@ -32,7 +34,10 @@ export default async function RunReportPage({ params }: Props) {
     throw error;
   });
   if (!report) notFound();
-  const view = toRunReportView(report, { workerOnline: shell.worker.online });
+  const view = toRunReportView(report, {
+    workerOnline: shell.worker.online,
+    cost: await loadRunCost(db, report.run.id),
+  });
 
   const aside =
     view.failure || view.video || view.screenshots.length > 0 || view.marking || view.ads ? (
@@ -71,15 +76,18 @@ export default async function RunReportPage({ params }: Props) {
               { label: view.runLabel },
             ]}
             actions={
-              view.wave ? (
-                <Button
-                  variant="secondary"
-                  href={view.wave.href}
-                  icon={<Icon name="history" size={16} />}
-                >
-                  {view.wave.label}
-                </Button>
-              ) : undefined
+              <>
+                <CostPopover label="KI-Kosten dieses Durchlaufs" cost={view.cost} />
+                {view.wave && (
+                  <Button
+                    variant="secondary"
+                    href={view.wave.href}
+                    icon={<Icon name="history" size={16} />}
+                  >
+                    {view.wave.label}
+                  </Button>
+                )}
+              </>
             }
           />
         }

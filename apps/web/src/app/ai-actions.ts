@@ -3,13 +3,16 @@
 import { AiError, testAiConnection } from '@click-bot/ai';
 import {
   deleteAiProvider,
+  deleteModelPrice,
   getAiConfig,
   saveAiProvider,
+  saveModelPrice,
   setDefaultAiProvider,
   ValidationError,
 } from '@click-bot/db';
 import { AI_PROVIDER_KINDS, AI_PROVIDERS, type AiProviderKind } from '@click-bot/shared';
 import { revalidatePath } from 'next/cache';
+import { readPriceForm } from '@/lib/ai-prices';
 import { describeConnection } from '@/lib/ai-settings';
 import { field, toFormState } from '@/lib/form-state';
 import type { ConnectionCheck, FormState } from '@/lib/views';
@@ -82,4 +85,52 @@ export async function deleteAiProviderAction(data: FormData): Promise<void> {
   await requireAdmin();
   await deleteAiProvider(getDb(), kindOf(data));
   revalidatePath(PAGE);
+}
+
+/**
+ * "Speichern" of a model price (US dollars per million tokens). Admins only. All fields empty
+ * removes the price. The model is one the form lists, so provider and model are checked again.
+ */
+export async function saveModelPriceAction(_state: FormState, data: FormData): Promise<FormState> {
+  await requireAdmin();
+  const provider = kindOf(data);
+  const model = field(data, 'model').trim();
+  const values = {
+    input: field(data, 'input'),
+    output: field(data, 'output'),
+    cached: field(data, 'cached'),
+  };
+  const read = readPriceForm(values);
+  if ('errors' in read) return { fieldErrors: read.errors, values };
+  try {
+    if (read.remove) {
+      await deleteModelPrice(getDb(), provider, model);
+      revalidatePath(PAGE);
+      return { notice: 'Preis entfernt.', values };
+    }
+    await saveModelPrice(getDb(), {
+      provider,
+      model,
+      inputPerMillion: read.input,
+      outputPerMillion: read.output,
+      cachedPerMillion: read.cached,
+    });
+  } catch (error) {
+    if (error instanceof ValidationError) {
+      const names: Record<string, string> = {
+        inputPerMillion: 'input',
+        outputPerMillion: 'output',
+        cachedPerMillion: 'cached',
+      };
+      return toFormState(
+        error.issues.map((issue) => ({ ...issue, path: names[issue.path] ?? 'form' })),
+        values,
+      );
+    }
+    throw error;
+  }
+  revalidatePath(PAGE);
+  // Costs are worked out when shown, so lists and reports change with the new price.
+  revalidatePath('/', 'layout');
+  return { notice: 'Gespeichert.', values };
 }

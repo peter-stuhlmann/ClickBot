@@ -403,6 +403,7 @@ describe('completeRun', () => {
           message: null,
           screenshotPath: null,
           aiVerdict: [{ goal: 'Captcha-frei', status: 'unknown', evidence: 'Captcha.' }],
+          aiSummary: 'Die Anmeldung ließ sich nicht prüfen: Captcha.',
         },
       ],
     });
@@ -411,7 +412,10 @@ describe('completeRun', () => {
     expect(goal).toMatchObject({
       status: 'unclear',
       aiVerdict: [{ goal: 'Captcha-frei', status: 'unknown', evidence: 'Captcha.' }],
+      // The result of the test in one sentence is kept with the step.
+      aiSummary: 'Die Anmeldung ließ sich nicht prüfen: Captcha.',
     });
+    expect(step?.aiSummary).toBeNull();
   });
 
   it('refuses to complete a run that is not running', async () => {

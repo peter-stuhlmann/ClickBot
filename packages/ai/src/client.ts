@@ -1,4 +1,4 @@
-import { AI_PROVIDERS, type AiProviderKind } from '@click-bot/shared';
+import { AI_PROVIDERS, type AiProviderKind, type AiUsage } from '@click-bot/shared';
 
 /** A provider ready to use: the key is already decrypted. Never log this object. */
 export type AiConfig = {
@@ -33,6 +33,8 @@ export type AiClient = {
 };
 
 export type AiDeps = {
+  /** Told the tokens of every answer that reports them, e.g. to add up the cost of a run. */
+  onUsage?: (usage: AiUsage) => void;
   fetch?: typeof globalThis.fetch;
   /** Per request; default 60 s. */
   timeoutMs?: number;
@@ -112,6 +114,47 @@ function textOf(kind: AiProviderKind, data: Json): string {
   const [choice] = asArray(data.choices);
   const content = asRecord(asRecord(choice).message).content;
   return typeof content === 'string' ? content : '';
+}
+
+function count(value: unknown): number {
+  return typeof value === 'number' && Number.isFinite(value) && value > 0 ? Math.round(value) : 0;
+}
+
+/**
+ * The tokens an answer reports, in one shape. `inputTokens` are those billed at the full input
+ * price, so cached ones are taken out where the provider counts them in (OpenAI, Gemini). Null if
+ * the answer reports nothing (some compatible APIs, e.g. Ollama in some versions).
+ */
+export function usageOf(kind: AiProviderKind, data: Json): AiUsage | null {
+  if (kind === 'anthropic') {
+    const usage = asRecord(data.usage);
+    if (Object.keys(usage).length === 0) return null;
+    return {
+      // Writing the cache costs more than input, but only a little; counted as input.
+      inputTokens: count(usage.input_tokens) + count(usage.cache_creation_input_tokens),
+      outputTokens: count(usage.output_tokens),
+      cachedTokens: count(usage.cache_read_input_tokens),
+    };
+  }
+  if (kind === 'gemini') {
+    const usage = asRecord(data.usageMetadata);
+    if (Object.keys(usage).length === 0) return null;
+    const cached = count(usage.cachedContentTokenCount);
+    return {
+      inputTokens: Math.max(0, count(usage.promptTokenCount) - cached),
+      // "Thinking" tokens are billed as output.
+      outputTokens: count(usage.candidatesTokenCount) + count(usage.thoughtsTokenCount),
+      cachedTokens: cached,
+    };
+  }
+  const usage = asRecord(data.usage);
+  if (Object.keys(usage).length === 0) return null;
+  const cached = count(asRecord(usage.prompt_tokens_details).cached_tokens);
+  return {
+    inputTokens: Math.max(0, count(usage.prompt_tokens) - cached),
+    outputTokens: count(usage.completion_tokens),
+    cachedTokens: cached,
+  };
 }
 
 /** A message in the provider's own format: images first for Claude and Gemini, after for OpenAI. */
@@ -266,7 +309,11 @@ export function createAiClient(config: AiConfig, deps: AiDeps = {}): AiClient {
 
   return {
     async complete(request) {
-      const text = textOf(config.kind, await send(bodyFor(config, request)));
+      const data = await send(bodyFor(config, request));
+      // Counted even if the text is empty: the provider bills it either way.
+      const usage = usageOf(config.kind, data);
+      if (usage) deps.onUsage?.(usage);
+      const text = textOf(config.kind, data);
       if (!text.trim()) throw new AiError(`${label} hat keine Antwort geliefert.`);
       return text;
     },

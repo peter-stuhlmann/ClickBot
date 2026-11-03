@@ -4,6 +4,7 @@ import { PageHeader } from '@/components/organisms/PageHeader';
 import { RunFilters } from '@/components/organisms/RunFilters';
 import { RunsTable } from '@/components/organisms/RunsTable';
 import { ReportLayout } from '@/components/templates/ReportLayout';
+import { NO_AI_COST } from '@/lib/cost';
 import {
   DEVICE_FILTER_OPTIONS,
   PAGE_SIZE,
@@ -14,6 +15,7 @@ import {
   parseRunFilters,
   toRunQuery,
 } from '@/lib/run-filters';
+import { loadRunCosts } from '@/server/cost-data';
 import { getDb } from '@/server/db';
 import { toRunListRow } from '@/server/run-list-view';
 import { getShell, projectScope } from '@/server/shell';
@@ -35,6 +37,10 @@ export default async function RunsPage({ searchParams }: Props) {
     listRuns(db, { ...toRunQuery(filters, now), ...projectScope(shell.project) }),
     listCampaigns(db, projectScope(shell.project).customerId),
   ]);
+  const costs = await loadRunCosts(
+    db,
+    rows.map((row) => row.id),
+  );
   const pages = Math.max(1, Math.ceil(total / PAGE_SIZE));
 
   return (
@@ -60,7 +66,7 @@ export default async function RunsPage({ searchParams }: Props) {
         }
       >
         <RunsTable
-          rows={rows.map(toRunListRow)}
+          rows={rows.map((row) => toRunListRow(row, costs.get(row.id) ?? NO_AI_COST))}
           summary={describePage(total, filters.seite)}
           pager={{
             label: `Seite ${filters.seite} von ${pages}`,
