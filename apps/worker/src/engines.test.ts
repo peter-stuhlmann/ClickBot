@@ -83,7 +83,7 @@ describe.each([
     expect(result.status).toBe('passed');
   });
 
-  it('scrolls from where the page stands, down and to the right', async () => {
+  it('scrolls smoothly from where the page stands, down and to the right', async () => {
     const extract = (testId: string) => ({
       id: testId,
       type: 'extract',
@@ -105,8 +105,11 @@ describe.each([
       },
       extract('position'),
       extract('links'),
+      extract('ereignisse'),
     ]);
     expect(result.status).toBe('passed');
+    // Smoothly, frame by frame, in every engine: more than one scroll event per step.
+    expect(Number(result.extracted.ereignisse)).toBeGreaterThan(4);
     // The iPhone shows the page zoomed out and scrolls by whole device pixels: 296 for 300.
     expect(Number(result.extracted.position)).toBeCloseTo(300, -1);
     expect(Number(result.extracted.links)).toBeCloseTo(200, -1);

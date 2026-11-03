@@ -48,11 +48,21 @@ export type RunStepView = {
   /** Error message of a failed step, otherwise the locator in code style. */
   detail: string;
   duration: string;
-  screenshotUrl: string | null;
+  /** "#bildschirmfoto-5": the step's screenshot in the gallery of the report. */
+  screenshotHref: string | null;
   /** AI step: what the AI did, one line per action. */
   aiActions?: string[];
   /** AI step: every sub-goal of the test with the verdict of the AI. */
   aiVerdict?: Criterion[];
+};
+
+/** One screenshot of a run, in the gallery of its report. */
+export type ScreenshotView = {
+  url: string;
+  /** Number of the step that took it, from 1. */
+  step: number;
+  /** What the step did, e.g. "Klicke auf „Absenden“". */
+  title: string;
 };
 
 /** Screen 03 "Lauf-Report". */
@@ -72,7 +82,8 @@ export type RunReportView = {
   stepsSummary: string;
   steps: RunStepView[];
   failure: { title: string; message: string } | null;
-  screenshot: { url: string; caption: string } | null;
+  /** Every screenshot of the run, in the order of its steps. */
+  screenshots: ScreenshotView[];
   /** While the run waits or runs: what it is waiting for. The page then refreshes itself. */
   live: string | null;
   /** Set when the run marked its GA4 requests only partly or not at all. */

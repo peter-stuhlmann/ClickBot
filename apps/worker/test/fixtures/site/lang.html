@@ -22,6 +22,9 @@
     <p class="anzeige" style="top: 72px">Links <span data-testid="links">0</span></p>
     <p class="anzeige" style="top: 24px">Taste <span data-testid="taste"></span></p>
     <p class="anzeige" style="top: 48px" data-testid="gescrollt" hidden>gescrollt</p>
+    <p class="anzeige" style="top: 96px">
+      Scroll-Ereignisse <span data-testid="ereignisse">0</span>
+    </p>
     <dialog open id="hinweis"><p>Neu: Newsletter</p></dialog>
     <p data-testid="dialog">Dialog offen</p>
     <label>Suche <input id="suche" /></label>
@@ -38,10 +41,15 @@
         shown('position').textContent = String(Math.round(scrollY));
         shown('links').textContent = String(Math.round(scrollX));
         shown('gescrollt').hidden = false;
+        // One per frame the page moved: more than one shows the way there, not a jump.
+        shown('ereignisse').textContent = String(Number(shown('ereignisse').textContent) + 1);
         // Both directions at once, for tests that wait for an exact position.
         document.body.dataset.x = String(Math.round(scrollX));
         document.body.dataset.y = String(Math.round(scrollY));
       });
+      // What the page got from the mouse wheel, for the live browser.
+      window.wheels = [];
+      addEventListener('wheel', (event) => window.wheels.push(event.deltaY), { passive: true });
       addEventListener('keydown', (event) => {
         shown('taste').textContent = [
           event.ctrlKey && 'Control',

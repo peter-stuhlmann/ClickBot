@@ -179,6 +179,24 @@ describe('startLiveSession', () => {
     await session.close();
   });
 
+  it('passes a wheel turn on in portions, so the picture scrolls smoothly', async () => {
+    const { session, page } = await open('/lang.html');
+    await session.handle({ type: 'move', x: 200, y: 300 });
+    await session.handle({ type: 'wheel', dx: 0, dy: 300 });
+
+    const wheels = () => page.evaluate(() => (window as unknown as { wheels: number[] }).wheels);
+    // Inputs are queued; the turn is through once the page got all of it.
+    await expect
+      .poll(async () => (await wheels()).reduce((sum, delta) => sum + delta, 0))
+      .toBe(300);
+    expect((await wheels()).length).toBeGreaterThan(3);
+    // Slowing down like a real wheel: the first portion is the largest.
+    const portions = await wheels();
+    expect(portions[0]).toBe(Math.max(...portions));
+    await expect.poll(() => page.evaluate(() => scrollY)).toBe(300);
+    await session.close();
+  });
+
   it('records scrolling, a photo and keys in between, in the order they happened', async () => {
     const { session, steps } = await open('/lang.html');
     await session.handle({ type: 'move', x: 200, y: 300 });

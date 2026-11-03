@@ -450,6 +450,22 @@ describe('runFlow – scrolling and keys', () => {
     expect(result.extracted).toEqual({ y: '1200' });
   });
 
+  it('scrolls smoothly, frame by frame, so the live view shows the way, and stands exactly there', async () => {
+    const result = await run([
+      start,
+      step('scroll', { type: 'scroll', to: { kind: 'position', y: 1800 } }),
+      position,
+      step('events', {
+        type: 'extract',
+        target: { by: 'testId', testId: 'ereignisse' },
+        saveAs: 'events',
+      }),
+    ]);
+    // Read right after the step, without waiting: the page is there and knows it.
+    expect(result.extracted.y).toBe('1800');
+    expect(Number(result.extracted.events)).toBeGreaterThan(5);
+  });
+
   it('scrolls until an element is in view', async () => {
     const result = await run([
       start,

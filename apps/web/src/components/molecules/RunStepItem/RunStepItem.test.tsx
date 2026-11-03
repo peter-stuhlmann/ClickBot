@@ -9,7 +9,7 @@ const step = (overrides: Partial<RunStepView> = {}): RunStepView => ({
   title: 'Klicke auf „Absenden“',
   detail: 'role = button, name = "Absenden"',
   duration: '0,6 s',
-  screenshotUrl: null,
+  screenshotHref: null,
   ...overrides,
 });
 
@@ -38,14 +38,14 @@ describe('RunStepItem', () => {
         {...step({
           status: 'failed',
           detail: 'Element nicht gefunden.',
-          screenshotUrl: '/artifacts/runs/r/1-send.png',
+          screenshotHref: '#bildschirmfoto-2',
         })}
       />,
     );
     expect(screen.getByText('Element nicht gefunden.')).toHaveClass('text-danger');
     expect(screen.getByRole('link', { name: 'Bildschirmfoto von Schritt 2' })).toHaveAttribute(
       'href',
-      '/artifacts/runs/r/1-send.png',
+      '#bildschirmfoto-2',
     );
   });
 

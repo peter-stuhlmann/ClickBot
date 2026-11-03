@@ -4,8 +4,9 @@ import { describeMarking, markingState, type AnalyticsMarking, type Step } from 
 import { browserLabel, deviceLabel } from '@/lib/devices';
 import { formatClock, formatDateLong, formatDuration, plural } from '@/lib/format';
 import { toStepDraft } from '@/lib/job-draft';
+import { screenshotAnchor } from '@/lib/screenshots';
 import { describeStep } from '@/lib/step-view';
-import type { RunReportView, RunStepView, StatCardView } from '@/lib/views';
+import type { RunReportView, RunStepView, ScreenshotView, StatCardView } from '@/lib/views';
 import { RUN_BADGE } from './jobs-view';
 
 const DASH = '–';
@@ -34,7 +35,7 @@ function stepViews(report: RunReport): RunStepView[] {
       status: 'pending',
       ...describe(step, step.id),
       duration: DASH,
-      screenshotUrl: null,
+      screenshotHref: null,
     }));
   }
   return report.steps.map((row) => {
@@ -48,10 +49,19 @@ function stepViews(report: RunReport): RunStepView[] {
       title,
       detail: row.message ?? detail,
       duration: row.status === 'skipped' ? DASH : formatDuration(row.durationMs),
-      screenshotUrl: row.screenshotPath ? artifactUrl(row.screenshotPath) : null,
+      screenshotHref: row.screenshotPath ? `#${screenshotAnchor(row.stepIndex + 1)}` : null,
       ...(row.aiActions ? { aiActions: row.aiActions } : {}),
       ...(row.aiVerdict ? { aiVerdict: row.aiVerdict } : {}),
     };
+  });
+}
+
+function screenshotViews(report: RunReport, steps: RunStepView[]): ScreenshotView[] {
+  return report.steps.flatMap((row) => {
+    if (!row.screenshotPath) return [];
+    const step = row.stepIndex + 1;
+    const title = steps.find((view) => view.number === step)?.title ?? `Schritt ${step}`;
+    return [{ url: artifactUrl(row.screenshotPath), step, title }];
   });
 }
 
@@ -138,7 +148,6 @@ export function toRunReportView(
     run.startedAt && run.finishedAt ? run.finishedAt.getTime() - run.startedAt.getTime() : null;
   const duration = durationMs === null ? null : formatDuration(durationMs);
   const startedOrPlanned = run.startedAt ?? run.scheduledAt;
-  const lastScreenshot = report.steps.findLast((step) => step.screenshotPath);
 
   const stats: StatCardView[] = [
     { label: 'Schritte', value: `${succeeded} / ${steps.length}`, hint: stepsHint(report, failed) },
@@ -200,11 +209,6 @@ export function toRunReportView(
             label: `Alle ${report.waveSize} Durchläufe dieses Starts`,
           }
         : null,
-    screenshot: lastScreenshot?.screenshotPath
-      ? {
-          url: artifactUrl(lastScreenshot.screenshotPath),
-          caption: `Bildschirmfoto · Schritt ${lastScreenshot.stepIndex + 1}`,
-        }
-      : null,
+    screenshots: screenshotViews(report, steps),
   };
 }

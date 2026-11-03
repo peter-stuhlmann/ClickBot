@@ -51,7 +51,7 @@ export function RunStepItem({
   title,
   detail,
   duration,
-  screenshotUrl,
+  screenshotHref,
   aiActions = [],
   aiVerdict = [],
 }: RunStepItemProps) {
@@ -108,11 +108,9 @@ export function RunStepItem({
         )}
       </div>
       <span className="shrink-0 font-mono text-small text-text-muted">{duration}</span>
-      {screenshotUrl && (
+      {screenshotHref && (
         <a
-          href={screenshotUrl}
-          target="_blank"
-          rel="noreferrer"
+          href={screenshotHref}
           className="shrink-0 rounded-chip text-meta font-medium text-primary hover:underline focus-visible:outline-2 focus-visible:outline-primary"
         >
           Bildschirmfoto <span className="sr-only">von Schritt {number}</span>

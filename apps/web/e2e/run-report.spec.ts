@@ -24,6 +24,58 @@ test.describe('Durchlauf-Report', () => {
     await expect(page.getByRole('heading', { level: 1, name: 'Tests' })).toBeVisible();
   });
 
+  test('shows every screenshot in a gallery and large in a lightbox', async ({ page }) => {
+    await page.goto('/');
+    await page.getByRole('link', { name: /^Letzter Durchlauf von Login & Bestellstatus/ }).click();
+
+    const gallery = page.getByRole('region', { name: 'Bildschirmfotos' });
+    await expect(gallery).toContainText('3 Bilder');
+    const thumbnails = gallery
+      .getByRole('list', { name: 'Alle Bildschirmfotos' })
+      .getByRole('link');
+    await expect(thumbnails).toHaveCount(3);
+    await expect(thumbnails.last()).toHaveAttribute('aria-current', 'true');
+
+    await thumbnails.nth(1).click();
+    await expect(gallery.getByText('2 / 3')).toBeVisible();
+    await gallery.getByRole('link', { name: /vergrößern$/ }).click();
+
+    const lightbox = page.getByRole('dialog');
+    await expect(lightbox).toBeVisible();
+    await expect(lightbox.getByRole('button', { name: 'Schließen' })).toBeFocused();
+    const picture = lightbox.getByRole('img');
+    await expect(picture).toHaveAttribute('src', '/artifacts/runs/e2e/1-desktop.png');
+    // The picture fits the window.
+    const box = await picture.boundingBox();
+    const viewport = page.viewportSize();
+    expect(box && viewport && box.width <= viewport.width && box.height <= viewport.height).toBe(
+      true,
+    );
+
+    await page.keyboard.press('ArrowRight');
+    await expect(picture).toHaveAttribute('src', '/artifacts/runs/e2e/2-phone.png');
+    await expect(lightbox.getByRole('button', { name: 'Nächstes Bild' })).toBeDisabled();
+    await page.keyboard.press('ArrowLeft');
+    await page.keyboard.press('ArrowLeft');
+    await expect(picture).toHaveAttribute('src', '/artifacts/runs/e2e/0-open.png');
+    await page.keyboard.press('Escape');
+    await expect(lightbox).toBeHidden();
+    await expect(gallery.getByText('1 / 3')).toBeVisible();
+
+    // The link of a step in the step list opens its screenshot.
+    await page
+      .getByRole('region', { name: 'Ablauf' })
+      .getByRole('link', { name: /^Bildschirmfoto von Schritt/ })
+      .last()
+      .click();
+    await expect(lightbox.getByRole('img')).toHaveAttribute(
+      'src',
+      '/artifacts/runs/e2e/2-phone.png',
+    );
+    await page.mouse.click(5, (page.viewportSize()?.height ?? 600) / 2);
+    await expect(lightbox).toBeHidden();
+  });
+
   test('shows a not-found page for an unknown run', async ({ page }) => {
     const response = await page.goto('/laeufe/00000000-0000-0000-0000-000000000000');
     expect(response?.status()).toBe(404);

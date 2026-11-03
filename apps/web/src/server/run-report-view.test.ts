@@ -131,7 +131,7 @@ describe('toRunReportView', () => {
       meta: 'Do., 05.11.2026 · 14:30:01 Uhr · ausgelöst durch Zeitplan',
       stepsSummary: '3 Schritte · 8,4 s',
       failure: null,
-      screenshot: null,
+      screenshots: [],
     });
     expect(view.stats).toEqual([
       { label: 'Schritte', value: '3 / 3', hint: 'alle bestanden' },
@@ -146,7 +146,7 @@ describe('toRunReportView', () => {
         title: 'Öffne beispiel.de/kontakt',
         detail: 'url = "https://beispiel.de/kontakt"',
         duration: '1,2 s',
-        screenshotUrl: null,
+        screenshotHref: null,
       },
       {
         number: 2,
@@ -154,7 +154,7 @@ describe('toRunReportView', () => {
         title: 'Klicke auf „Absenden“',
         detail: 'role = button, name = "Absenden"',
         duration: '0,6 s',
-        screenshotUrl: null,
+        screenshotHref: null,
       },
       {
         number: 3,
@@ -162,7 +162,7 @@ describe('toRunReportView', () => {
         title: 'Prüfe: „Vielen Dank“ ist sichtbar',
         detail: 'expect text "Vielen Dank"',
         duration: '1,1 s',
-        screenshotUrl: null,
+        screenshotHref: null,
       },
     ]);
   });
@@ -185,13 +185,38 @@ describe('toRunReportView', () => {
     ]);
     expect(view.steps[1]).toMatchObject({
       detail: SEND_ERROR,
-      screenshotUrl: '/artifacts/runs/run-1/1-send.png',
+      screenshotHref: '#bildschirmfoto-2',
     });
     expect(view.failure).toEqual({ title: 'Schritt 2 fehlgeschlagen', message: SEND_ERROR });
-    expect(view.screenshot).toEqual({
-      url: '/artifacts/runs/run-1/1-send.png',
-      caption: 'Bildschirmfoto · Schritt 2',
-    });
+    expect(view.screenshots).toEqual([
+      { url: '/artifacts/runs/run-1/1-send.png', step: 2, title: 'Klicke auf „Absenden“' },
+    ]);
+  });
+
+  it('shows every screenshot of a run in the order of its steps', () => {
+    const view = toRunReportView(
+      report({
+        steps: [
+          stepRow(0, 'open', 'passed', 1_200, { screenshotPath: 'runs/run-1/0-open.png' }),
+          stepRow(1, 'send', 'passed', 600),
+          stepRow(2, 'thanks', 'passed', 1_100, { screenshotPath: 'runs/run-1/2-thanks.png' }),
+        ],
+      }),
+    );
+
+    expect(view.screenshots).toEqual([
+      { url: '/artifacts/runs/run-1/0-open.png', step: 1, title: 'Öffne beispiel.de/kontakt' },
+      {
+        url: '/artifacts/runs/run-1/2-thanks.png',
+        step: 3,
+        title: 'Prüfe: „Vielen Dank“ ist sichtbar',
+      },
+    ]);
+    expect(view.steps.map((step) => step.screenshotHref)).toEqual([
+      '#bildschirmfoto-1',
+      null,
+      '#bildschirmfoto-3',
+    ]);
   });
 
   it('lists the planned steps of a run that has not started yet', () => {

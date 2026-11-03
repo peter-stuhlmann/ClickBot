@@ -14,7 +14,7 @@ describe('RunStepList', () => {
             title: 'Öffne beispiel.de',
             detail: '',
             duration: '1,2 s',
-            screenshotUrl: null,
+            screenshotHref: null,
           },
           {
             number: 2,
@@ -22,7 +22,7 @@ describe('RunStepList', () => {
             title: 'Klicke auf „Absenden“',
             detail: 'Element nicht gefunden.',
             duration: '0,6 s',
-            screenshotUrl: null,
+            screenshotHref: null,
           },
         ]}
       />,

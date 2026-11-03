@@ -51,6 +51,48 @@ async function onTarget<T>(
   }
 }
 
+/** Where a scroll goes: a position (null keeps that axis), or a distance from where it stands. */
+type Glide = { x: number | null; y: number | null; relative: boolean };
+
+/**
+ * In the browser: scrolls the window of `element` to the target, frame by frame, easing in and
+ * out, at most 0.8 s, so the live view shows the way instead of a jump (headless browsers do not
+ * animate scrolling themselves, not even `behavior: 'smooth'`). Instant steps, also on pages that
+ * scroll smoothly by CSS, then exactly there; it returns after the page got its "scroll" event,
+ * so the next step finds the page in place. Self-contained: Playwright sends only its source.
+ */
+async function glide(element: Element, to: Glide): Promise<void> {
+  const view = element.ownerDocument.defaultView ?? window;
+  const root = view.document.scrollingElement ?? view.document.documentElement;
+  const from = { x: view.scrollX, y: view.scrollY };
+  const aim = (axis: number | null, start: number, max: number) =>
+    Math.min(Math.max(0, axis === null ? start : to.relative ? start + axis : axis), max);
+  const x = aim(to.x, from.x, root.scrollWidth - root.clientWidth);
+  const y = aim(to.y, from.y, root.scrollHeight - root.clientHeight);
+  // A frame, or 50 ms where the browser paints none (a window in the background).
+  const frame = () =>
+    new Promise<number>((resolve) => {
+      view.requestAnimationFrame(resolve);
+      setTimeout(() => resolve(view.performance.now()), 50);
+    });
+  const distance = Math.hypot(x - from.x, y - from.y);
+  if (distance >= 1) {
+    const duration = Math.min(800, 200 + distance / 3);
+    const start = view.performance.now();
+    for (let t = 0; t < 1;) {
+      t = Math.min(1, ((await frame()) - start) / duration);
+      const eased = t < 0.5 ? 4 * t ** 3 : 1 - (-2 * t + 2) ** 3 / 2;
+      view.scrollTo({
+        left: from.x + (x - from.x) * eased,
+        top: from.y + (y - from.y) * eased,
+        behavior: 'instant',
+      });
+    }
+  }
+  view.scrollTo({ left: x, top: y, behavior: 'instant' });
+  await frame();
+}
+
 // A tab a page opens by script (window.open) is reported a few ms after the click; measured up to
 // 27 ms in Chromium, Firefox and WebKit. Ten times that covers a busy server.
 const NEW_TAB_GRACE_MS = 250;
@@ -225,53 +267,51 @@ export async function executeStep(
 
     case 'scroll': {
       const { to } = step;
-      // Instantly, also on pages with smooth scrolling: the next step must find the page there.
       if (to.kind === 'element') {
         await onTarget(current, to.target, timeout, async (l, left) => {
           await l.waitFor({ state: 'visible', timeout: left });
           // Like scrollIntoViewIfNeeded: only if it is not in view yet, then to the middle.
-          // Sideways it is enough to see a part, as of a block wider than the window.
-          await l.evaluate((element) => {
+          // Sideways it is enough to see a part, as of a block wider than the window. Where that
+          // is, the browser says: there and back within one task, so nothing is painted.
+          const target = await l.evaluate((element) => {
+            const view = element.ownerDocument.defaultView ?? window;
             const box = element.getBoundingClientRect();
-            const vertical = box.top >= 0 && box.bottom <= window.innerHeight;
-            const horizontal = box.right > 0 && box.left < window.innerWidth;
-            if (vertical && horizontal) return;
+            const vertical = box.top >= 0 && box.bottom <= view.innerHeight;
+            const horizontal = box.right > 0 && box.left < view.innerWidth;
+            if (vertical && horizontal) return null;
+            const from = { x: view.scrollX, y: view.scrollY };
             element.scrollIntoView({
               block: vertical ? 'nearest' : 'center',
               inline: horizontal ? 'nearest' : 'center',
               behavior: 'instant',
             });
+            const there = { x: view.scrollX, y: view.scrollY, relative: false };
+            view.scrollTo({ left: from.x, top: from.y, behavior: 'instant' });
+            return there;
           });
+          if (target) await l.evaluate(glide, target);
         });
         return {};
       }
-      await page.evaluate((to) => {
-        const root = document.scrollingElement ?? document.documentElement;
-        const by = { down: [0, 1], up: [0, -1], right: [1, 0], left: [-1, 0] } as const;
-        switch (to.kind) {
-          case 'by': {
-            const [x, y] = by[to.direction];
-            window.scrollBy({ left: x * to.distance, top: y * to.distance, behavior: 'instant' });
-            return;
-          }
-          case 'position':
-            // Without x the page keeps its horizontal position.
-            window.scrollTo({ top: to.y, left: to.x, behavior: 'instant' });
-            return;
-          case 'top':
-            window.scrollTo({ top: 0, behavior: 'instant' });
-            return;
-          case 'bottom':
-            window.scrollTo({ top: root.scrollHeight, behavior: 'instant' });
-            return;
-          case 'left':
-            window.scrollTo({ left: 0, behavior: 'instant' });
-            return;
-          case 'right':
-            window.scrollTo({ left: root.scrollWidth, behavior: 'instant' });
-            return;
-        }
-      }, to);
+      const targets: Record<Exclude<typeof to.kind, 'element' | 'by' | 'position'>, Glide> = {
+        top: { x: null, y: 0, relative: false },
+        bottom: { x: null, y: Infinity, relative: false },
+        left: { x: 0, y: null, relative: false },
+        right: { x: Infinity, y: null, relative: false },
+      };
+      const by = { down: [0, 1], up: [0, -1], right: [1, 0], left: [-1, 0] } as const;
+      const target: Glide =
+        to.kind === 'by'
+          ? {
+              x: by[to.direction][0] * to.distance,
+              y: by[to.direction][1] * to.distance,
+              relative: true,
+            }
+          : to.kind === 'position'
+            ? // Without x the page keeps its horizontal position.
+              { x: to.x ?? null, y: to.y, relative: false }
+            : targets[to.kind];
+      await page.locator('html').evaluate(glide, target);
       return {};
     }
 

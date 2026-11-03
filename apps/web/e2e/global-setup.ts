@@ -14,6 +14,24 @@ import {
 import { runMigrations } from '@click-bot/db/migrate';
 import { CREDENTIALS, E2E_ADMIN, E2E_SECRETS_KEY, STORAGE_STATE } from './auth-setup';
 
+// The demo runs have no screenshots. The last run of "Login & Bestellstatus" gets the fixtures
+// in e2e/fixtures/artifacts for its first two steps and the failed last one, for the gallery.
+const SCREENSHOTS = `
+  WITH last_run AS (
+    SELECT r.id FROM runs r JOIN jobs j ON j.id = r.job_id
+    WHERE j.name = 'Login & Bestellstatus' ORDER BY r.run_nr DESC LIMIT 1
+  ), steps AS (
+    SELECT s.run_id, s.step_index,
+      row_number() OVER (ORDER BY s.step_index) AS n, count(*) OVER () AS total
+    FROM run_steps s JOIN last_run ON s.run_id = last_run.id
+  )
+  UPDATE run_steps rs SET screenshot_path = CASE steps.n
+    WHEN 1 THEN 'runs/e2e/0-open.png' WHEN 2 THEN 'runs/e2e/1-desktop.png'
+    ELSE 'runs/e2e/2-phone.png' END
+  FROM steps
+  WHERE rs.run_id = steps.run_id AND rs.step_index = steps.step_index
+    AND (steps.n <= 2 OR steps.n = steps.total)`;
+
 /**
  * Fresh test database with the demo data before every e2e run, plus an admin with 2FA whose
  * session the specs use, so they start signed in.
@@ -28,6 +46,7 @@ export default async function globalSetup(): Promise<void> {
     await connection.pool.query('CREATE SCHEMA public');
     await runMigrations(connection.db);
     await seedDemoData(connection.db, new Date());
+    await connection.pool.query(SCREENSHOTS);
   } catch (error) {
     await connection.close();
     throw new Error(`Test-Datenbank ${url} nicht bereit. Start mit: pnpm db:up`, { cause: error });

@@ -131,6 +131,30 @@ function parseWait(until: unknown): ClientMessage | null {
   return null;
 }
 
+// A wheel turn goes on in portions of about this size, at most this many: one per frame.
+const WHEEL_PORTION_PX = 40;
+const MAX_WHEEL_PORTIONS = 8;
+
+/**
+ * Headless browsers jump a wheel turn at once, without the animation of a desktop browser. In
+ * portions, slowing down like a real wheel, the picture of the live browser scrolls smoothly; the
+ * page still gets real wheel events, together exactly the turn.
+ */
+async function smoothWheel(page: Page, dx: number, dy: number): Promise<void> {
+  const largest = Math.max(Math.abs(dx), Math.abs(dy));
+  const portions = Math.min(MAX_WHEEL_PORTIONS, Math.max(1, Math.ceil(largest / WHEEL_PORTION_PX)));
+  let doneX = 0;
+  let doneY = 0;
+  for (let portion = 1; portion <= portions; portion++) {
+    const share = 1 - (1 - portion / portions) ** 3;
+    const x = Math.round(dx * share);
+    const y = Math.round(dy * share);
+    await page.mouse.wheel(x - doneX, y - doneY);
+    doneX = x;
+    doneY = y;
+  }
+}
+
 async function open(page: Page, url: string): Promise<string | null> {
   try {
     const response = await openPage(page, url, OPEN_TIMEOUT_MS);
@@ -200,7 +224,7 @@ export async function startLiveSession(
         case 'move':
           return page.mouse.move(message.x, message.y);
         case 'wheel':
-          return page.mouse.wheel(message.dx, message.dy);
+          return smoothWheel(page, message.dx, message.dy);
         case 'key':
           // Playwright calls the space bar " ".
           return page.keyboard.press(message.key.replace(/(^|\+)Space$/, '$1 '));

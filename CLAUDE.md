@@ -113,8 +113,14 @@ Projekte, die Anmeldung, das Profil und die Einstellungen der KI-Anbieter stehen
         nur ohne Läufe, nur in die Zukunft, nur wenn er sich nicht inzwischen geändert hat).
       - „Report-Versand“ aus dem Design fehlt, bis es PDF und E-Mail gibt.
     - Screen 03 „Lauf-Report“ (`/laeufe/<id>`), erreichbar über „Letzter Lauf“ in der
-      Job-Liste: Kennzahlen, Schritte mit Ergebnis, Fehler und Bildschirmfoto. Gehört der Lauf
+      Job-Liste: Kennzahlen, Schritte mit Ergebnis, Fehler und Bildschirmfotos. Gehört der Lauf
       zu einem Start mit mehreren Läufen, führt „Alle n Durchläufe dieses Starts“ zum Start-Report.
+      - Bildschirmfotos als Galerie (`ScreenshotGallery`): das letzte groß, alle als Vorschau
+        darunter; ein Klick zeigt es groß, ein Klick aufs große öffnet die `Lightbox` (Pfeile,
+        Pfeiltasten, Wischen, Escape). „Bildschirmfoto“ an einem Schritt ist ein Anker
+        (`#bildschirmfoto-<n>`, `src/lib/screenshots.ts`), die Galerie öffnet es dann in der
+        Lightbox; ohne JavaScript führen alle Links zum Bild. Für E2E bekommt der letzte Lauf von
+        „Login & Bestellstatus“ die Bilder aus `e2e/fixtures/artifacts` (`e2e/global-setup.ts`).
     - Screen 03b „Welle-Report“, in der Oberfläche „Start“ (`/laeufe/welle/<lauf-id>`, ohne
       Figma-Abgleich): alle Läufe eines Starts nebeneinander, je Gerät und Browser mit Ergebnis,
       fehlgeschlagenem Schritt und Grund; rechts die Fehler je Schritt mit den betroffenen
@@ -424,6 +430,11 @@ time, bots }]`, `stagger`) bilden die Bots eines Termins eine Welle.
     darauf (`waitForPdf`, liest den internen Ladezustand `loadState_` des Viewers, wartet daher
     nur, scheitert nie). Text im PDF finden Schritte nicht, URL und Foto gehen. In Tests lässt
     `guardContext` dafür `chrome:`- und `chrome-extension:`-Adressen durch.
+- **Scrollen** (`glide` in `steps.ts`): Headless-Browser animieren Scrollen nicht. Der Schritt
+  gleitet deshalb selbst, Bild für Bild mit Anfahren und Abbremsen (höchstens 0,8 s), damit das
+  Live-Bild den Weg zeigt. Am Ende steht die Seite exakt dort, nach ihrem `scroll`-Ereignis, auch
+  auf Seiten mit CSS `scroll-behavior: smooth`. Zu einem Element: Ziel per `scrollIntoView`
+  ermitteln und im selben Task zurück, dann gleiten (Fenster des Elements, auch im iframe).
 - **Seiten öffnen** (`openPage`, für „Seite öffnen“ und den Live-Browser):
   fertig, sobald der Inhalt da ist (DOMContentLoaded), danach höchstens 5 s Warten auf `load`.
   Werbung oder Tracker, die nie laden, lassen eine Seite mit Inhalt nicht scheitern.
@@ -569,6 +580,9 @@ time, bots }]`, `stagger`) bilden die Bots eines Termins eine Welle.
     Seite zur Ruhe kommt, ein Schritt „Scrollen“; weiteres Scrollen ändert diesen Schritt. Die
     Position von links kommt nur dazu, wenn die Seite breiter als das Fenster ist. Scrollt
     die Seite von selbst (Anker nach einem Klick), entsteht kein Schritt.
+  - Headless-Browser scrollen ohne Animation, auch mit `behavior: 'smooth'`. Ein Mausrad-Dreh
+    geht deshalb in Portionen von etwa 40 px an die Seite (höchstens 8, abbremsend,
+    `smoothWheel`), damit das Bild weich scrollt; die Seite bekommt echte Wheel-Ereignisse.
   - Neue Tabs öffnen sich im selben Tab, PDFs mit dem Viewer von Chromium. Der aufgenommene
     Klick öffnet im Lauf den neuen Tab, in dem der Bot weitermacht.
 - **Live zuschauen** (`/watch` im Live-Server, `run-watch.ts`, `watch-stream.ts`):
@@ -756,6 +770,8 @@ Regeln:
   Escape und Klick auf den Hintergrund schließen). Der Inhalt entsteht erst beim Öffnen, der
   Fokus geht auf sein erstes Feld. `useDialog()` gibt Inhalten `close`, z. B. für „Abbrechen“.
   jsdom kann `showModal` nicht; `test/setup.ts` ergänzt es, das echte Verhalten prüft Playwright.
+  - Bilder groß über das ganze Fenster nur über `Lightbox` (Molekül, auch natives `<dialog>`,
+    gesteuert über `index`).
 - **Datumsfelder** nur über `DatePicker` (Molekül), nie `type="date"`: Eingabe als „20.11.2026“
   oder im Kalender (Tastatur wie im WAI-ARIA-Muster), weitergegeben als „2026-11-20“, ein
   Tippfehler unverändert, damit die Prüfung ihn meldet. In schlichten Formularen trägt ein
