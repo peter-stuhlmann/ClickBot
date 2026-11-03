@@ -23,12 +23,17 @@ import type { WatchMessage } from './watch-stream';
 const browser = useBrowser();
 const APP = 'http://localhost:3000';
 let server: LiveServer;
+let devicesAsked: string[] = [];
 
 beforeEach(async () => {
   await resetDb();
+  devicesAsked = [];
   server = await startLiveServer(0, {
     db,
-    newContext: () => browser.newContext({ viewport: LIVE_VIEWPORT }),
+    newContext: (device) => {
+      devicesAsked.push(device);
+      return browser.newContext({ viewport: LIVE_VIEWPORT });
+    },
     allowOrigin: (origin) => origin === APP,
     maxSessions: 1,
   });
@@ -42,7 +47,7 @@ afterAll(async () => {
   await testConnection.close();
 });
 
-async function token(path = '/aufnahme.html') {
+async function token(path = '/aufnahme.html', device: 'desktop' | 'android' = 'desktop') {
   const [user] = await db
     .insert(schema.users)
     .values({
@@ -54,7 +59,7 @@ async function token(path = '/aufnahme.html') {
     .returning();
   return createRecordingSession(
     db,
-    { userId: (user as { id: string }).id, startUrl: `${browser.origin()}${path}` },
+    { userId: (user as { id: string }).id, startUrl: `${browser.origin()}${path}`, device },
     new Date(),
   );
 }
@@ -100,6 +105,16 @@ describe('originPolicy', () => {
 const SESSION_START = { timeout: 10_000 };
 
 describe('startLiveServer', () => {
+  it('opens the live browser as the device the session was started for', async () => {
+    const session = await token('/aufnahme.html', 'android');
+    const { ws, messages, opened } = connect(`token=${session.token}`);
+    await opened;
+    await expect.poll(() => messages.some((m) => m.type === 'ready'), SESSION_START).toBe(true);
+    expect(devicesAsked).toEqual(['android']);
+    ws.close();
+    await closed(ws);
+  });
+
   it('streams the live browser for a valid token and records what the user does', async () => {
     const session = await token();
     const { ws, messages, opened } = connect(`token=${session.token}`);

@@ -283,8 +283,12 @@ export type WatchRunAction = (
   runId: string,
 ) => Promise<{ ok: true; url: string } | { ok: false; message: string }>;
 
+/** What the live browser is: a desktop, or a phone (Android in Chromium, with touch). */
+export type RecordingDevice = 'desktop' | 'android';
+
 export type StartRecordingAction = (
   startUrl: string,
+  device: RecordingDevice,
 ) => Promise<{ ok: true; url: string } | { ok: false; message: string }>;
 
 /** Screen 13: one wave of a day in the calendar, or all starts of a job that starts often. */

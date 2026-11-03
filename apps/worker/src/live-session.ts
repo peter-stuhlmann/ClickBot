@@ -10,6 +10,8 @@ import { startRecorder, type RecordedStep, type RecorderMode } from './recorder'
 export const LIVE_VIEWPORT = { width: 1280, height: 800 } as const;
 
 const MAX_TEXT = 2_000;
+/** Clicks beyond this are no clicks into a live browser, whichever size it has. */
+const MAX_COORDINATE = 4_096;
 const MAX_WHEEL = 5_000;
 const MAX_WAIT_MS = 60_000;
 const MAX_WAIT_TEXT = 200;
@@ -41,7 +43,7 @@ export type ClientMessage =
     };
 
 export type ServerMessage =
-  | { type: 'ready'; viewport: typeof LIVE_VIEWPORT; url: string }
+  | { type: 'ready'; viewport: { width: number; height: number }; url: string }
   | { type: 'frame'; data: string }
   | { type: 'url'; url: string }
   | { type: 'step'; step: LiveStep }
@@ -78,7 +80,8 @@ export function parseClientMessage(raw: string): ClientMessage | null {
   }
   if (typeof message !== 'object' || message === null) return null;
   const { type } = message;
-  const { width, height } = LIVE_VIEWPORT;
+  const width = MAX_COORDINATE;
+  const height = MAX_COORDINATE;
   switch (type) {
     case 'click':
     case 'move':
@@ -175,6 +178,7 @@ export async function startLiveSession(
   context: BrowserContext,
   startUrl: string,
   send: (message: ServerMessage) => void,
+  { touch = false }: { touch?: boolean } = {},
 ): Promise<LiveSession> {
   await markBotTraffic(context, NO_RUN, ALL_MARKINGS_ON);
   // Recorded before the job exists: no ads, like a run by default.
@@ -205,11 +209,18 @@ export async function startLiveSession(
     cdp.send('Page.screencastFrameAck', { sessionId }).catch(() => undefined);
   });
 
-  send({ type: 'ready', viewport: LIVE_VIEWPORT, url: startUrl });
+  // The size of the context: a desktop across, a phone upright.
+  send({ type: 'ready', viewport: page.viewportSize() ?? LIVE_VIEWPORT, url: startUrl });
   send({ type: 'step', step: { type: 'open', url: startUrl } });
   const problem = await open(page, startUrl);
   if (problem) send({ type: 'error', message: problem });
-  await cdp.send('Page.startScreencast', { format: 'jpeg', quality: SCREENCAST_QUALITY });
+  // A phone has two to three device pixels per point: 1280 at most keeps the frames light.
+  await cdp.send('Page.startScreencast', {
+    format: 'jpeg',
+    quality: SCREENCAST_QUALITY,
+    maxWidth: 1280,
+    maxHeight: 1280,
+  });
 
   /** Back and forward are no steps; the flow opens the address it lands on instead. */
   const recordWhereWeAre = async () => {
@@ -220,7 +231,10 @@ export async function startLiveSession(
     async handle(message) {
       switch (message.type) {
         case 'click':
-          return page.mouse.click(message.x, message.y);
+          // On a phone a finger taps: touch events, then the click, as the page expects there.
+          return touch
+            ? page.touchscreen.tap(message.x, message.y)
+            : page.mouse.click(message.x, message.y);
         case 'move':
           return page.mouse.move(message.x, message.y);
         case 'wheel':

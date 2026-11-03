@@ -68,12 +68,15 @@ const worker = createWorker({
 // as it goes), for the web app only.
 const liveServer = await startLiveServer(Number(process.env.LIVE_PORT ?? 4200), {
   db: connection.db,
-  newContext: async () =>
-    (await browsers.chromium.get()).newContext({
-      viewport: LIVE_VIEWPORT,
-      locale: 'de-DE',
-      timezoneId: 'Europe/Berlin',
-    }),
+  // A phone as in the runs on Android: its size, touch and user agent, so mobile menus appear.
+  newContext: async (device) => {
+    const browser = await browsers.chromium.get();
+    return browser.newContext(
+      device === 'desktop'
+        ? { viewport: LIVE_VIEWPORT, locale: 'de-DE', timezoneId: 'Europe/Berlin' }
+        : contextOptionsFor(device, 'chromium', browser.version()),
+    );
+  },
   allowOrigin: originPolicy(process.env.APP_URL, process.env.NODE_ENV === 'production'),
   maxSessions: Number(process.env.LIVE_MAX_SESSIONS ?? 2),
   cipher,

@@ -2,12 +2,17 @@ import { and, eq, gt, isNull } from 'drizzle-orm';
 import { hashToken, newToken } from './auth';
 import type { Database } from './client';
 import { ValidationError } from './errors';
-import { recordingSessions } from './schema';
+import { RECORDING_DEVICES, recordingSessions, type RecordingDevice } from './schema';
 
 /** Time to open the live browser after the web app handed out the token. */
 const CONNECT_WITHIN_MS = 2 * 60_000;
 
-export type ClaimedRecording = { id: string; userId: string; startUrl: string };
+export type ClaimedRecording = {
+  id: string;
+  userId: string;
+  startUrl: string;
+  device: RecordingDevice;
+};
 
 function isWebAddress(url: string): boolean {
   try {
@@ -23,14 +28,19 @@ function isWebAddress(url: string): boolean {
  */
 export async function createRecordingSession(
   db: Database,
-  input: { userId: string; startUrl: string },
+  input: { userId: string; startUrl: string; device?: RecordingDevice },
   now: Date,
 ): Promise<{ id: string; token: string }> {
-  if (!isWebAddress(input.startUrl)) {
-    throw new ValidationError([
-      { path: 'startUrl', message: 'Die Adresse muss mit http:// oder https:// beginnen.' },
-    ]);
-  }
+  const device = input.device ?? 'desktop';
+  const issues = [
+    ...(isWebAddress(input.startUrl)
+      ? []
+      : [{ path: 'startUrl', message: 'Die Adresse muss mit http:// oder https:// beginnen.' }]),
+    ...(RECORDING_DEVICES.includes(device)
+      ? []
+      : [{ path: 'device', message: 'Bitte Desktop oder Smartphone wählen.' }]),
+  ];
+  if (issues.length > 0) throw new ValidationError(issues);
   const token = newToken();
   return db.transaction(async (tx) => {
     await tx
@@ -42,6 +52,7 @@ export async function createRecordingSession(
       .values({
         userId: input.userId,
         startUrl: input.startUrl,
+        device,
         tokenHash: hashToken(token),
         createdAt: now,
         expiresAt: new Date(now.getTime() + CONNECT_WITHIN_MS),
@@ -72,6 +83,7 @@ export async function claimRecordingSession(
       id: recordingSessions.id,
       userId: recordingSessions.userId,
       startUrl: recordingSessions.startUrl,
+      device: recordingSessions.device,
     });
   return row ?? null;
 }

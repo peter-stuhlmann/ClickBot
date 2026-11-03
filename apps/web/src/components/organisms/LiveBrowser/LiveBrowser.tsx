@@ -3,12 +3,13 @@ import { Button } from '@/components/atoms/Button';
 import { Card } from '@/components/atoms/Card';
 import { Icon } from '@/components/atoms/Icon';
 import { Input } from '@/components/atoms/Input';
+import { ChoiceCard } from '@/components/molecules/ChoiceCard';
 import { Notice } from '@/components/molecules/Notice';
 import { StepItem } from '@/components/molecules/StepItem';
 import { WaitMenu } from '@/components/molecules/WaitMenu';
 import { cn } from '@/lib/cn';
 import { keyInput, toViewport, type LiveViewport } from '@/lib/live-recording';
-import type { LiveInput, LiveMode, StepItemView } from '@/lib/views';
+import type { LiveInput, LiveMode, RecordingDevice, StepItemView } from '@/lib/views';
 
 export type LiveBrowserProps = {
   /** idle: not started; connecting: waiting for the worker; live: streaming; ended: closed. */
@@ -22,6 +23,9 @@ export type LiveBrowserProps = {
   /** The worker is not connected: recording cannot start, and the card says so. */
   offline?: boolean;
   steps: StepItemView[];
+  /** Desktop, or a phone with touch: chosen before the start. */
+  device: RecordingDevice;
+  onDeviceChange: (device: RecordingDevice) => void;
   onStart: () => void;
   onInput: (input: LiveInput) => void;
   onRemoveStep: (index: number) => void;
@@ -51,6 +55,8 @@ export function LiveBrowser({
   error,
   offline = false,
   steps,
+  device,
+  onDeviceChange,
   onStart,
   onInput,
   onRemoveStep,
@@ -80,6 +86,22 @@ export function LiveBrowser({
           </Notice>
         )}
         {error && <p className="text-small text-danger">{error}</p>}
+        <div className="flex flex-col gap-3 sm:flex-row">
+          <ChoiceCard
+            icon="desktop"
+            title="Desktop"
+            description="1280 × 800, mit Maus."
+            selected={device === 'desktop'}
+            onClick={() => onDeviceChange('desktop')}
+          />
+          <ChoiceCard
+            icon="phone"
+            title="Smartphone"
+            description="Android, hochkant, mit Touch: z. B. für ein Burger-Menü, das es nur mobil gibt."
+            selected={device === 'android'}
+            onClick={() => onDeviceChange('android')}
+          />
+        </div>
         <div className="flex flex-wrap gap-3">
           <Button icon={<Icon name="record" size={16} />} disabled={offline} onClick={onStart}>
             Aufnahme starten
@@ -172,8 +194,12 @@ export function LiveBrowser({
           role="application"
           aria-label="Live-Browser"
           tabIndex={0}
+          // The proportions of the live browser, so a click lands where it is shown.
+          style={{ aspectRatio: `${viewport.width} / ${viewport.height}` }}
           className={cn(
-            'relative aspect-8/5 w-full cursor-pointer overflow-hidden overscroll-contain rounded-input border bg-subtle',
+            'relative w-full cursor-pointer overflow-hidden overscroll-contain rounded-input border bg-subtle',
+            // A phone upright: narrow and centred, not as wide as the card.
+            viewport.height > viewport.width && 'mx-auto max-w-sm',
             'focus-visible:outline-2 focus-visible:outline-primary',
             mode === 'record' ? 'border-border' : 'border-primary',
           )}
@@ -220,7 +246,7 @@ export function LiveBrowser({
           <span>
             {status === 'ended'
               ? 'Verbindung beendet'
-              : `Live · Chromium auf dem Server · ${viewport.width} × ${viewport.height}`}
+              : `Live · Chromium auf dem Server · ${device === 'android' ? 'Smartphone' : 'Desktop'} · ${viewport.width} × ${viewport.height}`}
           </span>
           {status === 'ended' ? (
             <Button variant="secondary" size="sm" onClick={onStart}>

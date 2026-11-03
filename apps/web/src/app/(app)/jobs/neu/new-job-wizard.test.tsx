@@ -159,7 +159,7 @@ describe('NewJobWizard', () => {
     fillStartUrl();
 
     await user.click(screen.getByRole('button', { name: 'Aufnahme starten' }));
-    expect(startRecording).toHaveBeenCalledWith('127.0.0.1:4100/kontakt.html');
+    expect(startRecording).toHaveBeenCalledWith('127.0.0.1:4100/kontakt.html', 'desktop');
     const socket = FakeLiveSocket.last as FakeLiveSocket;
     expect(socket.url).toBe('ws://localhost:4200/live?token=t');
 
@@ -183,6 +183,36 @@ describe('NewJobWizard', () => {
     // Recorded steps are corrected, not built: no adding, but recording again.
     expect(screen.queryByRole('button', { name: 'Schritt hinzufügen' })).not.toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Neu aufnehmen' })).toBeVisible();
+    vi.unstubAllGlobals();
+  });
+
+  it('records as a phone, and then suggests Android for the runs', async () => {
+    vi.stubGlobal('WebSocket', FakeLiveSocket);
+    const user = userEvent.setup();
+    const startRecording = vi.fn<StartRecordingAction>(async () => ({
+      ok: true,
+      url: 'ws://localhost:4200/live?token=t',
+    }));
+    renderWizard(undefined, { startRecording });
+    fillStartUrl();
+
+    await user.click(screen.getByRole('button', { name: /^Smartphone/ }));
+    await user.click(screen.getByRole('button', { name: 'Aufnahme starten' }));
+    expect(startRecording).toHaveBeenCalledWith('127.0.0.1:4100/kontakt.html', 'android');
+    const socket = FakeLiveSocket.last as FakeLiveSocket;
+    const url = 'https://127.0.0.1:4100/kontakt.html';
+    socket.receive({ type: 'ready', viewport: { width: 412, height: 915 }, url });
+    socket.receive({ type: 'step', step: { type: 'open', url } });
+    socket.receive({
+      type: 'step',
+      step: { type: 'click', target: { by: 'role', role: 'button', name: 'Menü' } },
+    });
+    await user.click(
+      screen.getByRole('button', { name: 'Aufnahme beenden · 2 Schritte übernehmen' }),
+    );
+
+    // A flow with a phone's burger menu would fail on a desktop.
+    expect(summary().getByText('Android (Pixel 8) (Chrome)')).toBeVisible();
     vi.unstubAllGlobals();
   });
 

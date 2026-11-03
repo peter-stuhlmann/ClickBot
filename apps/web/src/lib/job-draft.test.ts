@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  devicesAfterRecording,
   browserErrors,
   addSlot,
   describeRunTotal,
@@ -812,6 +813,26 @@ describe('ads in the wizard', () => {
       summarise(draft({ blockAds }), [], now).find((row) => row.label === 'Erweitert')?.value;
     expect(value(true)).toBeUndefined();
     expect(value(false)).toBe('Werbung erlaubt');
+  });
+});
+
+describe('devicesAfterRecording', () => {
+  it('runs a flow recorded on a phone on Android, while the devices are still the default', () => {
+    expect(devicesAfterRecording(draft(), 'android')).toEqual({
+      devices: ['android'],
+      deviceBrowsers: { desktop: ['chromium'], android: ['chromium'] },
+    });
+  });
+
+  it('keeps devices chosen by hand, and changes nothing after recording on a desktop', () => {
+    expect(devicesAfterRecording(draft({ devices: ['desktop', 'iphone'] }), 'android')).toBeNull();
+    expect(devicesAfterRecording(draft({ devices: ['iphone'] }), 'android')).toBeNull();
+    expect(devicesAfterRecording(draft(), 'desktop')).toBeNull();
+  });
+
+  it('keeps the browsers Android had before', () => {
+    const before = draft({ deviceBrowsers: { desktop: ['chromium'], android: ['firefox'] } });
+    expect(devicesAfterRecording(before, 'android')?.deviceBrowsers.android).toEqual(['firefox']);
   });
 });
 

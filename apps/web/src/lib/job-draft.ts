@@ -878,6 +878,26 @@ export function appendStep(steps: StepDraft[], startUrl: string): StepListState 
   return { steps: [...steps, step], selected: steps.length };
 }
 
+/**
+ * After recording on a phone: the runs go on Android, while the devices are still the default
+ * (only the desktop). A flow with a phone's burger menu would fail on a desktop. Devices chosen
+ * by hand stay; null when nothing changes.
+ */
+export function devicesAfterRecording(
+  draft: Pick<WizardDraft, 'devices' | 'deviceBrowsers'>,
+  device: 'desktop' | 'android',
+): Pick<WizardDraft, 'devices' | 'deviceBrowsers'> | null {
+  if (device !== 'android') return null;
+  if (draft.devices.length !== 1 || draft.devices[0] !== 'desktop') return null;
+  return {
+    devices: ['android'],
+    deviceBrowsers: {
+      ...draft.deviceBrowsers,
+      android: draft.deviceBrowsers.android ?? ['chromium'],
+    },
+  };
+}
+
 /** Step types that can be put between two steps of a finished flow: "Warten", "Bildschirmfoto". */
 export type InsertableStepType = Extract<EditableStepType, 'wait' | 'screenshot'>;
 

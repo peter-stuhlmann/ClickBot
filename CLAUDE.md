@@ -556,7 +556,14 @@ time, bots }]`, `stagger`) bilden die Bots eines Termins eine Welle.
     `LIVE_URL/live?token=…` (Worker-Port `LIVE_PORT`, Standard 4200).
   - Der Worker prüft Herkunft (`originPolicy`: `APP_URL`, außerhalb von Produktion jeder
     localhost-Port) und Token, höchstens `LIVE_MAX_SESSIONS` (2) gleichzeitig, je 15 Min.
-  - Ein Kontext im gemeinsamen Chromium, 1280 × 800, GA4 markiert wie bei Läufen (Laufnummer 0).
+  - Vor dem Start wählt man das Gerät (`recording_sessions.device`): „Desktop“ (1280 × 800, Maus)
+    oder „Smartphone“ (Android wie in den Läufen, `contextOptionsFor`: hochkant, Touch, mobiler
+    User-Agent, z. B. für ein Burger-Menü). Ein Klick ins Bild ist dort ein Tippen
+    (`touchscreen.tap`). iPhone geht nicht, es braucht WebKit, der Live-Browser ist Chromium. Wurde
+    auf dem Smartphone aufgenommen und stehen die Geräte noch auf „nur Desktop“, wählt der
+    Assistent Android (`devicesAfterRecording`).
+  - Ein Kontext im gemeinsamen Chromium, GA4 markiert wie bei Läufen (Laufnummer 0). `ready`
+    meldet seine Größe; das Bild in der Web-App hat dieselben Proportionen (hochkant schmal).
     Bild als JPEG über CDP-Screencast. Eingehende Nachrichten prüft `parseClientMessage` streng:
     nur Klick, Mausbewegung, Scrollen, Tasten und Kombinationen (`KEY_PATTERN`), Text,
     Webadresse, Zurück/Vor/Neu laden, Bildschirmfoto, Prüfung. Eingaben laufen der Reihe nach, auch wenn sie vor dem Seitenaufbau kommen.

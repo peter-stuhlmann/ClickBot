@@ -50,7 +50,13 @@ import type { CustomerFormState } from '@/components/organisms/CustomerForm';
 import { startOfWeek } from '@/lib/calendar';
 import { field, toFormState } from '@/lib/form-state';
 import { toTemplateInput, validateTemplate, type TemplateDraft } from '@/lib/template-draft';
-import type { FormState, StartRecordingAction, TestRunView, WatchRunAction } from '@/lib/views';
+import type {
+  FormState,
+  RecordingDevice,
+  StartRecordingAction,
+  TestRunView,
+  WatchRunAction,
+} from '@/lib/views';
 import { restoreWizardState, storableState, type WizardState } from '@/lib/wizard-state';
 import { requireUser } from '@/server/auth';
 import { artifactsDir, removeRunArtifacts } from '@/server/artifacts';
@@ -382,8 +388,13 @@ export async function selectProjectAction(projectId: string): Promise<void> {
  * "Im Browser aufnehmen": a one-time token for the live browser on the worker, valid for two
  * minutes. The browser connects to LIVE_URL with it; nothing else opens the live browser.
  */
-export async function startRecordingAction(startUrl: string): ReturnType<StartRecordingAction> {
+export async function startRecordingAction(
+  startUrl: string,
+  device: RecordingDevice,
+): ReturnType<StartRecordingAction> {
   const user = await requireUser();
+  // Untrusted like everything a client sends: anything but a phone is the desktop.
+  const chosen: RecordingDevice = device === 'android' ? 'android' : 'desktop';
   const url = normaliseUrl(String(startUrl ?? ''));
   if (!/^https?:\/\/\S+$/.test(url)) {
     return { ok: false, message: 'Bitte zuerst in Schritt 1 die Website angeben.' };
@@ -396,7 +407,11 @@ export async function startRecordingAction(startUrl: string): ReturnType<StartRe
       message: 'Das Testsystem ist nicht verbunden. Ohne es gibt es keinen Live-Browser.',
     };
   }
-  const { token } = await createRecordingSession(db, { userId: user.id, startUrl: url }, now);
+  const { token } = await createRecordingSession(
+    db,
+    { userId: user.id, startUrl: url, device: chosen },
+    now,
+  );
   const base = (process.env.LIVE_URL ?? 'ws://localhost:4200').replace(/\/+$/, '');
   return { ok: true, url: `${base}/live?token=${encodeURIComponent(token)}` };
 }

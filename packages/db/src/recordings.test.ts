@@ -28,9 +28,32 @@ describe('recording sessions', () => {
       id,
       userId,
       startUrl: 'https://beispiel.de/kontakt',
+      // Without a choice: the desktop browser.
+      device: 'desktop',
     });
     // A token works once: a copied link cannot open a second browser.
     expect(await claimRecordingSession(db, token, later(6))).toBeNull();
+  });
+
+  it('opens the live browser as a phone when asked, to record a page as on a phone', async () => {
+    const userId = await user();
+    const { token } = await createRecordingSession(
+      db,
+      { userId, startUrl: 'https://beispiel.de', device: 'android' },
+      now,
+    );
+    expect((await claimRecordingSession(db, token, later(1)))?.device).toBe('android');
+  });
+
+  it('records only on a desktop or a phone that runs in Chromium', async () => {
+    const userId = await user();
+    const error = await createRecordingSession(
+      db,
+      { userId, startUrl: 'https://beispiel.de', device: 'iphone' as 'android' },
+      now,
+    ).catch((e: unknown) => e);
+    expect(error).toBeInstanceOf(ValidationError);
+    expect((error as ValidationError).issues.map((issue) => issue.path)).toEqual(['device']);
   });
 
   it('refuses an unknown or expired token', async () => {

@@ -16,6 +16,8 @@ function props(overrides: Partial<LiveBrowserProps> = {}): LiveBrowserProps {
     viewport: { width: 1280, height: 800 },
     mode: 'record',
     steps,
+    device: 'desktop',
+    onDeviceChange: vi.fn(),
     onStart: vi.fn(),
     onInput: vi.fn(),
     onRemoveStep: vi.fn(),
@@ -33,6 +35,28 @@ describe('LiveBrowser', () => {
     expect(screen.getByText(/Passwörter werden nie aufgezeichnet/)).toBeVisible();
     await user.click(screen.getByRole('button', { name: 'Aufnahme starten' }));
     expect(onStart).toHaveBeenCalledOnce();
+  });
+
+  it('asks first whether to record on a desktop or a phone', async () => {
+    const user = userEvent.setup();
+    const onDeviceChange = vi.fn();
+    render(<LiveBrowser {...props({ status: 'idle', steps: [], onDeviceChange })} />);
+    expect(screen.getByRole('button', { name: /^Desktop/ })).toHaveAttribute(
+      'aria-pressed',
+      'true',
+    );
+    await user.click(screen.getByRole('button', { name: /^Smartphone/ }));
+    expect(onDeviceChange).toHaveBeenCalledWith('android');
+  });
+
+  it('shows a phone upright and narrow, in the proportions of its screen', () => {
+    render(
+      <LiveBrowser {...props({ viewport: { width: 412, height: 915 }, device: 'android' })} />,
+    );
+    const stream = screen.getByRole('application', { name: 'Live-Browser' });
+    expect(stream).toHaveStyle({ aspectRatio: '412 / 915' });
+    expect(stream).toHaveClass('max-w-sm');
+    expect(screen.getByText(/Smartphone · 412 × 915/)).toBeVisible();
   });
 
   it('passes a click on the stream to the live browser, in its coordinates', () => {

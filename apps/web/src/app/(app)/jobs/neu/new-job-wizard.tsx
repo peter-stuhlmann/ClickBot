@@ -37,6 +37,7 @@ import {
   browserErrors,
   errorsByPath,
   moveStep,
+  devicesAfterRecording,
   insertStep,
   removeStep,
   scheduleErrors,
@@ -56,6 +57,7 @@ import { stepsFromTemplate } from '@/lib/template-draft';
 import { describeWatch } from '@/lib/run-watch';
 import type {
   FormState,
+  RecordingDevice,
   StartRecordingAction,
   TemplateView,
   TestRunView,
@@ -147,6 +149,7 @@ export function NewJobWizard({
   const [goal, setGoal] = useState(restored?.goal ?? '');
   const [fixedSteps, setFixedSteps] = useState<StepDraft[]>(restored?.fixedSteps ?? []);
   const recording = useLiveRecording(startRecording);
+  const [recordDevice, setRecordDevice] = useState<RecordingDevice>('desktop');
   const [testRun, setTestRun] = useState<TestRunView | null>(initial?.testRun ?? null);
   const [testing, startTesting] = useTransition();
   const [testError, setTestError] = useState<string>();
@@ -375,12 +378,18 @@ export function NewJobWizard({
                 error={recording.error}
                 offline={!workerOnline}
                 steps={recording.steps.map(describeStep)}
-                onStart={() => recording.start(draft.startUrl, recording.status === 'ended')}
+                device={recordDevice}
+                onDeviceChange={setRecordDevice}
+                onStart={() =>
+                  recording.start(draft.startUrl, recording.status === 'ended', recordDevice)
+                }
                 onInput={recording.send}
                 onRemoveStep={recording.removeStep}
                 onFinish={() => {
                   recording.stop();
                   takeOver(recording.steps);
+                  const devices = devicesAfterRecording(draft, recording.device);
+                  if (devices) update(devices);
                 }}
                 onCancel={leaveFixedView}
                 alternative={

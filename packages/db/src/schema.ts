@@ -35,6 +35,10 @@ const bytea = customType<{ data: Buffer; driverData: Buffer }>({ dataType: () =>
 
 const createdAt = () => timestamp('created_at', { withTimezone: true }).notNull().defaultNow();
 
+/** The live browser runs in Chromium: a desktop, or a phone as Android (iPhones need WebKit). */
+export const RECORDING_DEVICES = ['desktop', 'android'] as const;
+export type RecordingDevice = (typeof RECORDING_DEVICES)[number];
+
 /** A span of a run's video: a step (index from 0) or, with step null, a time it was hidden. */
 export type VideoCue = { step: number | null; from: number; to: number };
 
@@ -395,6 +399,8 @@ export const recordingSessions = pgTable(
       .notNull()
       .references(() => users.id, { onDelete: 'cascade' }),
     startUrl: text('start_url').notNull(),
+    /** What the live browser is: a desktop, or a phone (Android in Chromium, with touch). */
+    device: text('device').$type<RecordingDevice>().notNull().default('desktop'),
     tokenHash: text('token_hash').notNull(),
     createdAt: createdAt(),
     /** The token must be used before this. */
@@ -404,6 +410,7 @@ export const recordingSessions = pgTable(
   },
   (t) => [
     uniqueIndex('recording_sessions_token_unique').on(t.tokenHash),
+    check('recording_sessions_device_valid', sql`${t.device} in ('desktop', 'android')`),
     index('recording_sessions_user_idx').on(t.userId),
   ],
 );

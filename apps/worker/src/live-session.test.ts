@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { useBrowser } from '../test/browser';
+import { contextOptionsFor } from './devices';
 import {
   LIVE_VIEWPORT,
   parseClientMessage,
@@ -106,6 +107,40 @@ describe('startLiveSession', () => {
       { type: 'fill', target: { by: 'label', label: 'Benutzername' }, value: 'lena' },
       { type: 'click', target: { by: 'role', role: 'button', name: 'Anmelden' } },
     ]);
+    await session.close();
+  });
+
+  it('works as a phone: upright, and a click is a tap that still becomes a click step', async () => {
+    const context = await browser.newContext(
+      contextOptionsFor('android', 'chromium', browser.version()),
+    );
+    const messages: ServerMessage[] = [];
+    const session = await startLiveSession(
+      context,
+      `${browser.origin()}/aufnahme.html`,
+      (message) => messages.push(message),
+      { touch: true },
+    );
+    const [page] = context.pages();
+    if (!page) throw new Error('The session opened no page.');
+    const ready = messages[0];
+    expect(ready?.type === 'ready' && ready.viewport.height > ready.viewport.width).toBe(true);
+
+    await page.evaluate(() => {
+      const touched: string[] = [];
+      (window as unknown as { touched: string[] }).touched = touched;
+      addEventListener('touchstart', () => touched.push('touch'), { capture: true });
+    });
+    const box = await page.locator('button[type=submit]').boundingBox();
+    if (!box) throw new Error('No button.');
+    await session.handle({ type: 'click', x: box.x + box.width / 2, y: box.y + box.height / 2 });
+
+    expect(await page.evaluate(() => (window as unknown as { touched: string[] }).touched)).toEqual(
+      ['touch'],
+    );
+    await expect
+      .poll(() => messages.flatMap((m) => (m.type === 'step' ? [m.step] : [])).at(-1))
+      .toEqual({ type: 'click', target: { by: 'role', role: 'button', name: 'Anmelden' } });
     await session.close();
   });
 

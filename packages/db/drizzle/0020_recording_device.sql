@@ -1,0 +1,2 @@
+ALTER TABLE "recording_sessions" ADD COLUMN "device" text DEFAULT 'desktop' NOT NULL;--> statement-breakpoint
+ALTER TABLE "recording_sessions" ADD CONSTRAINT "recording_sessions_device_valid" CHECK ("recording_sessions"."device" in ('desktop', 'android'));

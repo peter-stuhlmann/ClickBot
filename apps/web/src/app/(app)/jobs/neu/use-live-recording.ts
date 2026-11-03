@@ -7,7 +7,7 @@ import {
   type LiveViewport,
   type RecordedDraft,
 } from '@/lib/live-recording';
-import type { LiveInput, LiveMode, StartRecordingAction } from '@/lib/views';
+import type { LiveInput, LiveMode, RecordingDevice, StartRecordingAction } from '@/lib/views';
 
 export type LiveStatus = 'idle' | 'connecting' | 'live' | 'ended';
 
@@ -25,6 +25,8 @@ export function useLiveRecording(startAction: StartRecordingAction) {
   const [mode, setMode] = useState<LiveMode>('record');
   const [error, setError] = useState<string>();
   const [steps, setSteps] = useState<RecordedDraft[]>([]);
+  // The device of the last start, for "Neu verbinden" and what the steps were recorded on.
+  const [device, setDevice] = useState<RecordingDevice>('desktop');
   const socket = useRef<WebSocket | null>(null);
 
   const close = useCallback(() => {
@@ -36,14 +38,15 @@ export function useLiveRecording(startAction: StartRecordingAction) {
   // Leaving the page ends the live browser on the server as well.
   useEffect(() => close, [close]);
 
-  async function start(startUrl: string, keepSteps = false) {
+  async function start(startUrl: string, keepSteps = false, on: RecordingDevice = device) {
     close();
+    setDevice(on);
     setError(undefined);
     setFrame(null);
     setMode('record');
     if (!keepSteps) setSteps([]);
     setStatus('connecting');
-    const result = await startAction(startUrl);
+    const result = await startAction(startUrl, on);
     if (!result.ok) {
       setError(result.message);
       setStatus(keepSteps ? 'ended' : 'idle');
@@ -104,6 +107,7 @@ export function useLiveRecording(startAction: StartRecordingAction) {
     frame,
     url,
     viewport,
+    device,
     mode,
     error,
     steps,

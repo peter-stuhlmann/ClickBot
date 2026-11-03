@@ -1,5 +1,6 @@
 import {
   claimRecordingSession,
+  type RecordingDevice,
   endRecordingSession,
   getRunStatus,
   readWatchToken,
@@ -30,8 +31,8 @@ const MAX_BUFFERED_BYTES = 2 * 1024 * 1024;
 
 export type LiveServerOptions = {
   db: Database;
-  /** A fresh context for one recording (viewport LIVE_VIEWPORT). */
-  newContext: () => Promise<BrowserContext>;
+  /** A fresh context for one recording: a desktop (LIVE_VIEWPORT) or a phone with touch. */
+  newContext: (device: RecordingDevice) => Promise<BrowserContext>;
   /** Whether a browser on this origin may connect: the web app's (see originPolicy). */
   allowOrigin: (origin: string) => boolean;
   /** Live browsers at the same time; each one is a browser context on the server. */
@@ -123,7 +124,7 @@ export async function startLiveServer(
       if (!claimed) return refuse(socket, 401, 'Unauthorized');
       wss.handleUpgrade(request, socket, head, (ws) => {
         starting -= 1;
-        void serve(ws, claimed.id, claimed.startUrl);
+        void serve(ws, claimed.id, claimed.startUrl, claimed.device);
       });
     } catch (error) {
       starting -= 1;
@@ -132,7 +133,7 @@ export async function startLiveServer(
     }
   });
 
-  async function serve(ws: WebSocket, id: string, startUrl: string) {
+  async function serve(ws: WebSocket, id: string, startUrl: string, device: RecordingDevice) {
     sockets.add(ws);
     const send = (message: ServerMessage) => {
       if (ws.readyState !== ws.OPEN) return;
@@ -160,7 +161,9 @@ export async function startLiveServer(
     });
 
     try {
-      session = await startLiveSession(await options.newContext(), startUrl, send);
+      session = await startLiveSession(await options.newContext(device), startUrl, send, {
+        touch: device !== 'desktop',
+      });
     } catch (error) {
       send({ type: 'error', message: `Live-Browser startet nicht: ${toStepMessage(error)}` });
       ws.close(1011);
