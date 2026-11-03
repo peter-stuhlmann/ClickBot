@@ -157,6 +157,9 @@ importers:
       drizzle-orm:
         specifier: 0.45.4
         version: 0.45.4(@types/pg@8.23.1)(pg@8.23.1)
+      esbuild:
+        specifier: 0.28.2
+        version: 0.28.2
       pngjs:
         specifier: ^7.0.0
         version: 7.0.0

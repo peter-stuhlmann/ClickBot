@@ -62,35 +62,41 @@ type Glide = { x: number | null; y: number | null; relative: boolean };
  * so the next step finds the page in place. Self-contained: Playwright sends only its source.
  */
 async function glide(element: Element, to: Glide): Promise<void> {
+  // No named functions in here: tsx wraps them in __name(), which the page does not have.
   const view = element.ownerDocument.defaultView ?? window;
   const root = view.document.scrollingElement ?? view.document.documentElement;
   const from = { x: view.scrollX, y: view.scrollY };
-  const aim = (axis: number | null, start: number, max: number) =>
-    Math.min(Math.max(0, axis === null ? start : to.relative ? start + axis : axis), max);
-  const x = aim(to.x, from.x, root.scrollWidth - root.clientWidth);
-  const y = aim(to.y, from.y, root.scrollHeight - root.clientHeight);
-  // A frame, or 50 ms where the browser paints none (a window in the background).
-  const frame = () =>
-    new Promise<number>((resolve) => {
-      view.requestAnimationFrame(resolve);
-      setTimeout(() => resolve(view.performance.now()), 50);
-    });
-  const distance = Math.hypot(x - from.x, y - from.y);
+  const max = { x: root.scrollWidth - root.clientWidth, y: root.scrollHeight - root.clientHeight };
+  const target = { ...from };
+  for (const axis of ['x', 'y'] as const) {
+    const value = to[axis];
+    const wanted = value === null ? from[axis] : to.relative ? from[axis] + value : value;
+    target[axis] = Math.min(Math.max(0, wanted), max[axis]);
+  }
+  const distance = Math.hypot(target.x - from.x, target.y - from.y);
   if (distance >= 1) {
     const duration = Math.min(800, 200 + distance / 3);
     const start = view.performance.now();
     for (let t = 0; t < 1;) {
-      t = Math.min(1, ((await frame()) - start) / duration);
+      // A frame, or 50 ms where the browser paints none (a window in the background).
+      const now = await new Promise<number>((resolve) => {
+        view.requestAnimationFrame(resolve);
+        setTimeout(() => resolve(view.performance.now()), 50);
+      });
+      t = Math.min(1, (now - start) / duration);
       const eased = t < 0.5 ? 4 * t ** 3 : 1 - (-2 * t + 2) ** 3 / 2;
       view.scrollTo({
-        left: from.x + (x - from.x) * eased,
-        top: from.y + (y - from.y) * eased,
+        left: from.x + (target.x - from.x) * eased,
+        top: from.y + (target.y - from.y) * eased,
         behavior: 'instant',
       });
     }
   }
-  view.scrollTo({ left: x, top: y, behavior: 'instant' });
-  await frame();
+  view.scrollTo({ left: target.x, top: target.y, behavior: 'instant' });
+  await new Promise((resolve) => {
+    view.requestAnimationFrame(resolve);
+    setTimeout(resolve, 50);
+  });
 }
 
 // A tab a page opens by script (window.open) is reported a few ms after the click; measured up to

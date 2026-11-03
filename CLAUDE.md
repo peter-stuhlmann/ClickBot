@@ -662,6 +662,11 @@ time, bots }]`, `stagger`) bilden die Bots eines Termins eine Welle.
     `db-test`-Container. Sie wird in `test/global-setup.ts` angelegt und laufen deshalb parallel
     zu den Tests von `packages/db`.
   - Browser installieren: `pnpm --filter @click-bot/worker browsers` (Chromium, Firefox, WebKit).
+  - Funktionen, die in eine Seite gehen (`page.evaluate`, `locator.evaluate`), dürfen keine
+    benannten inneren Funktionen haben (`const f = () => …`): `tsx` hängt `__name(…)` an, das es in
+    der Seite nicht gibt („ReferenceError: __name is not defined“). Größere Skripte stehen als
+    String (`PAGE_SCRIPT`). Die Worker-Tests übersetzen den Code dafür wie `tsx` mit `keepNames`
+    (Plugin `keepNamesLikeTsx` in `apps/worker/vitest.config.ts`; Vite 8 übersetzt sonst mit oxc).
 
 ## KI (`packages/ai`)
 

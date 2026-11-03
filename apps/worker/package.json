@@ -26,6 +26,7 @@
     "@types/pngjs": "^6.0.5",
     "@types/ws": "8.18.2",
     "drizzle-orm": "0.45.4",
+    "esbuild": "0.28.2",
     "pngjs": "^7.0.0",
     "tsx": "4.23.15"
   }
