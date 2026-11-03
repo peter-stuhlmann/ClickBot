@@ -49,7 +49,7 @@ Projekte, die Anmeldung, das Profil und die Einstellungen der KI-Anbieter stehen
       3. „Geräte & Freigabe“: Geräte, der Name (beim Ankommen aus Ziel oder Website
          vorgeschlagen, `suggestName`), die Kampagne nur bei mehreren im Projekt (sonst
          „Allgemein“, `defaultCampaignId` von der Seite), „Erweiterte Einstellungen“ (GA4-
-         Markierung und Werbung, eingeklappt in einem `AccordionItem` mit Zusammenfassung
+         Markierung, Werbung und Video, eingeklappt in einem `AccordionItem` mit Zusammenfassung
          `describeAdvanced` und Badge „Geändert“) und die Freigabe.
          Am Ende wird der Job aktiv angelegt und läuft nach Zeitplan. Die Zusammenfassung rechts
          zeigt Technik-Einstellungen nur, wenn sie vom Standard abweichen.
@@ -119,6 +119,11 @@ Projekte, die Anmeldung, das Profil und die Einstellungen der KI-Anbieter stehen
     - Screen 03 „Lauf-Report“ (`/laeufe/<id>`), erreichbar über „Letzter Lauf“ in der
       Job-Liste: Kennzahlen, Schritte mit Ergebnis, Fehler und Bildschirmfotos. Gehört der Lauf
       zu einem Start mit mehreren Läufen, führt „Alle n Durchläufe dieses Starts“ zum Start-Report.
+      - Video (`RunVideo`, über der Galerie), wenn der Lauf eins hat: Player mit den Schritten als
+        Untertitel (`<track>` von `/laeufe/<id>/untertitel`, WebVTT aus `runs.video_cues` mit den
+        Titeln des Reports, `toVideoCaptions`) und „Video herunterladen“ (MP4, Dateiname aus Test
+        und Laufnummer). Die heruntergeladene Datei hat keine Untertitelspur. `/artifacts` liefert
+        MP4 in Teilen (Range, 206/416, `byteRange`), sonst spielt Safari nicht.
       - Bildschirmfotos als Galerie (`ScreenshotGallery`): das letzte groß, alle als Vorschau
         darunter; ein Klick zeigt es groß, ein Klick aufs große öffnet die `Lightbox` (Pfeile,
         Pfeiltasten, Wischen, Escape). „Bildschirmfoto“ an einem Schritt ist ein Anker
@@ -142,8 +147,8 @@ Projekte, die Anmeldung, das Profil und die Einstellungen der KI-Anbieter stehen
     - meldet seinen Status an die Web-App
     - führt Läufe in Chrome, Firefox und Safari (WebKit) aus und emuliert Geräte
 - **Noch nicht gebaut:**
-  - im Worker: Proxies und Standort-Profile, KI-Suche nach Elementen (`aiFallback`), Video der
-    Läufe; Markierung für andere Analytics-Werkzeuge als GA4
+  - im Worker: Proxies und Standort-Profile, KI-Suche nach Elementen (`aiFallback`); Markierung
+    für andere Analytics-Werkzeuge als GA4
   - „Live zuschauen“ nur im Testlauf des Assistenten, noch nicht im Lauf-Report und im
     Start-Report
   - E-Mail-Versand (Einladungslinks werden angezeigt und von Hand weitergegeben), Konten
@@ -589,6 +594,18 @@ time, bots }]`, `stagger`) bilden die Bots eines Termins eine Welle.
     `smoothWheel`), damit das Bild weich scrollt; die Seite bekommt echte Wheel-Ereignisse.
   - Neue Tabs öffnen sich im selben Tab, PDFs mit dem Viewer von Chromium. Der aufgenommene
     Klick öffnet im Lauf den neuen Tab, in dem der Bot weitermacht.
+- **Video** (`video.ts`): Testläufe immer, geplante Läufe bei `jobs.record_video` („Video
+  aufnehmen“ unter „Erweiterte Einstellungen“, Standard aus).
+  - `recordRun` hängt sich wie ein Zuschauer an den Lauf (`streamRun`): dieselben geprüften Bilder
+    (Zugangsdaten abgedeckt, Klartext nie), höchstens 10 je Sekunde (das neueste je Zehntel), als
+    JPEG in einen temporären Ordner, höchstens 30 Minuten. Dazu, wann welcher Schritt lief und
+    wann das Bild ausgeblendet war (`VideoCue`, `step: null`).
+  - `encodeVideo`: ffmpeg (`FFMPEG_PATH`, sonst `ffmpeg-static`) baut daraus `runs/<id>/video.mp4`
+    (H.264, yuv420p, faststart), jedes Bild bis zum nächsten, das letzte 1,5 s. Größe des ersten
+    Bilds, höchstens 1280 an der langen Seite; andere Größen werden eingepasst.
+  - Scheitert das Video, bleibt der Lauf, wie er ist; das Log sagt warum.
+  - Nach 30 Tagen (`VIDEO_DAYS`) vergisst `expireVideos` es, der Worker löscht die Datei (alle
+    15 Minuten mit dem übrigen Aufräumen).
 - **Live zuschauen** (`/watch` im Live-Server, `run-watch.ts`, `watch-stream.ts`):
   - Die Web-App gibt ein Token aus (`watchRunAction`, `createWatchToken`): Lauf-ID und Ablauf
     nach 2 Minuten, mit `SECRETS_KEY` verschlüsselt (AES-GCM, nicht fälschbar), ohne Tabelle.
@@ -703,6 +720,9 @@ time, bots }]`, `stagger`) bilden die Bots eines Termins eine Welle.
 - Caddy leitet `wss://<domain>/live` und `wss://<domain>/watch` an den Worker-Port `LIVE_PORT`
   weiter. `LIVE_URL` und
   `APP_URL` zeigen auf die öffentliche Adresse.
+- Das Worker-Image braucht ffmpeg mit H.264 für die Videos: `ffmpeg-static` lädt es beim
+  `pnpm install` (unter `onlyBuiltDependencies` freigegeben), oder `FFMPEG_PATH` zeigt auf ein
+  System-ffmpeg.
 - Das Worker-Image braucht Chromium, Firefox und WebKit samt Systembibliotheken (z. B. das
   offizielle Playwright-Image), Chromium als ganzen Browser, nicht nur die Headless-Shell. Jede
   Engine ist ein eigener Prozess und kostet RAM.

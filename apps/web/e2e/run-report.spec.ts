@@ -76,6 +76,55 @@ test.describe('Durchlauf-Report', () => {
     await expect(lightbox).toBeHidden();
   });
 
+  test('plays the video of a run with the steps as captions, and offers it as a download', async ({
+    page,
+  }) => {
+    await page.goto('/');
+    await page.getByRole('link', { name: /^Letzter Durchlauf von Login & Bestellstatus/ }).click();
+
+    const card = page.getByRole('region', { name: 'Video' });
+    const video = card.locator('video');
+    await expect(video).toHaveAttribute('src', '/artifacts/runs/e2e/video.mp4');
+    // The browser loads it: metadata and the captions of the steps.
+    await expect.poll(() => video.evaluate((v: HTMLVideoElement) => v.duration)).toBeGreaterThan(2);
+    await expect
+      .poll(() =>
+        video.evaluate((v: HTMLVideoElement) => {
+          const track = v.textTracks[0];
+          if (!track) return [];
+          track.mode = 'hidden';
+          return [...(track.cues ?? [])].map((cue) => (cue as VTTCue).text);
+        }),
+      )
+      .toEqual([
+        'Schritt 1 von 5 · Öffne 127.0.0.1:4100/login.html',
+        'Schritt 2 von 5 · Fülle „Benutzername“ aus',
+      ]);
+
+    const download = card.getByRole('link', { name: 'Video herunterladen' });
+    await expect(download).toHaveAttribute('download', 'login-bestellstatus-durchlauf-31.mp4');
+  });
+
+  test('serves a video in parts, as browsers ask for it to play and seek', async ({ request }) => {
+    const whole = await request.get('/artifacts/runs/e2e/video.mp4');
+    expect(whole.status()).toBe(200);
+    expect(whole.headers()['content-type']).toBe('video/mp4');
+    expect(whole.headers()['accept-ranges']).toBe('bytes');
+    const size = (await whole.body()).length;
+
+    const part = await request.get('/artifacts/runs/e2e/video.mp4', {
+      headers: { Range: 'bytes=0-99' },
+    });
+    expect(part.status()).toBe(206);
+    expect(part.headers()['content-range']).toBe(`bytes 0-99/${size}`);
+    expect((await part.body()).length).toBe(100);
+
+    const beyond = await request.get('/artifacts/runs/e2e/video.mp4', {
+      headers: { Range: `bytes=${size}-` },
+    });
+    expect(beyond.status()).toBe(416);
+  });
+
   test('shows a not-found page for an unknown run', async ({ page }) => {
     const response = await page.goto('/laeufe/00000000-0000-0000-0000-000000000000');
     expect(response?.status()).toBe(404);

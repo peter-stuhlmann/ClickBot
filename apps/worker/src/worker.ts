@@ -11,14 +11,17 @@ import {
   type Database,
   type Device,
   type PlanOptions,
+  type VideoCue,
 } from '@click-bot/db';
 import { createAiClient, nextAgentAction, type AiClient, type AiConfig } from '@click-bot/ai';
+import { rm } from 'node:fs/promises';
 import type { BrowserContext } from 'playwright';
 import type { AgentDriver } from './ai-step';
 import type { ArtifactStore } from './artifacts';
 import { toStepMessage } from './errors';
 import { runFlow, type RunResult } from './run-flow';
-import type { RunTap, RunWatchRegistry } from './run-watch';
+import { createRunWatchRegistry, type RunTap, type RunWatchRegistry } from './run-watch';
+import { recordRun, type VideoRecorder } from './video';
 
 export type WorkerDeps = {
   db: Database;
@@ -33,7 +36,7 @@ export type WorkerDeps = {
   createAiClient?: (config: AiConfig) => AiClient;
   clock?: () => Date;
   planning?: Omit<PlanOptions, 'now'>;
-  /** Runs that can be watched live while they go ("Live zuschauen"). */
+  /** Runs that can be watched live while they go ("Live zuschauen"), and recorded as video. */
   watch?: RunWatchRegistry;
   log?: (message: string) => void;
 };
@@ -64,10 +67,36 @@ async function agentFor(
   return (input) => nextAgentAction(client, input);
 }
 
-async function executeRun(deps: WorkerDeps, { run, job }: ClaimedRun): Promise<void> {
+/**
+ * The MP4 of a recorded run, stored next to its screenshots. A video that fails is left out; the
+ * run keeps its verdict and the log says why.
+ */
+async function saveVideo(
+  deps: WorkerDeps,
+  runId: string,
+  recorder: VideoRecorder,
+): Promise<{ videoPath: string; videoCues: VideoCue[] } | null> {
+  try {
+    const recording = await recorder.stop();
+    if (!recording) return null;
+    return {
+      videoPath: await deps.artifacts.saveVideo(runId, recording),
+      videoCues: recording.cues,
+    };
+  } catch (error) {
+    deps.log?.(`Video von Durchlauf ${runId}: ${toStepMessage(error)}`);
+    return null;
+  }
+}
+
+async function executeRun(
+  deps: WorkerDeps & { watch: RunWatchRegistry },
+  { run, job }: ClaimedRun,
+): Promise<void> {
   const now = deps.clock ?? (() => new Date());
   let context: BrowserContext | undefined;
   let tap: RunTap | undefined;
+  let recorder: VideoRecorder | null = null;
   let result: RunResult | undefined;
   try {
     context = await deps.newContext(run.device, run.browser);
@@ -76,11 +105,19 @@ async function executeRun(deps: WorkerDeps, { run, job }: ClaimedRun): Promise<v
       url: job.startUrl,
       now: now(),
     });
-    tap = deps.watch?.start(run.id, {
+    tap = deps.watch.start(run.id, {
       engine: run.browser,
       secrets: Object.values(secrets),
       total: job.flow.steps.length,
     });
+    // Test runs always, the runs of the schedule when the job asks for it.
+    const watched = deps.watch.find(run.id);
+    if (watched && (job.recordVideo || run.slotIndex === null)) {
+      recorder = await recordRun(watched).catch((error: unknown) => {
+        deps.log?.(`Video von Durchlauf ${run.id}: ${toStepMessage(error)}`);
+        return null;
+      });
+    }
     result = await runFlow(context, job.flow, {
       tap,
       ai: await agentFor(deps, job.flow.steps),
@@ -101,7 +138,11 @@ async function executeRun(deps: WorkerDeps, { run, job }: ClaimedRun): Promise<v
       );
     }
 
+    const video = recorder ? await saveVideo(deps, run.id, recorder) : null;
+    recorder = null;
+
     await completeRun(deps.db, run.id, {
+      ...video,
       status: result.status,
       finishedAt: now(),
       error: result.steps.find((step) => step.status === 'failed')?.message ?? null,
@@ -126,12 +167,19 @@ async function executeRun(deps: WorkerDeps, { run, job }: ClaimedRun): Promise<v
       steps: [],
     }).catch((reason: unknown) => deps.log?.(`Durchlauf ${run.id}: ${toStepMessage(reason)}`));
   } finally {
+    // Stopped without a video when the run could not be completed.
+    await recorder
+      ?.stop()
+      .then((recording) => recording && rm(recording.dir, { recursive: true, force: true }))
+      .catch(() => undefined);
     tap?.end(result?.status ?? 'failed');
     await context?.close().catch(() => undefined);
   }
 }
 
-export function createWorker(deps: WorkerDeps): Worker {
+export function createWorker(options: WorkerDeps): Worker {
+  // Recording a video follows a run like a watcher: without a registry, one of its own.
+  const deps = { ...options, watch: options.watch ?? createRunWatchRegistry() };
   const now = deps.clock ?? (() => new Date());
   const startedAt = now();
   const active = new Set<Promise<void>>();

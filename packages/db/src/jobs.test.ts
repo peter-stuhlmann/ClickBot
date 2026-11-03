@@ -226,6 +226,21 @@ describe('ads in the runs of a job', () => {
   });
 });
 
+describe('video of the runs of a job', () => {
+  it('records no video unless the job says so', async () => {
+    expect((await newJob()).recordVideo).toBe(false);
+  });
+
+  it('records a video when the job says so', async () => {
+    expect((await newJob({ recordVideo: true })).recordVideo).toBe(true);
+  });
+
+  it('rejects anything but a switch', async () => {
+    const error = await newJob({ recordVideo: 'ja' }).catch((e: unknown) => e);
+    expect(issuePaths(error)).toEqual(['recordVideo']);
+  });
+});
+
 describe('GA4 marking of a job', () => {
   it('marks everything unless the job says otherwise', async () => {
     expect((await newJob()).analyticsMarking).toEqual({

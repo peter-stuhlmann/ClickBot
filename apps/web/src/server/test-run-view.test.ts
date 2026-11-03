@@ -54,6 +54,8 @@ function report(run: Partial<RunReport['run']>, steps: RunStepRow[] = []): RunRe
       analyticsMarking: { debugMode: true, internalTraffic: true, botFlag: true, runNumber: true },
       adsBlocked: true,
       blockedAdRequests: 0,
+      videoPath: null,
+      videoCues: null,
       createdAt: scheduled,
       ...run,
     },

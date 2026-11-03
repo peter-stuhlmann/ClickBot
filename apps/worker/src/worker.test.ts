@@ -4,6 +4,7 @@ import {
   createJob,
   createSecret,
   getWorkerStatus,
+  queueTestRun,
   saveAiProvider,
   schema,
   type Cipher,
@@ -48,6 +49,7 @@ function startWorker(
     cipher?: Cipher;
     newContext?: WorkerDeps['newContext'];
     createAiClient?: WorkerDeps['createAiClient'];
+    artifacts?: WorkerDeps['artifacts'];
   } = {},
 ): Worker {
   worker = createWorker({
@@ -55,7 +57,7 @@ function startWorker(
     db,
     cipher: options.cipher ?? cipher,
     newContext: options.newContext ?? (() => browser.newContext()),
-    artifacts: createFileArtifactStore(artifactsDir),
+    artifacts: options.artifacts ?? createFileArtifactStore(artifactsDir),
     maxConcurrent: options.maxConcurrent ?? 6,
     workerId: 'test-worker',
   });
@@ -301,6 +303,61 @@ describe('worker', () => {
     expect(run?.error).toBe('Text „Passwort ••••“ ist nicht sichtbar (nach 0,3 s).');
     const steps = await db.select().from(schema.runSteps);
     expect(JSON.stringify(steps)).not.toContain('Geheim-123');
+  });
+
+  it('records a test run as a video, with when each step ran', async () => {
+    const { job } = await dueJob(contactSteps);
+    await db.update(schema.jobs).set({ status: 'paused' }).where(eq(schema.jobs.id, job.id));
+    await queueTestRun(db, job.id, new Date(), { once: true });
+    const w = startWorker();
+    await w.tick();
+    await w.idle();
+
+    const [run] = await allRuns();
+    expect(run?.status).toBe('passed');
+    expect(run?.videoPath).toBe(`runs/${run?.id}/video.mp4`);
+    expect(existsSync(join(artifactsDir, run?.videoPath ?? ''))).toBe(true);
+    expect(run?.videoCues?.filter((cue) => cue.step !== null).map((cue) => cue.step)).toEqual([
+      0, 1, 2, 3,
+    ]);
+  });
+
+  it('records a scheduled run only when its job asks for it', async () => {
+    const { job } = await dueJob(contactSteps);
+    const w = startWorker();
+    await w.tick();
+    await w.idle();
+    expect((await allRuns())[0]?.videoPath).toBeNull();
+
+    await db.update(schema.jobs).set({ recordVideo: true }).where(eq(schema.jobs.id, job.id));
+    await queueTestRun(db, job.id, new Date(), { once: true });
+    await w.tick();
+    await w.idle();
+    expect((await allRuns()).at(-1)?.videoPath).toMatch(/video\.mp4$/);
+  });
+
+  it('keeps the verdict of a run whose video fails, and says why in the log', async () => {
+    const { job } = await dueJob(contactSteps);
+    await queueTestRun(db, job.id, new Date(), { once: true });
+    const store = createFileArtifactStore(artifactsDir);
+    const logged: string[] = [];
+    worker = createWorker({
+      db,
+      cipher,
+      newContext: () => browser.newContext(),
+      artifacts: { ...store, saveVideo: async () => Promise.reject(new Error('Platte voll')) },
+      maxConcurrent: 6,
+      workerId: 'test-worker',
+      log: (message) => logged.push(message),
+    });
+    await worker.tick();
+    await worker.idle();
+    const runs = await allRuns();
+    expect(runs.map((run) => [run.status, run.videoPath])).toEqual([
+      ['passed', null],
+      ['passed', null],
+    ]);
+    expect(logged.some((line) => line.includes('Platte voll'))).toBe(true);
   });
 
   it('fails the run cleanly if it cannot even start, e.g. with a wrong secrets key', async () => {

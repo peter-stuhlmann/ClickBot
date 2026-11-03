@@ -252,6 +252,13 @@ describe('updateJob and the GA4 marking', () => {
     expect((await update(job, { blockAds: true })).blockAds).toBe(true);
   });
 
+  it('records a video or not, and keeps the choice when the update does not mention it', async () => {
+    const job = await newJob();
+    expect((await update(job, { recordVideo: true })).recordVideo).toBe(true);
+    expect((await update(job, { name: 'Kontakt neu' })).recordVideo).toBe(true);
+    expect((await update(job, { recordVideo: false })).recordVideo).toBe(false);
+  });
+
   it('keeps the marking when the update does not mention it', async () => {
     const job = await newJob();
     await update(job, { analyticsMarking: { botFlag: false } });

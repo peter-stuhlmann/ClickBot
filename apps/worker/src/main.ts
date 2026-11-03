@@ -3,6 +3,7 @@ import {
   createCipher,
   createDb,
   deleteExpiredSessions,
+  expireVideos,
   parseKey,
   recoverStaleRuns,
 } from '@click-bot/db';
@@ -39,6 +40,7 @@ const artifactsDir =
   process.env.ARTIFACTS_DIR ?? fileURLToPath(new URL('../../../data/artifacts', import.meta.url));
 
 const connection = createDb(databaseUrl);
+const artifacts = createFileArtifactStore(artifactsDir);
 // Runs going on right now, for "Live zuschauen".
 const watchable = createRunWatchRegistry();
 // One shared process per browser engine, started by the first run that needs it; after a crash
@@ -55,7 +57,7 @@ const worker = createWorker({
     const browser = await browsers[kind].get();
     return browser.newContext(contextOptionsFor(device, kind, browser.version()));
   },
-  artifacts: createFileArtifactStore(artifactsDir),
+  artifacts,
   maxConcurrent,
   workerId: `${hostname()}-${process.pid}`,
   watch: watchable,
@@ -100,14 +102,19 @@ const tick = async () => {
   }
 };
 const beat = () => worker.heartbeat().catch((error: unknown) => log(`Heartbeat: ${String(error)}`));
-// Every 15 minutes: runs a crashed worker left behind and logins nobody finished.
+// Every 15 minutes: runs a crashed worker left behind, logins nobody finished, old videos.
+const removeExpiredVideos = async () => {
+  for (const path of await expireVideos(connection.db, new Date())) await artifacts.remove(path);
+};
 const stale = () =>
   Promise.all([
     recoverStaleRuns(connection.db, { now: new Date(), staleAfterMs: STALE_RUN_MS }),
     deleteExpiredSessions(connection.db, new Date()),
+    removeExpiredVideos(),
   ]).catch((error: unknown) => log(`Aufräumen: ${String(error)}`));
 
 await beat();
+void stale();
 const timers = [
   setInterval(tick, TICK_MS),
   setInterval(beat, HEARTBEAT_MS),

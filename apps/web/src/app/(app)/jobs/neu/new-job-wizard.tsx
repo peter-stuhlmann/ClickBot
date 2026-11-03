@@ -8,6 +8,7 @@ import { Button } from '@/components/atoms/Button';
 import { Icon } from '@/components/atoms/Icon';
 import { AccordionItem } from '@/components/molecules/AccordionItem';
 import { AdBlockingForm } from '@/components/organisms/AdBlockingForm';
+import { VideoForm } from '@/components/organisms/VideoForm';
 import { AnalyticsMarkingForm } from '@/components/organisms/AnalyticsMarkingForm';
 import { ApprovalCard } from '@/components/organisms/ApprovalCard';
 import { DeleteSection } from '@/components/organisms/DeleteSection';
@@ -511,6 +512,10 @@ export function NewJobWizard({
               <AdBlockingForm
                 blockAds={draft.blockAds}
                 onChange={(blockAds) => update({ blockAds })}
+              />
+              <VideoForm
+                recordVideo={draft.recordVideo}
+                onChange={(recordVideo) => update({ recordVideo })}
               />
             </div>
           </AccordionItem>

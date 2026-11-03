@@ -17,6 +17,7 @@ export type JobDraftInput = {
   deviceBrowsers?: unknown;
   analyticsMarking?: unknown;
   blockAds?: unknown;
+  recordVideo?: unknown;
   /** The wizard's form as it is, stored as given. The caller removes passwords first. */
   wizardState: unknown;
   /** The default start of a schedule that is not valid yet. */
@@ -37,6 +38,7 @@ const FIELD_GROUPS = [
   ['devices', 'deviceBrowsers'],
   ['analyticsMarking'],
   ['blockAds'],
+  ['recordVideo'],
 ] as const;
 
 /** Takes every field (group) of the input that is valid on its own; keeps `base` for the rest. */

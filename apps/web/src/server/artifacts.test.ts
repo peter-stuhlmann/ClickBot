@@ -4,7 +4,13 @@ import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { artifactsDir, removeRunArtifacts, resolveArtifact } from './artifacts';
+import {
+  artifactType,
+  artifactsDir,
+  byteRange,
+  removeRunArtifacts,
+  resolveArtifact,
+} from './artifacts';
 
 const root = resolve('/srv/click-bot/artifacts');
 
@@ -13,6 +19,13 @@ describe('resolveArtifact', () => {
     expect(resolveArtifact(root, ['runs', 'abc-123', '1-send.png'])).toBe(
       join(root, 'runs', 'abc-123', '1-send.png'),
     );
+  });
+
+  it('finds the video of a run, and knows its type', () => {
+    const file = resolveArtifact(root, ['runs', 'abc-123', 'video.mp4']);
+    expect(file).toBe(join(root, 'runs', 'abc-123', 'video.mp4'));
+    expect(artifactType(file ?? '')).toBe('video/mp4');
+    expect(artifactType(join(root, 'runs', 'abc-123', '1-send.png'))).toBe('image/png');
   });
 
   it.each([
@@ -26,6 +39,30 @@ describe('resolveArtifact', () => {
   ])('refuses %s', (_case, segments) => {
     expect(resolveArtifact(root, segments)).toBeNull();
   });
+});
+
+describe('byteRange', () => {
+  it('sends the whole file without a Range header', () => {
+    expect(byteRange(null, 1_000)).toBeNull();
+  });
+
+  it.each([
+    ['bytes=0-99', { start: 0, end: 99 }],
+    ['bytes=900-', { start: 900, end: 999 }],
+    // The last 100 bytes, which Safari asks for.
+    ['bytes=-100', { start: 900, end: 999 }],
+    // Past the end is cut to the end.
+    ['bytes=500-5000', { start: 500, end: 999 }],
+  ])('reads %s', (header, range) => {
+    expect(byteRange(header, 1_000)).toEqual(range);
+  });
+
+  it.each(['bytes=1000-', 'bytes=50-10', 'bytes=0-1,5-9', 'items=0-1', 'bytes=-0', 'bytes=x-'])(
+    'refuses %s',
+    (header) => {
+      expect(byteRange(header, 1_000)).toBe('invalid');
+    },
+  );
 });
 
 describe('artifactsDir', () => {

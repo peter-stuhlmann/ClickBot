@@ -134,6 +134,13 @@
       "when": 1793649637226,
       "tag": "0018_wizard_state",
       "breakpoints": true
+    },
+    {
+      "idx": 19,
+      "version": "7",
+      "when": 1793668030421,
+      "tag": "0019_record_video",
+      "breakpoints": true
     }
   ]
 }

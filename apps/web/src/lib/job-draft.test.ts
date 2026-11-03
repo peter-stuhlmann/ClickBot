@@ -815,6 +815,25 @@ describe('ads in the wizard', () => {
   });
 });
 
+describe('video in the wizard', () => {
+  it('records no video by default and sends the choice to createJob', () => {
+    expect(emptyDraft(now).recordVideo).toBe(false);
+    expect(toNewJobInput(draft(), now).recordVideo).toBe(false);
+    expect(toNewJobInput(draft({ recordVideo: true }), now).recordVideo).toBe(true);
+  });
+
+  it('names a recorded video in the summaries, which is no warning', () => {
+    const value = (recordVideo: boolean) =>
+      summarise(draft({ recordVideo }), [], now).find((row) => row.label === 'Erweitert')?.value;
+    expect(value(false)).toBeUndefined();
+    expect(value(true)).toBe('Video an');
+    expect(describeAdvanced(draft({ recordVideo: true }))).toEqual({
+      summary: 'GA4-Markierung an · Werbung blockiert · Video an',
+      changed: false,
+    });
+  });
+});
+
 describe('.htaccess steps in the wizard', () => {
   it('need a user name and a password', () => {
     const issues = validateWizardStep(draft({ steps: [step('basicAuth')] }), 'test', now);

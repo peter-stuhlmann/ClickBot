@@ -6,6 +6,7 @@ import { formatClock, formatDateLong, formatDuration, plural } from '@/lib/forma
 import { toStepDraft } from '@/lib/job-draft';
 import { screenshotAnchor } from '@/lib/screenshots';
 import { describeStep } from '@/lib/step-view';
+import { toWebVtt } from '@/lib/video-captions';
 import type { RunReportView, RunStepView, ScreenshotView, StatCardView } from '@/lib/views';
 import { RUN_BADGE } from './jobs-view';
 
@@ -63,6 +64,19 @@ function screenshotViews(report: RunReport, steps: RunStepView[]): ScreenshotVie
     const title = steps.find((view) => view.number === step)?.title ?? `Schritt ${step}`;
     return [{ url: artifactUrl(row.screenshotPath), step, title }];
   });
+}
+
+/** "Kontaktformular-Test", run 7 → "kontaktformular-test-durchlauf-7.mp4", safe on every disk. */
+function videoFileName(jobName: string, runNr: number): string {
+  const name = jobName
+    .toLowerCase()
+    .replace(/ä/g, 'ae')
+    .replace(/ö/g, 'oe')
+    .replace(/ü/g, 'ue')
+    .replace(/ß/g, 'ss')
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-|-$/g, '');
+  return `${name || 'test'}-durchlauf-${runNr}.mp4`;
 }
 
 function stepsHint(report: RunReport, failed: RunStepRow | undefined): string {
@@ -131,6 +145,15 @@ function liveHint(status: RunReport['run']['status'], workerOnline: boolean): st
   return workerOnline
     ? 'Wartet auf das Testsystem. Der Report aktualisiert sich selbst.'
     : 'Das Testsystem ist nicht verbunden. Der Durchlauf startet, sobald er wieder läuft.';
+}
+
+/**
+ * The captions of a run's video (WebVTT): each step with its title as in the report, and when
+ * the picture was hidden. Empty cues without a video.
+ */
+export function toVideoCaptions(report: RunReport): string {
+  const titles = report.job.flow.steps.map((step) => describe(step, step.id).title);
+  return toWebVtt(report.run.videoCues ?? [], titles);
 }
 
 /** Screen 03: one run with its steps, timing and, if it failed, where and why. */
@@ -210,5 +233,12 @@ export function toRunReportView(
           }
         : null,
     screenshots: screenshotViews(report, steps),
+    video: run.videoPath
+      ? {
+          url: artifactUrl(run.videoPath),
+          captionsUrl: `/laeufe/${run.id}/untertitel`,
+          fileName: videoFileName(job.name, run.runNr),
+        }
+      : null,
   };
 }

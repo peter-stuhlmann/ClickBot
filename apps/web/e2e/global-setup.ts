@@ -32,6 +32,15 @@ const SCREENSHOTS = `
   WHERE rs.run_id = steps.run_id AND rs.step_index = steps.step_index
     AND (steps.n <= 2 OR steps.n = steps.total)`;
 
+// The same run gets a short video (e2e/fixtures/artifacts) with its first two steps as cues.
+const VIDEO = `
+  UPDATE runs SET video_path = 'runs/e2e/video.mp4',
+    video_cues = '[{"step":0,"from":0,"to":1200},{"step":1,"from":1200,"to":2500}]'::jsonb
+  WHERE id = (
+    SELECT r.id FROM runs r JOIN jobs j ON j.id = r.job_id
+    WHERE j.name = 'Login & Bestellstatus' ORDER BY r.run_nr DESC LIMIT 1
+  )`;
+
 /**
  * Fresh test database with the demo data before every e2e run, plus an admin with 2FA whose
  * session the specs use, so they start signed in.
@@ -47,6 +56,7 @@ export default async function globalSetup(): Promise<void> {
     await runMigrations(connection.db);
     await seedDemoData(connection.db, new Date());
     await connection.pool.query(SCREENSHOTS);
+    await connection.pool.query(VIDEO);
   } catch (error) {
     await connection.close();
     throw new Error(`Test-Datenbank ${url} nicht bereit. Start mit: pnpm db:up`, { cause: error });

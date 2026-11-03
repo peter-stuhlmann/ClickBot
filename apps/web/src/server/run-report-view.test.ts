@@ -1,7 +1,7 @@
 // @vitest-environment node
 import type { RunReport, RunStepRow } from '@click-bot/db';
 import { describe, expect, it } from 'vitest';
-import { toRunReportView } from './run-report-view';
+import { toRunReportView, toVideoCaptions } from './run-report-view';
 
 // 14:30:00 in Berlin.
 const scheduled = new Date('2026-11-05T13:30:00Z');
@@ -93,6 +93,8 @@ function report(
       analyticsMarking: { debugMode: true, internalTraffic: true, botFlag: true, runNumber: true },
       adsBlocked: true,
       blockedAdRequests: 0,
+      videoPath: null,
+      videoCues: null,
       createdAt: scheduled,
       ...overrides.run,
     },
@@ -191,6 +193,33 @@ describe('toRunReportView', () => {
     expect(view.screenshots).toEqual([
       { url: '/artifacts/runs/run-1/1-send.png', step: 2, title: 'Klicke auf „Absenden“' },
     ]);
+  });
+
+  it('offers the video of a run, with the steps as captions, and none without one', () => {
+    const view = toRunReportView(
+      report({
+        run: {
+          videoPath: 'runs/run-1/video.mp4',
+          videoCues: [{ step: 1, from: 800, to: 1_400 }],
+        },
+      }),
+    );
+    expect(view.video).toEqual({
+      url: '/artifacts/runs/run-1/video.mp4',
+      captionsUrl: '/laeufe/run-1/untertitel',
+      fileName: 'kontaktformular-test-durchlauf-7.mp4',
+    });
+    expect(toRunReportView(report()).video).toBeNull();
+  });
+
+  it('captions the video with the titles of the steps', () => {
+    const captions = toVideoCaptions(
+      report({ run: { videoCues: [{ step: 1, from: 800, to: 1_400 }] } }),
+    );
+    expect(captions).toContain(
+      '00:00:00.800 --> 00:00:01.400\nSchritt 2 von 3 · Klicke auf „Absenden“',
+    );
+    expect(toVideoCaptions(report())).toBe('WEBVTT\n');
   });
 
   it('shows every screenshot of a run in the order of its steps', () => {

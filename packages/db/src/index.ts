@@ -80,6 +80,8 @@ export {
   type TemplateRow,
 } from './templates';
 export { latestTestRun, queueTestRun, type TestRunBatch } from './test-runs';
+export { expireVideos, VIDEO_DAYS } from './videos';
+export type { VideoCue } from './schema';
 export { listRuns, type RunFilter, type RunListRow } from './run-list';
 export {
   claimNextRun,

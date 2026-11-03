@@ -43,6 +43,8 @@ export type NewJobInput = {
   analyticsMarking?: unknown;
   /** Untrusted input: whether runs block ads. Default: yes. */
   blockAds?: unknown;
+  /** Untrusted input: whether runs are recorded as a video. Default: no. */
+  recordVideo?: unknown;
   /** "active" lets the planner pick the job up right away. Default: draft. */
   status?: 'draft' | 'active';
 };
@@ -85,6 +87,7 @@ export type JobFields = {
   deviceBrowsers: DeviceBrowsers;
   analyticsMarking: AnalyticsMarking;
   blockAds: boolean;
+  recordVideo: boolean;
 };
 
 /** Checks the editable fields of a job; adds problems to `issues`, returns null if any. */
@@ -98,6 +101,7 @@ export function validateFields(
     deviceBrowsers?: unknown;
     analyticsMarking?: unknown;
     blockAds?: unknown;
+    recordVideo?: unknown;
   },
   issues: ValidationIssue[],
 ): JobFields | null {
@@ -139,6 +143,11 @@ export function validateFields(
     issues.push({ path: 'blockAds', message: 'Bitte an oder aus wählen.' });
   }
 
+  const recordVideo = input.recordVideo ?? false;
+  if (typeof recordVideo !== 'boolean') {
+    issues.push({ path: 'recordVideo', message: 'Bitte an oder aus wählen.' });
+  }
+
   if (
     !name ||
     !startUrl.success ||
@@ -148,7 +157,8 @@ export function validateFields(
     !flow.success ||
     !schedule.success ||
     !marking.success ||
-    typeof blockAds !== 'boolean'
+    typeof blockAds !== 'boolean' ||
+    typeof recordVideo !== 'boolean'
   ) {
     return null;
   }
@@ -161,6 +171,7 @@ export function validateFields(
     deviceBrowsers: normalizeDeviceBrowsers(devices.data, withDefaults),
     analyticsMarking: marking.data,
     blockAds,
+    recordVideo,
   };
 }
 
@@ -198,6 +209,8 @@ export type JobUpdateInput = {
   analyticsMarking?: unknown;
   /** Omitted: the job keeps its choice. */
   blockAds?: unknown;
+  /** Omitted: the job keeps its choice. */
+  recordVideo?: unknown;
   /** Another campaign of the same project; omitted: the job stays where it is. */
   campaignId?: string;
   /** When the change happens; a random plan draws its open starts anew from then on. */
@@ -293,6 +306,7 @@ export async function updateJob(db: Database, jobId: string, input: JobUpdateInp
         deviceBrowsers: input.deviceBrowsers ?? current.deviceBrowsers,
         analyticsMarking: input.analyticsMarking ?? current.analyticsMarking,
         blockAds: input.blockAds ?? current.blockAds,
+        recordVideo: input.recordVideo ?? current.recordVideo,
       },
       issues,
     );

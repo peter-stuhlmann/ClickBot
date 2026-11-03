@@ -162,6 +162,8 @@ export type WizardDraft = {
   analyticsMarking: AnalyticsMarking;
   /** Whether the bot runs stop requests to ad networks (on by default). */
   blockAds: boolean;
+  /** Whether every run is recorded as a video (off by default; test runs always are). */
+  recordVideo: boolean;
 };
 
 export type Issue = { path: string; message: string };
@@ -176,6 +178,7 @@ export type NewJobDraftInput = {
   deviceBrowsers: DeviceBrowsers;
   analyticsMarking: AnalyticsMarking;
   blockAds: boolean;
+  recordVideo: boolean;
   status: 'active';
 };
 
@@ -240,6 +243,7 @@ export function emptyDraft(now: Date): WizardDraft {
     deviceBrowsers: { desktop: ['chromium'] },
     analyticsMarking: ALL_MARKINGS_ON,
     blockAds: true,
+    recordVideo: false,
   };
 }
 
@@ -613,6 +617,7 @@ export function toNewJobInput(draft: WizardDraft, now: Date): NewJobDraftInput {
     deviceBrowsers: normalizeDeviceBrowsers(draft.devices, draft.deviceBrowsers),
     analyticsMarking: draft.analyticsMarking,
     blockAds: draft.blockAds,
+    recordVideo: draft.recordVideo,
     status: 'active',
   };
 }
@@ -746,16 +751,18 @@ function markingSummary(marking: AnalyticsMarking): string | null {
 
 /**
  * One line for the collapsed "Erweiterte Einstellungen": what GA4 marking and ad blocking stand
- * at, and whether anything differs from the recommended defaults.
+ * at (and the video, when on), and whether marking or ads differ from the recommended defaults.
  */
-export function describeAdvanced(draft: Pick<WizardDraft, 'analyticsMarking' | 'blockAds'>): {
+export function describeAdvanced(
+  draft: Pick<WizardDraft, 'analyticsMarking' | 'blockAds' | 'recordVideo'>,
+): {
   summary: string;
   changed: boolean;
 } {
   const marking = markingSummary(draft.analyticsMarking) ?? 'GA4-Markierung an';
   const ads = draft.blockAds ? 'Werbung blockiert' : 'Werbung erlaubt';
   return {
-    summary: `${marking} · ${ads}`,
+    summary: [marking, ads, draft.recordVideo ? 'Video an' : null].filter(Boolean).join(' · '),
     changed: markingState(draft.analyticsMarking) !== 'on' || !draft.blockAds,
   };
 }
@@ -789,6 +796,7 @@ export type StoredJob = {
   deviceBrowsers: DeviceBrowsers;
   analyticsMarking: AnalyticsMarking;
   blockAds: boolean;
+  recordVideo: boolean;
 };
 
 /**
@@ -857,6 +865,7 @@ export function jobToDraft(
       deviceBrowsers: { ...job.deviceBrowsers },
       analyticsMarking: job.analyticsMarking,
       blockAds: job.blockAds,
+      recordVideo: job.recordVideo,
     },
   };
 }
@@ -1042,6 +1051,7 @@ export function summarise(
   const changed = [
     markingSummary(draft.analyticsMarking),
     draft.blockAds ? null : 'Werbung erlaubt',
+    draft.recordVideo ? 'Video an' : null,
   ].filter((part): part is string => Boolean(part));
   return [
     {

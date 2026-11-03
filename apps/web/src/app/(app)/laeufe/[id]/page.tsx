@@ -6,6 +6,7 @@ import { Icon } from '@/components/atoms/Icon';
 import { Notice } from '@/components/molecules/Notice';
 import { PageHeader } from '@/components/organisms/PageHeader';
 import { RunStepList } from '@/components/organisms/RunStepList';
+import { RunVideo } from '@/components/organisms/RunVideo';
 import { ScreenshotGallery } from '@/components/organisms/ScreenshotGallery';
 import { StatGrid } from '@/components/organisms/StatGrid';
 import { ReportLayout } from '@/components/templates/ReportLayout';
@@ -34,7 +35,7 @@ export default async function RunReportPage({ params }: Props) {
   const view = toRunReportView(report, { workerOnline: shell.worker.online });
 
   const aside =
-    view.failure || view.screenshots.length > 0 || view.marking || view.ads ? (
+    view.failure || view.video || view.screenshots.length > 0 || view.marking || view.ads ? (
       <>
         {view.marking && (
           <Notice tone="warning" title={view.marking.title}>
@@ -51,6 +52,7 @@ export default async function RunReportPage({ params }: Props) {
             {view.failure.message}
           </Notice>
         )}
+        {view.video && <RunVideo {...view.video} />}
         {view.screenshots.length > 0 && <ScreenshotGallery screenshots={view.screenshots} />}
       </>
     ) : undefined;

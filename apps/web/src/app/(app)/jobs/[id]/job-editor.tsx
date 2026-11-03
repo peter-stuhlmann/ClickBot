@@ -8,6 +8,7 @@ import { Button } from '@/components/atoms/Button';
 import { AccordionItem } from '@/components/molecules/AccordionItem';
 import { Icon } from '@/components/atoms/Icon';
 import { AdBlockingForm } from '@/components/organisms/AdBlockingForm';
+import { VideoForm } from '@/components/organisms/VideoForm';
 import { AnalyticsMarkingForm } from '@/components/organisms/AnalyticsMarkingForm';
 import { DevicePicker } from '@/components/organisms/DevicePicker';
 import { DeleteSection } from '@/components/organisms/DeleteSection';
@@ -248,6 +249,10 @@ export function JobEditor({
               <AdBlockingForm
                 blockAds={draft.blockAds}
                 onChange={(blockAds) => update({ blockAds })}
+              />
+              <VideoForm
+                recordVideo={draft.recordVideo}
+                onChange={(recordVideo) => update({ recordVideo })}
               />
             </div>
           </AccordionItem>

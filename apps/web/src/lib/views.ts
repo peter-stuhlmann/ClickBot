@@ -84,6 +84,8 @@ export type RunReportView = {
   failure: { title: string; message: string } | null;
   /** Every screenshot of the run, in the order of its steps. */
   screenshots: ScreenshotView[];
+  /** The MP4 of the run and its captions (WebVTT); null without one or once it expired. */
+  video: { url: string; captionsUrl: string; fileName: string } | null;
   /** While the run waits or runs: what it is waiting for. The page then refreshes itself. */
   live: string | null;
   /** Set when the run marked its GA4 requests only partly or not at all. */

@@ -35,6 +35,9 @@ const bytea = customType<{ data: Buffer; driverData: Buffer }>({ dataType: () =>
 
 const createdAt = () => timestamp('created_at', { withTimezone: true }).notNull().defaultNow();
 
+/** A span of a run's video: a step (index from 0) or, with step null, a time it was hidden. */
+export type VideoCue = { step: number | null; from: number; to: number };
+
 export const userRole = pgEnum('user_role', ['admin', 'member']);
 export const jobStatus = pgEnum('job_status', ['draft', 'active', 'paused', 'finished']);
 export const runStatus = pgEnum('run_status', [
@@ -210,6 +213,8 @@ export const jobs = pgTable(
       .default({ debugMode: true, internalTraffic: true, botFlag: true, runNumber: true }),
     /** Whether bot runs block requests to ad networks (product rule: no fake ad impressions). */
     blockAds: boolean('block_ads').notNull().default(true),
+    /** Whether runs are recorded as a video (test runs always are); see apps/worker/src/video.ts. */
+    recordVideo: boolean('record_video').notNull().default(false),
     /** Last handed-out run number; increased atomically, see allocateRunNumber. */
     runCounter: integer('run_counter').notNull().default(0),
     /**
@@ -324,6 +329,10 @@ export const runs = pgTable(
     adsBlocked: boolean('ads_blocked'),
     /** How many requests to ad networks the run blocked. */
     blockedAdRequests: integer('blocked_ad_requests'),
+    /** The MP4 of the run below ARTIFACTS_DIR; null without one or once it expired (expireVideos). */
+    videoPath: text('video_path'),
+    /** When each step ran in the video, in ms from its start; the report builds captions from it. */
+    videoCues: jsonb('video_cues').$type<VideoCue[]>(),
     createdAt: createdAt(),
   },
   (t) => [

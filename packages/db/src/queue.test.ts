@@ -213,6 +213,12 @@ describe('claimNextRun', () => {
     expect(stored?.analyticsMarking).toEqual(marking);
   });
 
+  it('tells the worker whether the job wants a video of its runs', async () => {
+    await activeJob(wave(1), { recordVideo: true });
+    await planDueRuns(db, { now, lookaheadMs: 2 * MIN });
+    expect((await claimNextRun(db, at(2 * MIN)))?.job.recordVideo).toBe(true);
+  });
+
   it('records on the run whether it blocks ads, and how many requests it blocked', async () => {
     const job = await activeJob(wave(), { blockAds: false });
     await planDueRuns(db, { now, lookaheadMs: 2 * MIN });
@@ -319,6 +325,22 @@ describe('completeRun', () => {
       ['open', 'passed', null],
       ['send', 'failed', 'runs/abc/send.png'],
     ]);
+  });
+
+  it('stores where the video of the run lies', async () => {
+    await activeJob(wave(1));
+    await planDueRuns(db, { now, lookaheadMs: 2 * MIN });
+    const runId = (await claimNextRun(db, at(2 * MIN)))?.run.id as string;
+    await completeRun(db, runId, {
+      status: 'passed',
+      finishedAt: at(3 * MIN),
+      steps: [],
+      videoPath: `runs/${runId}/video.mp4`,
+      videoCues: [{ step: 0, from: 0, to: 1_200 }],
+    });
+    const [run] = await db.select().from(runs).where(eq(runs.id, runId));
+    expect(run?.videoPath).toBe(`runs/${runId}/video.mp4`);
+    expect(run?.videoCues).toEqual([{ step: 0, from: 0, to: 1_200 }]);
   });
 
   it('stores what the AI did in an AI step, for the report', async () => {

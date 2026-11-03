@@ -8,7 +8,7 @@ import {
 import { and, asc, count, eq, inArray, isNotNull, isNull, lt, lte, max, or } from 'drizzle-orm';
 import type { Database } from './client';
 import type { Job } from './jobs';
-import { jobs, runSteps, runs, workerHeartbeats } from './schema';
+import { jobs, runSteps, runs, workerHeartbeats, type VideoCue } from './schema';
 
 /**
  * The runs table is the job queue: planning inserts `queued` rows, workers claim them with
@@ -20,7 +20,14 @@ export type ClaimedRun = {
   run: Run;
   job: Pick<
     Job,
-    'id' | 'name' | 'customerId' | 'startUrl' | 'flow' | 'analyticsMarking' | 'blockAds'
+    | 'id'
+    | 'name'
+    | 'customerId'
+    | 'startUrl'
+    | 'flow'
+    | 'analyticsMarking'
+    | 'blockAds'
+    | 'recordVideo'
   >;
 };
 
@@ -178,6 +185,7 @@ export async function claimNextRun(db: Database, now: Date): Promise<ClaimedRun 
         flow: jobs.flow,
         analyticsMarking: jobs.analyticsMarking,
         blockAds: jobs.blockAds,
+        recordVideo: jobs.recordVideo,
       })
       .from(jobs)
       .where(eq(jobs.id, (run as Run).jobId));
@@ -206,6 +214,10 @@ export type RunOutcome = {
   steps: StepRecord[];
   /** How many requests to ad networks the run blocked. */
   blockedAdRequests?: number;
+  /** The run's MP4 below ARTIFACTS_DIR, if it was recorded. */
+  videoPath?: string | null;
+  /** When each step ran in the video. */
+  videoCues?: VideoCue[] | null;
 };
 
 /** Stores the verdict of a running run and its steps in one transaction. */
@@ -218,6 +230,8 @@ export async function completeRun(db: Database, runId: string, outcome: RunOutco
         finishedAt: outcome.finishedAt,
         error: outcome.error ?? null,
         blockedAdRequests: outcome.blockedAdRequests ?? null,
+        videoPath: outcome.videoPath ?? null,
+        videoCues: outcome.videoPath ? (outcome.videoCues ?? []) : null,
       })
       .where(and(eq(runs.id, runId), eq(runs.status, 'running')))
       .returning({ id: runs.id });

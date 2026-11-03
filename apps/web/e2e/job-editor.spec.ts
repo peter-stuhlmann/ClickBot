@@ -54,6 +54,27 @@ test.describe('Test-Editor', () => {
     await expect(page.getByRole('button', { name: 'Speichern' })).toBeEnabled();
   });
 
+  test('records the runs of a job as video once switched on, and keeps it', async ({ page }) => {
+    await page.goto('/');
+    await page.getByRole('link', { name: 'Newsletter-Anmeldung', exact: true }).click();
+    await expect(
+      page.getByRole('heading', { level: 1, name: 'Newsletter-Anmeldung' }),
+    ).toBeVisible();
+    await page.getByRole('button', { name: /^Erweiterte Einstellungen/ }).click();
+    const toggle = page.getByRole('switch', { name: 'Jeden Durchlauf als Video aufnehmen' });
+    await expect(toggle).not.toBeChecked();
+    await toggle.click();
+    await page.getByRole('button', { name: 'Speichern' }).click();
+    await expect(page.getByRole('status').filter({ hasText: 'Gespeichert.' })).toBeVisible();
+
+    await page.reload();
+    await expect(page.getByRole('button', { name: /^Erweiterte Einstellungen/ })).toContainText(
+      'Video an',
+    );
+    await page.getByRole('button', { name: /^Erweiterte Einstellungen/ }).click();
+    await expect(toggle).toBeChecked();
+  });
+
   test('saves an .htaccess password without ever sending it back to the browser', async ({
     page,
   }) => {
