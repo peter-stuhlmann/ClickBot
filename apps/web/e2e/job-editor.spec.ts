@@ -31,6 +31,29 @@ test.describe('Test-Editor', () => {
     );
   });
 
+  test('puts a wait between two steps with a button that shows on hover', async ({ page }) => {
+    await page.goto('/');
+    await page.getByRole('link', { name: 'Newsletter-Anmeldung', exact: true }).click();
+    await expect(
+      page.getByRole('heading', { level: 1, name: 'Newsletter-Anmeldung' }),
+    ).toBeVisible();
+    const steps = page.getByRole('button', { name: /^Schritt \d+:/ });
+    const before = await steps.count();
+    const insert = page.getByRole('button', { name: 'Warten nach Schritt 1 einfügen' });
+
+    // Calm until the pointer is over the step.
+    await page.mouse.move(0, 0);
+    await expect(insert.locator('..')).toHaveCSS('opacity', '0');
+    await steps.first().hover();
+    await expect(insert.locator('..')).toHaveCSS('opacity', '1');
+    await insert.click();
+
+    await expect(steps).toHaveCount(before + 1);
+    await expect(steps.nth(1)).toHaveAccessibleName('Schritt 2: Warte 1 s');
+    await expect(steps.nth(1)).toHaveAttribute('aria-pressed', 'true');
+    await expect(page.getByRole('button', { name: 'Speichern' })).toBeEnabled();
+  });
+
   test('saves an .htaccess password without ever sending it back to the browser', async ({
     page,
   }) => {

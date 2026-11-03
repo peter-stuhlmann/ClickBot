@@ -13,6 +13,7 @@ import { EditorLayout } from '@/components/templates/EditorLayout';
 import {
   errorsByPath,
   moveStep,
+  insertStep,
   removeStep,
   stepErrors,
   type Issue,
@@ -160,6 +161,7 @@ export function TemplateEditor({
         onAdd={() => applySteps(appendTemplateStep(draft.steps), false)}
         onMove={(index, delta) => applySteps(moveStep(draft.steps, index, delta))}
         onRemove={(index) => applySteps(removeStep(draft.steps, index, selected))}
+        onInsert={(index, type) => applySteps(insertStep(draft.steps, index, type))}
       />
       {selected !== null && selectedStep && (
         <StepForm

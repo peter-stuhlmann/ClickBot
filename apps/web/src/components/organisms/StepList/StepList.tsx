@@ -4,6 +4,7 @@ import { Card } from '@/components/atoms/Card';
 import { Icon } from '@/components/atoms/Icon';
 import { StepItem } from '@/components/molecules/StepItem';
 import { plural } from '@/lib/format';
+import type { InsertableStepType } from '@/lib/job-draft';
 import type { StepItemView } from '@/lib/views';
 
 export type StepListProps = {
@@ -19,7 +20,46 @@ export type StepListProps = {
   /** Moves a step one place up (-1) or down (+1). */
   onMove: (index: number, delta: -1 | 1) => void;
   onRemove: (index: number) => void;
+  /** Puts a wait or a screenshot after the step at `index`; without it there are no buttons. */
+  onInsert?: (index: number, type: InsertableStepType) => void;
 };
+
+const INSERTS: { type: InsertableStepType; icon: 'clock' | 'camera'; label: string }[] = [
+  { type: 'wait', icon: 'clock', label: 'Warten' },
+  { type: 'screenshot', icon: 'camera', label: 'Bildschirmfoto' },
+];
+
+/**
+ * Between two steps: "Warten" and "Bildschirmfoto". With a mouse they show on hover over the step
+ * above or with the keyboard focus, so the list stays calm; on a touch screen always, in a line of
+ * their own.
+ */
+function InsertButtons({
+  number,
+  onInsert,
+}: {
+  number: number;
+  onInsert: (type: InsertableStepType) => void;
+}) {
+  return (
+    <div className="flex h-9 items-center gap-2 transition-opacity pointer-fine:relative pointer-fine:z-10 pointer-fine:h-2 pointer-fine:opacity-0 pointer-fine:group-focus-within/step:opacity-100 pointer-fine:group-hover/step:opacity-100">
+      <span aria-hidden="true" className="h-px flex-1 bg-border" />
+      {INSERTS.map(({ type, icon, label }) => (
+        <button
+          key={type}
+          type="button"
+          title={`${label} einfügen`}
+          aria-label={`${label} nach Schritt ${number} einfügen`}
+          onClick={() => onInsert(type)}
+          className="flex size-7 shrink-0 items-center justify-center rounded-full border border-border bg-surface text-text-muted shadow-tab transition-colors hover:border-primary hover:text-primary focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+        >
+          <Icon name={icon} size={16} />
+        </button>
+      ))}
+      <span aria-hidden="true" className="h-px flex-1 bg-border" />
+    </div>
+  );
+}
 
 /** The flow as an ordered list of steps; the selected one is edited next to it. */
 export function StepList({
@@ -30,6 +70,7 @@ export function StepList({
   onAdd,
   onMove,
   onRemove,
+  onInsert,
   actions,
 }: StepListProps) {
   return (
@@ -38,9 +79,9 @@ export function StepList({
       description={steps.length > 0 ? plural(steps.length, 'Schritt', 'Schritte') : 'Noch leer'}
     >
       {steps.length > 0 && (
-        <ol className="flex flex-col gap-2">
+        <ol className={onInsert ? 'flex flex-col' : 'flex flex-col gap-2'}>
           {steps.map((step, index) => (
-            <li key={step.key}>
+            <li key={step.key} className="group/step">
               <StepItem
                 index={index}
                 step={step.view}
@@ -51,6 +92,9 @@ export function StepList({
                 onMoveDown={index < steps.length - 1 ? () => onMove(index, 1) : undefined}
                 onRemove={() => onRemove(index)}
               />
+              {onInsert && (
+                <InsertButtons number={index + 1} onInsert={(type) => onInsert(index, type)} />
+              )}
             </li>
           ))}
         </ol>

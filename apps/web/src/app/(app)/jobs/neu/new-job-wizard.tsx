@@ -36,6 +36,7 @@ import {
   browserErrors,
   errorsByPath,
   moveStep,
+  insertStep,
   removeStep,
   scheduleErrors,
   stepErrors,
@@ -420,6 +421,7 @@ export function NewJobWizard({
                 onSelect={setSelected}
                 onMove={(index, delta) => applySteps(moveStep(draft.steps, index, delta))}
                 onRemove={(index) => applySteps(removeStep(draft.steps, index, selected))}
+                onInsert={(index, type) => applySteps(insertStep(draft.steps, index, type))}
                 actions={
                   <>
                     <Button

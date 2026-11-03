@@ -2,6 +2,7 @@ import type { Flow, Schedule } from '@click-bot/shared';
 import { describe, expect, it } from 'vitest';
 import {
   appendStep,
+  insertStep,
   jobToDraft,
   moveStep,
   newStep,
@@ -270,6 +271,27 @@ describe('step list helpers', () => {
 
   it('selects nothing once the last step is gone', () => {
     expect(removeStep([newStep('open', [], '')], 0, 0)).toEqual({ steps: [], selected: null });
+  });
+
+  it('inserts a wait of one second after a step and selects it', () => {
+    const result = insertStep(steps(), 0, 'wait');
+    expect(result.steps.map((step) => step.id)).toEqual(['open-1', 'wait-1', 'click-1', 'fill-1']);
+    expect(result.steps[1]).toMatchObject({ type: 'wait', waitKind: 'duration', waitSeconds: '1' });
+    expect(result.selected).toBe(1);
+  });
+
+  it('inserts a screenshot of the visible part after the last step, with an unused id', () => {
+    const first = insertStep(steps(), 2, 'screenshot');
+    const second = insertStep(first.steps, 3, 'screenshot');
+    expect(second.steps.map((step) => step.id)).toEqual([
+      'open-1',
+      'click-1',
+      'fill-1',
+      'screenshot-1',
+      'screenshot-2',
+    ]);
+    expect(second.steps[4]).toMatchObject({ type: 'screenshot', fullPage: false });
+    expect(second.selected).toBe(4);
   });
 });
 

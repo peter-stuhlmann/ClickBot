@@ -869,6 +869,24 @@ export function appendStep(steps: StepDraft[], startUrl: string): StepListState 
   return { steps: [...steps, step], selected: steps.length };
 }
 
+/** Step types that can be put between two steps of a finished flow: "Warten", "Bildschirmfoto". */
+export type InsertableStepType = Extract<EditableStepType, 'wait' | 'screenshot'>;
+
+/**
+ * Puts a wait (one second) or a screenshot (the visible part) right after the step at `after`
+ * and selects it, so its form opens next to the list.
+ */
+export function insertStep(
+  steps: StepDraft[],
+  after: number,
+  type: InsertableStepType,
+): StepListState {
+  const at = Math.min(Math.max(after + 1, 0), steps.length);
+  // No start URL: only an "open" step uses it.
+  const step = newStep(type, steps, '');
+  return { steps: [...steps.slice(0, at), step, ...steps.slice(at)], selected: at };
+}
+
 /** Moves a step one place; it stays selected. A move past either end changes nothing. */
 export function moveStep(steps: StepDraft[], index: number, delta: -1 | 1): StepListState {
   const target = index + delta;

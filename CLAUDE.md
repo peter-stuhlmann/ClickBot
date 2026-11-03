@@ -35,7 +35,8 @@ Projekte, die Anmeldung, das Profil und die Einstellungen der KI-Anbieter stehen
       1. „Website & Test“: Start-URL (der erste Schritt „Seite öffnen“ folgt ihr, solange er
          nicht von Hand geändert wurde) und die Art zu testen (`MethodPicker`): „Fester Ablauf“
          (aufnehmen im Live-Browser, Screen 04, mit „Aus Vorlage übernehmen“ daneben; danach eine Liste,
-         in der jeder Schritt korrigierbar ist, ohne „Schritt hinzufügen“) oder „Frei mit KI“
+         in der jeder Schritt korrigierbar ist, ohne „Schritt hinzufügen“; zwischen den Schritten
+         fügen Uhr und Kamera ein Warten bzw. ein Bildschirmfoto ein, siehe Editor) oder „Frei mit KI“
          (nur das Ziel des Tests, `GoalCard`; siehe Worker → KI-Schritt). Jeder Modus behält
          seinen Stand, während der andere gezeigt wird. Ist der Worker offline, sagt die
          Aufnahme-Karte das vorab (`LiveBrowser offline`); fehlt ein KI-Anbieter, die Ziel-Karte
@@ -74,7 +75,10 @@ Projekte, die Anmeldung, das Profil und die Einstellungen der KI-Anbieter stehen
       davor, wenn die Vorlage nicht selbst mit einer Seite beginnt. Ändern oder Löschen einer
       Vorlage ändert keinen Job.
     - Screen 02 „Editor“ (`/jobs/<id>`, über den Job-Namen in der Liste): Name, Start-URL,
-      Zeitplan, Geräte und Ablauf eines bestehenden Jobs ändern. Zwei Spalten statt der drei
+      Zeitplan, Geräte und Ablauf eines bestehenden Jobs ändern. Nach jedem Schritt fügen zwei
+      Icon-Knöpfe „Warten“ (1 s) und „Bildschirmfoto“ ein (`insertStep`, `onInsert` an `StepList`,
+      auch im Assistenten und bei Vorlagen): mit der Maus nur bei Hover oder Fokus
+      (`pointer-fine:`), auf Touch-Geräten immer, in einer eigenen Zeile. Zwei Spalten statt der drei
       aus dem Design, weil die Terminzeilen sonst zu schmal werden. GA4-Markierung und Werbung
       liegen auch hier unter „Erweiterte Einstellungen“; das Akkordeon ist offen, wenn eine davon
       vom Standard abweicht, damit die Warnung zu sehen ist.

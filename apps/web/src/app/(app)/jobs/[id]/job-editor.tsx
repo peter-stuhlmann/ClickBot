@@ -26,6 +26,7 @@ import {
   browserErrors,
   errorsByPath,
   moveStep,
+  insertStep,
   removeStep,
   scheduleErrors,
   stepErrors,
@@ -282,6 +283,7 @@ export function JobEditor({
         onAdd={() => applySteps(appendStep(draft.steps, draft.startUrl), false)}
         onMove={(index, delta) => applySteps(moveStep(draft.steps, index, delta))}
         onRemove={(index) => applySteps(removeStep(draft.steps, index, selected))}
+        onInsert={(index, type) => applySteps(insertStep(draft.steps, index, type))}
       />
       {selected !== null && selectedStep && (
         <StepForm

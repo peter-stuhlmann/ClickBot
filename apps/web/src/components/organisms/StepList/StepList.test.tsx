@@ -25,6 +25,28 @@ const handlers = () => ({
 });
 
 describe('StepList', () => {
+  it('inserts a wait or a screenshot after a step, with buttons between the steps', async () => {
+    const user = userEvent.setup();
+    const onInsert = vi.fn();
+    render(<StepList steps={steps} selectedIndex={null} {...handlers()} onInsert={onInsert} />);
+
+    await user.click(screen.getByRole('button', { name: 'Warten nach Schritt 1 einfügen' }));
+    await user.click(
+      screen.getByRole('button', { name: 'Bildschirmfoto nach Schritt 3 einfügen' }),
+    );
+    expect(onInsert.mock.calls).toEqual([
+      [0, 'wait'],
+      [2, 'screenshot'],
+    ]);
+    // One place after every step, also after the last one.
+    expect(screen.getAllByRole('button', { name: /^Warten nach Schritt/ })).toHaveLength(3);
+  });
+
+  it('has no insert buttons without onInsert', () => {
+    render(<StepList steps={steps} selectedIndex={null} {...handlers()} />);
+    expect(screen.queryByRole('button', { name: /einfügen$/ })).not.toBeInTheDocument();
+  });
+
   it('lists the steps in order with their count', () => {
     render(<StepList steps={steps} selectedIndex={1} {...handlers()} />);
     const list = screen.getByRole('region', { name: 'Ablauf' });
