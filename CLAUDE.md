@@ -605,8 +605,10 @@ time, bots }]`, `stagger`) bilden die Bots eines Termins eine Welle.
     die Seite wieder sauber, startet der Screencast neu, damit ein frisches Bild kommt.
 - **Zugangsdaten auf Bildern** (`conceal.ts`, Produktregel): Jeder Lauf mit Zugangsdaten legt per
   `addInitScript` in jede Seite und jedes iframe eine deckende, milchglasartige Fläche über jede
-  Stelle mit einem Wert: Text (genau der Wert, per Range), Felder, die einen enthalten, alle
-  Passwortfelder und das Feld mit Fokus, solange darin ein Wert getippt wird (Anfang eines Werts).
+  Stelle mit einem Wert: Text (genau der Wert, per Range), Felder, die einen enthalten, und das
+  Feld mit Fokus, solange darin ein Wert getippt wird (Anfang eines Werts). Passwortfelder nicht:
+  Ihre Punkte zeigen nur, dass etwas drinsteht (für Tests wichtig), nicht was; als Text angezeigt
+  zählen sie wie jedes Feld.
   - Die Flächen liegen in einem eigenen Shadow Root, nehmen keine Klicks und ändern kein Layout;
     als Popover liegen sie auch über modalen Dialogen. Deckend, weil Firefox und WebKit
     `backdrop-filter` in Bildschirmfotos nicht zeichnen.

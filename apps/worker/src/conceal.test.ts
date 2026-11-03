@@ -89,8 +89,8 @@ describe.each(['chromium', 'firefox', 'webkit'] as const)('concealSecrets in %s'
 
   it('blurs a field the moment a secret is filled in, before the page is painted again', async () => {
     const { page, context } = await open('/geheim.html');
-    // The secret in the text, the one far down the page and the password field.
-    expect(await page.evaluate(boxes)).toBe(3);
+    // The secret in the text and the one far down the page.
+    expect(await page.evaluate(boxes)).toBe(2);
 
     const counts = await page.evaluate((secret) => {
       const field = document.querySelector<HTMLInputElement>('#notiz');
@@ -102,7 +102,7 @@ describe.each(['chromium', 'firefox', 'webkit'] as const)('concealSecrets in %s'
       };
       return [type(secret), type('Erika')];
     }, SECRET);
-    expect(counts).toEqual([4, 3]);
+    expect(counts).toEqual([3, 2]);
     await context.close();
   });
 
@@ -110,11 +110,25 @@ describe.each(['chromium', 'firefox', 'webkit'] as const)('concealSecrets in %s'
     const { page, context } = await open('/geheim.html');
     const field = page.locator('#notiz');
     await field.pressSequentially('s3c');
-    expect(await page.evaluate(boxes)).toBe(4);
+    expect(await page.evaluate(boxes)).toBe(3);
     expect(await darkest(page, (await field.boundingBox()) as Box)).toBeGreaterThan(UNREADABLE);
 
     // Other text, or the field without the focus, is no secret.
     await field.fill('Hallo');
+    expect(await page.evaluate(boxes)).toBe(2);
+    await context.close();
+  });
+
+  it('leaves password fields as they are: dots show that something is in them, not what', async () => {
+    const { page, context } = await open('/geheim.html');
+    const field = page.locator('#kennwort');
+    await field.fill(SECRET);
+    expect(await page.evaluate(boxes)).toBe(2);
+    expect(await darkest(page, (await field.boundingBox()) as Box)).toBeLessThan(READABLE);
+    expect(await exposesSecret(page, [SECRET])).toBe(false);
+
+    // Shown as text ("Passwort anzeigen"), it is a field with a secret like any other.
+    await field.evaluate((input) => ((input as HTMLInputElement).type = 'text'));
     expect(await page.evaluate(boxes)).toBe(3);
     await context.close();
   });
@@ -128,7 +142,7 @@ describe.each(['chromium', 'firefox', 'webkit'] as const)('concealSecrets in %s'
       await Promise.resolve();
       return document.querySelector('click-bot-conceal')?.shadowRoot?.childElementCount ?? 0;
     }, SECRET);
-    expect(count).toBe(4);
+    expect(count).toBe(3);
     await context.close();
   });
 

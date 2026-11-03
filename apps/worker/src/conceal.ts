@@ -5,10 +5,11 @@ const API = 'click-bot.conceal';
 
 /**
  * Runs in every page and iframe of a run with secrets, before the page's own scripts. It lays an
- * opaque, blurred-looking box over every place that shows a secret: text with a value (exactly the value, via a
- * Range), a field holding one, every password field, and the field with the focus while a secret
- * is typed into it letter by letter. The boxes live in a shadow root of their own, take no clicks
- * and change no layout; as a popover they stay above modal dialogs too.
+ * opaque, blurred-looking box over every place that shows a secret: text with a value (exactly
+ * the value, via a Range), a field holding one (not a password field: its dots show nothing), and
+ * the field with the focus while a secret is typed into it letter by letter. The boxes live in a
+ * shadow root of their own, take no clicks and change no layout; as a popover they stay above
+ * modal dialogs too.
  *
  * Timing: changes are caught by a MutationObserver and the input events, both before the browser
  * paints again; positions follow every frame while a box is shown. So a frame, a screenshot or a
@@ -35,7 +36,9 @@ const PAGE_SCRIPT = String.raw`(values) => {
       fields = [];
       for (const field of document.querySelectorAll('input, textarea')) {
         const value = field.value || '';
-        if (field.type === 'password' || holds(value) || (field === document.activeElement && typing(value))) {
+        // A password field shows dots: that something is in it, not what. Shown as text, it counts.
+        if (field.type === 'password') continue;
+        if (holds(value) || (field === document.activeElement && typing(value))) {
           fields.push(field);
         }
       }
