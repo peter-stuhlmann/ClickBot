@@ -25,6 +25,26 @@ export async function guardContext(
 }
 
 /**
+ * Whether the browser of an engine starts here, for tests that need it. A build of a browser that
+ * cannot start on this machine (e.g. a Firefox that does not run on a new macOS) skips its tests
+ * with a warning instead of failing them. On CI (`CI` is set) it still fails, so a broken browser
+ * there is never skipped unseen.
+ */
+export async function engineStarts(engine: EngineName): Promise<boolean> {
+  try {
+    await (await launchEngine(engine)).close();
+    return true;
+  } catch (error) {
+    if (process.env.CI) throw error;
+    const reason = (error instanceof Error ? error.message : String(error)).split('\n')[0];
+    console.warn(
+      `[tests] ${engine} startet hier nicht, seine Tests werden übersprungen: ${reason}`,
+    );
+    return false;
+  }
+}
+
+/**
  * Starts a browser (Chromium unless said otherwise) and the fixture site once per test file or
  * describe block. Contexts created through
  * `newContext` can only reach the fixture site; GA4 requests are answered locally with 204,

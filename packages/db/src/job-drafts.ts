@@ -1,4 +1,4 @@
-import { and, eq, isNotNull } from 'drizzle-orm';
+import { and, eq, isNotNull, sql } from 'drizzle-orm';
 import type { Database } from './client';
 import { NotFoundError, ValidationError } from './errors';
 import { isUuid } from './ids';
@@ -124,7 +124,7 @@ export async function saveJobDraft(
         ...mergeValid(input, current),
         campaignId,
         wizardState: input.wizardState,
-        updatedAt: new Date(),
+        updatedAt: sql`now()`,
       })
       .where(eq(jobs.id, jobId))
       .returning();

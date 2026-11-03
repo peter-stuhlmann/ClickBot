@@ -120,7 +120,7 @@ export async function moveSlot(
 
     await tx
       .update(jobs)
-      .set({ schedule: parsed.data, updatedAt: new Date() })
+      .set({ schedule: parsed.data, updatedAt: sql`now()` })
       .where(eq(jobs.id, jobId));
   });
 }

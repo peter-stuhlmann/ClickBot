@@ -197,7 +197,7 @@ export async function getDashboardStats(
 export async function setJobActive(db: Database, jobId: string, active: boolean): Promise<Job> {
   const [job] = await db
     .update(jobs)
-    .set({ status: active ? 'active' : 'paused', updatedAt: new Date() })
+    .set({ status: active ? 'active' : 'paused', updatedAt: sql`now()` })
     .where(and(eq(jobs.id, jobId), inArray(jobs.status, ['active', 'paused'])))
     .returning();
   if (job) return job;

@@ -340,7 +340,7 @@ export async function updateJob(db: Database, jobId: string, input: JobUpdateInp
         // The saved version counts from now on, not the form a wizard draft was left with.
         wizardState: null,
         ...(input.activate ? { status: 'active' as const } : {}),
-        updatedAt: new Date(),
+        updatedAt: sql`now()`,
       })
       .where(eq(jobs.id, jobId))
       .returning();

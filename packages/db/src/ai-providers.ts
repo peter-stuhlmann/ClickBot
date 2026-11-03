@@ -79,7 +79,7 @@ export async function saveAiProvider(
     if (stored) {
       await tx
         .update(aiProviders)
-        .set({ model, baseUrl, ...key, updatedAt: new Date() })
+        .set({ model, baseUrl, ...key, updatedAt: sql`now()` })
         .where(eq(aiProviders.kind, kind));
       return;
     }

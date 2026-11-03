@@ -31,15 +31,28 @@ const SECRET_CHECK_MS = 1_000;
 
 type Feed = { stop(): Promise<void> };
 
-/** Chromium paints its frames over CDP, only when the page changes. */
+/** A quiet page is shown again after this long without a picture. */
+const QUIET_REFRESH_MS = 1_000;
+
+/**
+ * Chromium paints its frames over CDP, only when the page changes. That can leave a watcher with
+ * no picture at all: a screencast that starts while the page navigates may lose its pictures, and
+ * a page that then stands still paints nothing more. So a page that was quiet for a second is
+ * shown again with a screenshot.
+ */
 async function screencast(
   page: Page,
   frame: (data: string) => void,
   quality: FrameQuality,
 ): Promise<Feed> {
   const cdp = await page.context().newCDPSession(page);
-  cdp.on('Page.screencastFrame', ({ data, sessionId }) => {
+  let lastFrameAt = Date.now();
+  const show = (data: string) => {
+    lastFrameAt = Date.now();
     frame(data);
+  };
+  cdp.on('Page.screencastFrame', ({ data, sessionId }) => {
+    show(data);
     cdp.send('Page.screencastFrameAck', { sessionId }).catch(() => undefined);
   });
   await cdp.send('Page.startScreencast', {
@@ -48,8 +61,21 @@ async function screencast(
     maxWidth: quality.maxSide,
     maxHeight: quality.maxSide,
   });
+  let refreshing = false;
+  const refresh = setInterval(() => {
+    if (refreshing || Date.now() - lastFrameAt < QUIET_REFRESH_MS) return;
+    refreshing = true;
+    cdp
+      .send('Page.captureScreenshot', { format: 'jpeg', quality: quality.quality })
+      .then((shot) => show(shot.data))
+      .catch(() => undefined)
+      .finally(() => {
+        refreshing = false;
+      });
+  }, QUIET_REFRESH_MS / 2);
   return {
     async stop() {
+      clearInterval(refresh);
       await cdp.send('Page.stopScreencast').catch(() => undefined);
       await cdp.detach().catch(() => undefined);
     },

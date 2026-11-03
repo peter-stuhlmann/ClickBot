@@ -1,7 +1,7 @@
 import { PNG } from 'pngjs';
 import type { BrowserContext, Frame, Page } from 'playwright';
 import { describe, expect, it } from 'vitest';
-import { useBrowser } from '../test/browser';
+import { engineStarts, useBrowser } from '../test/browser';
 import { concealSecrets, exposesSecret } from './conceal';
 
 const SECRET = 's3cr3t-Wert';
@@ -52,143 +52,156 @@ const boxes = () => document.querySelector('click-bot-conceal')?.shadowRoot?.chi
 const READABLE = 40;
 const UNREADABLE = 110;
 
-describe.each(['chromium', 'firefox', 'webkit'] as const)('concealSecrets in %s', (engine) => {
-  const browser = useBrowser(engine);
+const ENGINES = ['chromium', 'firefox', 'webkit'] as const;
+const starts = Object.fromEntries(
+  await Promise.all(ENGINES.map(async (engine) => [engine, await engineStarts(engine)] as const)),
+) as Record<(typeof ENGINES)[number], boolean>;
 
-  async function open(
-    path: string,
-    secrets = [SECRET],
-  ): Promise<{ page: Page; context: BrowserContext }> {
-    const context = await browser.newContext({ viewport: { width: 1000, height: 700 } });
-    await concealSecrets(context, secrets);
-    const page = await context.newPage();
-    await page.goto(`${browser.origin()}${path}`);
-    return { page, context };
-  }
+for (const engine of ENGINES) {
+  (starts[engine] ? describe : describe.skip)(`concealSecrets in ${engine}`, () => {
+    const browser = useBrowser(engine);
 
-  it('blurs a secret in the text so it cannot be read, and leaves the rest of the page readable', async () => {
-    const { page, context } = await open('/geheim.html');
-    expect(await darkest(page, await textBox(page, '#schluessel', SECRET))).toBeGreaterThan(
-      UNREADABLE,
-    );
-    expect(await darkest(page, await textBox(page, 'p', 'Ihr Schlüssel'))).toBeLessThan(READABLE);
-    expect(await exposesSecret(page, [SECRET])).toBe(false);
-    await context.close();
-  });
+    async function open(
+      path: string,
+      secrets = [SECRET],
+    ): Promise<{ page: Page; context: BrowserContext }> {
+      const context = await browser.newContext({ viewport: { width: 1000, height: 700 } });
+      await concealSecrets(context, secrets);
+      const page = await context.newPage();
+      await page.goto(`${browser.origin()}${path}`);
+      return { page, context };
+    }
 
-  it('shows the secret without concealment, the check of the test itself', async () => {
-    const context = await browser.newContext({ viewport: { width: 1000, height: 700 } });
-    const page = await context.newPage();
-    await page.goto(`${browser.origin()}/geheim.html`);
-    expect(await darkest(page, await textBox(page, '#schluessel', SECRET))).toBeLessThan(READABLE);
-    // Without the script in the page the plain look decides: the secret is there.
-    expect(await exposesSecret(page, [SECRET])).toBe(true);
-    expect(await exposesSecret(page, [])).toBe(false);
-    await context.close();
-  });
+    it('blurs a secret in the text so it cannot be read, and leaves the rest of the page readable', async () => {
+      const { page, context } = await open('/geheim.html');
+      expect(await darkest(page, await textBox(page, '#schluessel', SECRET))).toBeGreaterThan(
+        UNREADABLE,
+      );
+      expect(await darkest(page, await textBox(page, 'p', 'Ihr Schlüssel'))).toBeLessThan(READABLE);
+      expect(await exposesSecret(page, [SECRET])).toBe(false);
+      await context.close();
+    });
 
-  it('blurs a field the moment a secret is filled in, before the page is painted again', async () => {
-    const { page, context } = await open('/geheim.html');
-    // The secret in the text and the one far down the page.
-    expect(await page.evaluate(boxes)).toBe(2);
+    it('shows the secret without concealment, the check of the test itself', async () => {
+      const context = await browser.newContext({ viewport: { width: 1000, height: 700 } });
+      const page = await context.newPage();
+      await page.goto(`${browser.origin()}/geheim.html`);
+      expect(await darkest(page, await textBox(page, '#schluessel', SECRET))).toBeLessThan(
+        READABLE,
+      );
+      // Without the script in the page the plain look decides: the secret is there.
+      expect(await exposesSecret(page, [SECRET])).toBe(true);
+      expect(await exposesSecret(page, [])).toBe(false);
+      await context.close();
+    });
 
-    const counts = await page.evaluate((secret) => {
-      const field = document.querySelector<HTMLInputElement>('#notiz');
-      if (!field) throw new Error('Feld fehlt.');
-      const type = (value: string) => {
-        field.value = value;
-        field.dispatchEvent(new Event('input', { bubbles: true }));
+    it('blurs a field the moment a secret is filled in, before the page is painted again', async () => {
+      const { page, context } = await open('/geheim.html');
+      // The secret in the text and the one far down the page.
+      expect(await page.evaluate(boxes)).toBe(2);
+
+      const counts = await page.evaluate((secret) => {
+        const field = document.querySelector<HTMLInputElement>('#notiz');
+        if (!field) throw new Error('Feld fehlt.');
+        const type = (value: string) => {
+          field.value = value;
+          field.dispatchEvent(new Event('input', { bubbles: true }));
+          return document.querySelector('click-bot-conceal')?.shadowRoot?.childElementCount ?? 0;
+        };
+        return [type(secret), type('Erika')];
+      }, SECRET);
+      expect(counts).toEqual([3, 2]);
+      await context.close();
+    });
+
+    it('blurs the field with the focus while a secret is typed into it, letter by letter', async () => {
+      const { page, context } = await open('/geheim.html');
+      const field = page.locator('#notiz');
+      await field.pressSequentially('s3c');
+      expect(await page.evaluate(boxes)).toBe(3);
+      expect(await darkest(page, (await field.boundingBox()) as Box)).toBeGreaterThan(UNREADABLE);
+
+      // Other text, or the field without the focus, is no secret.
+      await field.fill('Hallo');
+      expect(await page.evaluate(boxes)).toBe(2);
+      await context.close();
+    });
+
+    it('leaves password fields as they are: dots show that something is in them, not what', async () => {
+      const { page, context } = await open('/geheim.html');
+      const field = page.locator('#kennwort');
+      await field.fill(SECRET);
+      expect(await page.evaluate(boxes)).toBe(2);
+      expect(await darkest(page, (await field.boundingBox()) as Box)).toBeLessThan(READABLE);
+      expect(await exposesSecret(page, [SECRET])).toBe(false);
+
+      // Shown as text ("Passwort anzeigen"), it is a field with a secret like any other.
+      await field.evaluate((input) => ((input as HTMLInputElement).type = 'text'));
+      expect(await page.evaluate(boxes)).toBe(3);
+      await context.close();
+    });
+
+    it('blurs a secret that appears later, before the page is painted again', async () => {
+      const { page, context } = await open('/geheim.html');
+      const count = await page.evaluate(async (secret) => {
+        const target = document.querySelector('#nachgeladen');
+        if (target) target.textContent = `Neu: ${secret}`;
+        // Mutation observers run in the microtasks after the change, before the next frame.
+        await Promise.resolve();
         return document.querySelector('click-bot-conceal')?.shadowRoot?.childElementCount ?? 0;
-      };
-      return [type(secret), type('Erika')];
-    }, SECRET);
-    expect(counts).toEqual([3, 2]);
-    await context.close();
+      }, SECRET);
+      expect(count).toBe(3);
+      await context.close();
+    });
+
+    it('follows the page when it scrolls', async () => {
+      const { page, context } = await open('/geheim.html');
+      await page.evaluate(() =>
+        window.scrollTo({ top: document.body.scrollHeight, behavior: 'instant' }),
+      );
+      await page.evaluate(() => new Promise(requestAnimationFrame));
+      expect(await darkest(page, await textBox(page, '#unten', SECRET))).toBeGreaterThan(
+        UNREADABLE,
+      );
+      expect(await darkest(page, await textBox(page, '#unten', 'Ganz unten'))).toBeLessThan(
+        READABLE,
+      );
+      await context.close();
+    });
+
+    it('blurs a secret in a modal dialog, which is drawn above everything else', async () => {
+      const { page, context } = await open('/geheim.html');
+      await page.evaluate(() => document.querySelector<HTMLDialogElement>('#dialog')?.showModal());
+      await page.evaluate(() => new Promise(requestAnimationFrame));
+      expect(await darkest(page, await textBox(page, '#im-dialog', SECRET))).toBeGreaterThan(
+        UNREADABLE,
+      );
+      expect(await darkest(page, await textBox(page, '#im-dialog', 'Im Dialog'))).toBeLessThan(
+        READABLE,
+      );
+      await context.close();
+    });
+
+    it('blurs a secret inside an iframe', async () => {
+      const { page, context } = await open('/geheim-rahmen.html');
+      const frame = page.frame({ url: /geheim\.html$/ });
+      if (!frame) throw new Error('Rahmen fehlt.');
+      await frame.waitForLoadState();
+      await frame.evaluate(() => new Promise(requestAnimationFrame));
+      const inFrame = await textBox(frame, '#schluessel', SECRET);
+      const offset = await page.locator('iframe').boundingBox();
+      if (!offset) throw new Error('Rahmen ohne Größe.');
+      const box = { ...inFrame, x: inFrame.x + offset.x, y: inFrame.y + offset.y };
+      expect(await darkest(page, box)).toBeGreaterThan(UNREADABLE);
+      expect(await exposesSecret(page, [SECRET])).toBe(false);
+      await context.close();
+    });
+
+    it('counts a secret it cannot cover as shown: split over two elements', async () => {
+      const { page, context } = await open('/geheim.html');
+      await page.evaluate(() => document.querySelector('#getrennt')?.removeAttribute('hidden'));
+      expect(await exposesSecret(page, [SECRET])).toBe(true);
+      await context.close();
+    });
   });
-
-  it('blurs the field with the focus while a secret is typed into it, letter by letter', async () => {
-    const { page, context } = await open('/geheim.html');
-    const field = page.locator('#notiz');
-    await field.pressSequentially('s3c');
-    expect(await page.evaluate(boxes)).toBe(3);
-    expect(await darkest(page, (await field.boundingBox()) as Box)).toBeGreaterThan(UNREADABLE);
-
-    // Other text, or the field without the focus, is no secret.
-    await field.fill('Hallo');
-    expect(await page.evaluate(boxes)).toBe(2);
-    await context.close();
-  });
-
-  it('leaves password fields as they are: dots show that something is in them, not what', async () => {
-    const { page, context } = await open('/geheim.html');
-    const field = page.locator('#kennwort');
-    await field.fill(SECRET);
-    expect(await page.evaluate(boxes)).toBe(2);
-    expect(await darkest(page, (await field.boundingBox()) as Box)).toBeLessThan(READABLE);
-    expect(await exposesSecret(page, [SECRET])).toBe(false);
-
-    // Shown as text ("Passwort anzeigen"), it is a field with a secret like any other.
-    await field.evaluate((input) => ((input as HTMLInputElement).type = 'text'));
-    expect(await page.evaluate(boxes)).toBe(3);
-    await context.close();
-  });
-
-  it('blurs a secret that appears later, before the page is painted again', async () => {
-    const { page, context } = await open('/geheim.html');
-    const count = await page.evaluate(async (secret) => {
-      const target = document.querySelector('#nachgeladen');
-      if (target) target.textContent = `Neu: ${secret}`;
-      // Mutation observers run in the microtasks after the change, before the next frame.
-      await Promise.resolve();
-      return document.querySelector('click-bot-conceal')?.shadowRoot?.childElementCount ?? 0;
-    }, SECRET);
-    expect(count).toBe(3);
-    await context.close();
-  });
-
-  it('follows the page when it scrolls', async () => {
-    const { page, context } = await open('/geheim.html');
-    await page.evaluate(() =>
-      window.scrollTo({ top: document.body.scrollHeight, behavior: 'instant' }),
-    );
-    await page.evaluate(() => new Promise(requestAnimationFrame));
-    expect(await darkest(page, await textBox(page, '#unten', SECRET))).toBeGreaterThan(UNREADABLE);
-    expect(await darkest(page, await textBox(page, '#unten', 'Ganz unten'))).toBeLessThan(READABLE);
-    await context.close();
-  });
-
-  it('blurs a secret in a modal dialog, which is drawn above everything else', async () => {
-    const { page, context } = await open('/geheim.html');
-    await page.evaluate(() => document.querySelector<HTMLDialogElement>('#dialog')?.showModal());
-    await page.evaluate(() => new Promise(requestAnimationFrame));
-    expect(await darkest(page, await textBox(page, '#im-dialog', SECRET))).toBeGreaterThan(
-      UNREADABLE,
-    );
-    expect(await darkest(page, await textBox(page, '#im-dialog', 'Im Dialog'))).toBeLessThan(
-      READABLE,
-    );
-    await context.close();
-  });
-
-  it('blurs a secret inside an iframe', async () => {
-    const { page, context } = await open('/geheim-rahmen.html');
-    const frame = page.frame({ url: /geheim\.html$/ });
-    if (!frame) throw new Error('Rahmen fehlt.');
-    await frame.waitForLoadState();
-    await frame.evaluate(() => new Promise(requestAnimationFrame));
-    const inFrame = await textBox(frame, '#schluessel', SECRET);
-    const offset = await page.locator('iframe').boundingBox();
-    if (!offset) throw new Error('Rahmen ohne Größe.');
-    const box = { ...inFrame, x: inFrame.x + offset.x, y: inFrame.y + offset.y };
-    expect(await darkest(page, box)).toBeGreaterThan(UNREADABLE);
-    expect(await exposesSecret(page, [SECRET])).toBe(false);
-    await context.close();
-  });
-
-  it('counts a secret it cannot cover as shown: split over two elements', async () => {
-    const { page, context } = await open('/geheim.html');
-    await page.evaluate(() => document.querySelector('#getrennt')?.removeAttribute('hidden'));
-    expect(await exposesSecret(page, [SECRET])).toBe(true);
-    await context.close();
-  });
-});
+}

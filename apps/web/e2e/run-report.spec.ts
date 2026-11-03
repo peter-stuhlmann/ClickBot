@@ -37,7 +37,7 @@ test.describe('Durchlauf-Report', () => {
     await expect(thumbnails.last()).toHaveAttribute('aria-current', 'true');
 
     await thumbnails.nth(1).click();
-    await expect(gallery.getByText('2 / 3')).toBeVisible();
+    await expect(gallery.getByText('2 / 3').filter({ visible: true })).toBeVisible();
     await gallery.getByRole('link', { name: /vergrößern$/ }).click();
 
     const lightbox = page.getByRole('dialog');
@@ -60,7 +60,7 @@ test.describe('Durchlauf-Report', () => {
     await expect(picture).toHaveAttribute('src', '/artifacts/runs/e2e/0-open.png');
     await page.keyboard.press('Escape');
     await expect(lightbox).toBeHidden();
-    await expect(gallery.getByText('1 / 3')).toBeVisible();
+    await expect(gallery.getByText('1 / 3').filter({ visible: true })).toBeVisible();
 
     // The link of a step in the step list opens its screenshot.
     await page

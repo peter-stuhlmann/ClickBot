@@ -90,7 +90,7 @@ export async function updateTemplate(
   const fields = await checkedFields(db, input, id);
   const [template] = await db
     .update(flowTemplates)
-    .set({ ...fields, updatedAt: new Date() })
+    .set({ ...fields, updatedAt: sql`now()` })
     .where(eq(flowTemplates.id, id))
     .returning();
   return template as FlowTemplate;
