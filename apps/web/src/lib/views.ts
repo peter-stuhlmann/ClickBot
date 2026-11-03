@@ -65,6 +65,9 @@ export type ScreenshotView = {
   title: string;
 };
 
+/** The video of a run: the MP4, its captions (WebVTT) and the name of a download. */
+export type VideoView = { url: string; captionsUrl: string; fileName: string };
+
 /** Screen 03 "Lauf-Report". */
 export type RunReportView = {
   jobName: string;
@@ -84,8 +87,8 @@ export type RunReportView = {
   failure: { title: string; message: string } | null;
   /** Every screenshot of the run, in the order of its steps. */
   screenshots: ScreenshotView[];
-  /** The MP4 of the run and its captions (WebVTT); null without one or once it expired. */
-  video: { url: string; captionsUrl: string; fileName: string } | null;
+  /** The MP4 of the run and its captions; null without one or once it expired. */
+  video: VideoView | null;
   /** While the run waits or runs: what it is waiting for. The page then refreshes itself. */
   live: string | null;
   /** Set when the run marked its GA4 requests only partly or not at all. */
@@ -131,6 +134,8 @@ export type TestRunView = {
   /** "Schritt 7 · Klicke auf „Kurse“" */
   failedStep: string | null;
   reason: string | null;
+  /** Once the run is done: its video (test runs are always recorded). */
+  video: VideoView | null;
 };
 
 /** Screen 03b "Welle-Report": every device and browser of one start, side by side. */

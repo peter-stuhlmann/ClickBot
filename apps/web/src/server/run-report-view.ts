@@ -7,7 +7,13 @@ import { toStepDraft } from '@/lib/job-draft';
 import { screenshotAnchor } from '@/lib/screenshots';
 import { describeStep } from '@/lib/step-view';
 import { toWebVtt } from '@/lib/video-captions';
-import type { RunReportView, RunStepView, ScreenshotView, StatCardView } from '@/lib/views';
+import type {
+  RunReportView,
+  RunStepView,
+  ScreenshotView,
+  StatCardView,
+  VideoView,
+} from '@/lib/views';
 import { RUN_BADGE } from './jobs-view';
 
 const DASH = '–';
@@ -147,6 +153,16 @@ function liveHint(status: RunReport['run']['status'], workerOnline: boolean): st
     : 'Das Testsystem ist nicht verbunden. Der Durchlauf startet, sobald er wieder läuft.';
 }
 
+/** The video of a run, for the report and the "Testlauf" of the wizard; null without one. */
+export function toVideoView({ run, job }: RunReport): VideoView | null {
+  if (!run.videoPath) return null;
+  return {
+    url: artifactUrl(run.videoPath),
+    captionsUrl: `/laeufe/${run.id}/untertitel`,
+    fileName: videoFileName(job.name, run.runNr),
+  };
+}
+
 /**
  * The captions of a run's video (WebVTT): each step with its title as in the report, and when
  * the picture was hidden. Empty cues without a video.
@@ -233,12 +249,6 @@ export function toRunReportView(
           }
         : null,
     screenshots: screenshotViews(report, steps),
-    video: run.videoPath
-      ? {
-          url: artifactUrl(run.videoPath),
-          captionsUrl: `/laeufe/${run.id}/untertitel`,
-          fileName: videoFileName(job.name, run.runNr),
-        }
-      : null,
+    video: toVideoView(report),
   };
 }

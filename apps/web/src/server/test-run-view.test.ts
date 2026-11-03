@@ -77,6 +77,7 @@ describe('toTestRunView', () => {
       failedIndex: null,
       failedStep: null,
       reason: null,
+      video: null,
     });
     expect(toTestRunView(report({}), { workerOnline: false }).message).toBe(
       'Das Testsystem ist nicht verbunden. Der Testlauf startet, sobald es läuft.',
@@ -134,6 +135,22 @@ describe('toTestRunView', () => {
       message: 'Der Testlauf wurde abgebrochen.',
       reason: 'Abgebrochen.',
     });
+  });
+
+  it('offers the video of the run once it is there', () => {
+    const view = toTestRunView(
+      report({
+        status: 'passed',
+        videoPath: 'runs/run-1/video.mp4',
+        videoCues: [],
+      }),
+    );
+    expect(view.video).toEqual({
+      url: '/artifacts/runs/run-1/video.mp4',
+      captionsUrl: '/laeufe/run-1/untertitel',
+      fileName: 'kurse-durchlauf-1.mp4',
+    });
+    expect(toTestRunView(report({ status: 'running' })).video).toBeNull();
   });
 
   it('points to the report for a hint', () => {

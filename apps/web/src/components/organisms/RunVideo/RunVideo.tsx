@@ -1,6 +1,7 @@
 import { buttonVariants } from '@/components/atoms/Button';
 import { Card } from '@/components/atoms/Card';
 import { Icon } from '@/components/atoms/Icon';
+import { VideoPlayer } from '@/components/molecules/VideoPlayer';
 
 export type RunVideoProps = {
   url: string;
@@ -26,15 +27,7 @@ export function RunVideo({ url, captionsUrl, fileName }: RunVideoProps) {
         </a>
       }
     >
-      <video
-        src={url}
-        controls
-        preload="metadata"
-        playsInline
-        className="block aspect-8/5 w-full rounded-input border border-border bg-subtle"
-      >
-        <track kind="captions" src={captionsUrl} srcLang="de" label="Schritte" default />
-      </video>
+      <VideoPlayer url={url} captionsUrl={captionsUrl} />
       <p className="text-small text-text-muted">
         Zugangsdaten sind abgedeckt. Das Video bleibt 30 Tage, der Report bleibt.
       </p>

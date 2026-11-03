@@ -15,6 +15,7 @@ const failed: TestRunView = {
   failedIndex: 1,
   failedStep: 'Schritt 2 · Klicke auf „Kurse“',
   reason: 'Element nicht gefunden.',
+  video: null,
 };
 
 describe('TestRunCard', () => {
@@ -69,6 +70,45 @@ describe('TestRunCard', () => {
     );
     expect(screen.getByRole('img', { name: 'Live-Bild des Durchlaufs' })).toBeVisible();
     expect(screen.getByText('Schritt 1 von 2 · Öffne beispiel.de')).toBeVisible();
+  });
+
+  it('shows the video of the run once it is done, to play or download', () => {
+    const { container } = render(
+      <TestRunCard
+        run={{
+          ...failed,
+          video: {
+            url: '/artifacts/runs/run-1/video.mp4',
+            captionsUrl: '/laeufe/run-1/untertitel',
+            fileName: 'kurse-durchlauf-3.mp4',
+          },
+        }}
+        hint={HINT}
+        busy={false}
+        onStart={vi.fn()}
+      />,
+    );
+    expect(container.querySelector('video')).toHaveAttribute(
+      'src',
+      '/artifacts/runs/run-1/video.mp4',
+    );
+    expect(screen.getByRole('link', { name: 'Video herunterladen' })).toHaveAttribute(
+      'download',
+      'kurse-durchlauf-3.mp4',
+    );
+  });
+
+  it('says that an open run is recorded as a video', () => {
+    const { container } = render(
+      <TestRunCard
+        run={{ ...failed, open: true, status: { tone: 'neutral', label: 'Läuft' } }}
+        hint={HINT}
+        busy={false}
+        onStart={vi.fn()}
+      />,
+    );
+    expect(screen.getByRole('status')).toHaveTextContent('Wird als Video aufgenommen.');
+    expect(container.querySelector('video')).toBeNull();
   });
 
   it('is busy while the draft is saved and the run queued', () => {

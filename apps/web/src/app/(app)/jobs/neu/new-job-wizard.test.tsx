@@ -487,6 +487,7 @@ const waiting: TestRunView = {
   failedIndex: null,
   failedStep: null,
   reason: null,
+  video: null,
 };
 
 const failedRun: TestRunView = {

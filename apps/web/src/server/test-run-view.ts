@@ -6,6 +6,7 @@ import { toStepDraft } from '@/lib/job-draft';
 import { describeStep } from '@/lib/step-view';
 import type { TestRunView } from '@/lib/views';
 import { RUN_BADGE } from './jobs-view';
+import { toVideoView } from './run-report-view';
 
 function message(report: RunReport, workerOnline: boolean, failedIndex: number | null): string {
   const { run, steps } = report;
@@ -56,5 +57,6 @@ export function toTestRunView(
     failedIndex,
     failedStep: number && draft ? `${number} · ${describeStep(draft).title}` : number,
     reason: ended ? (failed?.message ?? run.error) : null,
+    video: toVideoView(report),
   };
 }

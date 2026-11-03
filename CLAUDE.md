@@ -65,8 +65,9 @@ Projekte, die Anmeldung, das Profil und die Einstellungen der KI-Anbieter stehen
         (`startDraftTestRunAction`, `queueTestRun` mit `once`). Die Karte fragt alle 2 s nach
         (`testRunStatusAction`), bis er fertig ist, und zeigt Ergebnis, fehlgeschlagenen
         Schritt, Grund und den Link zum Report. Solange er wartet oder läuft, zeigt sie ihn live
-        (`LiveScreen`, `useRunWatch`): das Bild der Seite und „Schritt n von m · …“. Am Ende
-        fragt sie sofort nach dem Ergebnis.
+        (`LiveScreen`, `useRunWatch`): das Bild der Seite und „Schritt n von m · …“, dazu
+        „Wird als Video aufgenommen.“ Am Ende fragt sie sofort nach dem Ergebnis und zeigt das
+        Video (`VideoPlayer`, wie im Report) mit „Video herunterladen“.
     - „Vorlagen“ (`/vorlagen`, ohne Figma-Entwurf): Abläufe für jede Website, für alle Projekte.
       Anlegen unter `/vorlagen/neu` (gleicher Baukasten, ohne Passwortschutz) oder im Editor eines
       Jobs mit „Als Vorlage speichern“ (`toTemplateFlow`: ohne das Öffnen der Start-URL am Anfang,
