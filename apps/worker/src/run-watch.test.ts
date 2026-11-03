@@ -13,7 +13,7 @@ describe('createRunWatchRegistry', () => {
     watched?.subscribe((event) => events.push(event));
 
     tap.page(page);
-    tap.step(0, 'running', true);
+    tap.step(0, 'running');
     tap.step(0, 'passed');
     expect(watched).toMatchObject({ runId: 'run-1', engine: 'firefox', secrets: ['geheim'] });
     expect(watched?.page()).toBe(page);
@@ -22,7 +22,6 @@ describe('createRunWatchRegistry', () => {
       index: 0,
       total: 3,
       status: 'passed',
-      usesSecret: false,
     });
 
     tap.end('failed');

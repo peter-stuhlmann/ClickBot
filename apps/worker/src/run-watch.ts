@@ -7,14 +7,13 @@ export type StepStatus = 'running' | 'passed' | 'unclear' | 'failed';
 export type RunEvent =
   /** The run works in this page from now on (the first one, or a new tab). */
   | { type: 'page'; page: Page }
-  /** usesSecret: the step types or opens a secret; nothing of the page is shown meanwhile. */
-  | { type: 'step'; index: number; total: number; status: StepStatus; usesSecret: boolean }
+  | { type: 'step'; index: number; total: number; status: StepStatus }
   | { type: 'end'; status: 'passed' | 'warning' | 'failed' };
 
 /** What runFlow reports about a run while it goes. */
 export type RunTap = {
   page(page: Page): void;
-  step(index: number, status: StepStatus, usesSecret?: boolean): void;
+  step(index: number, status: StepStatus): void;
   end(status: 'passed' | 'warning' | 'failed'): void;
 };
 
@@ -22,7 +21,7 @@ export type RunTap = {
 export type WatchedRun = {
   runId: string;
   engine: Browser;
-  /** Values of the run's secrets: a page showing one is not shown. */
+  /** Values of the run's secrets: a page showing one in the clear is not shown. */
   secrets: string[];
   page(): Page | null;
   lastStep(): Extract<RunEvent, { type: 'step' }> | null;
@@ -73,8 +72,8 @@ export function createRunWatchRegistry(): RunWatchRegistry {
           page = next;
           emit({ type: 'page', page: next });
         },
-        step(index, status, usesSecret = false) {
-          last = { type: 'step', index, total: info.total, status, usesSecret };
+        step(index, status) {
+          last = { type: 'step', index, total: info.total, status };
           emit(last);
         },
         end(status) {

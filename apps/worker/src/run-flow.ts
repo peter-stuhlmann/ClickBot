@@ -10,6 +10,7 @@ import { blockAds } from './ad-blocking';
 import { AiStepError, runAiStep, type AgentDriver } from './ai-step';
 import { createGa4Recorder } from './analytics';
 import { markBotTraffic } from './bot-marking';
+import { concealSecrets, exposesSecret } from './conceal';
 import { toStepMessage } from './errors';
 import { waitForPdf } from './pdf';
 import type { RunTap } from './run-watch';
@@ -17,6 +18,8 @@ import { executeStep } from './steps';
 import { createTestData } from './test-data';
 
 const FAILURE_SCREENSHOT_TIMEOUT_MS = 3_000;
+const LEFT_OUT =
+  'Bildschirmfoto ausgelassen: Die Seite zeigte Zugangsdaten, die sich nicht abdecken ließen.';
 
 export type RunOptions = {
   /** Start URL of the job; relative `open` URLs resolve against it. */
@@ -63,12 +66,16 @@ export type RunResult = {
  * Runs a flow in a fresh page of `context` and stops at the first failing step; the rest are
  * reported as skipped. A failing step gets a screenshot of the moment it failed. When a step opens
  * a new tab (a link with target="_blank", window.open), the following steps go on in that tab.
+ * Product rule: secrets never appear in pictures. Every page blurs them (concealSecrets); a
+ * screenshot that could still show one in the clear is left out.
  */
 export async function runFlow(
   context: BrowserContext,
   flow: Flow,
   options: RunOptions,
 ): Promise<RunResult> {
+  const secrets = Object.values(options.secrets);
+  await concealSecrets(context, secrets);
   await markBotTraffic(context, options.runNr, options.analyticsMarking ?? ALL_MARKINGS_ON);
   const blockedAds = options.blockAds === false ? () => 0 : await blockAds(context);
   const analytics = createGa4Recorder();
@@ -86,7 +93,9 @@ export async function runFlow(
     faker: createTestData(options.runNr, options.botNr),
     secrets: options.secrets,
   };
-  const mask = (text: string) => maskSecrets(text, Object.values(options.secrets));
+  const mask = (text: string) => maskSecrets(text, secrets);
+  /** Whether a picture of the page may be kept: no secret in the clear, also right after it. */
+  const showable = async () => !(await exposesSecret(page, secrets));
 
   const result: RunResult = {
     status: 'passed',
@@ -105,8 +114,7 @@ export async function runFlow(
 
     const started = performance.now();
     const duration = () => Math.ceil(performance.now() - started);
-    // A step that types or opens a secret: a watcher sees nothing of the page meanwhile.
-    options.tap?.step(index, 'running', JSON.stringify(step).includes('{{secret.'));
+    options.tap?.step(index, 'running');
     const ctx = { vars, baseUrl: options.baseUrl, analytics };
     try {
       if (step.type === 'ai') {
@@ -139,9 +147,15 @@ export async function runFlow(
       if (step.type === 'extract' && outcome.extracted !== undefined) {
         result.extracted[step.saveAs] = mask(outcome.extracted);
       }
-      if (outcome.screenshot)
-        result.screenshots.push({ stepId: step.id, image: outcome.screenshot });
-      result.steps.push({ stepId: step.id, index, status: 'passed', durationMs: duration() });
+      const kept = outcome.screenshot && (await showable()) ? outcome.screenshot : null;
+      if (kept) result.screenshots.push({ stepId: step.id, image: kept });
+      result.steps.push({
+        stepId: step.id,
+        index,
+        status: 'passed',
+        durationMs: duration(),
+        ...(outcome.screenshot && !kept ? { message: LEFT_OUT } : {}),
+      });
       options.tap?.step(index, 'passed');
     } catch (error) {
       result.status = 'failed';
@@ -156,10 +170,10 @@ export async function runFlow(
       options.tap?.step(index, 'failed');
       // Bounded: on a page that hangs, an unbounded screenshot would block the browser slot.
       await waitForPdf(page, FAILURE_SCREENSHOT_TIMEOUT_MS);
-      const image = await page
-        .screenshot({ timeout: FAILURE_SCREENSHOT_TIMEOUT_MS })
-        .catch(() => null);
-      if (image) result.screenshots.push({ stepId: step.id, image });
+      const image = (await showable())
+        ? await page.screenshot({ timeout: FAILURE_SCREENSHOT_TIMEOUT_MS }).catch(() => null)
+        : null;
+      if (image && (await showable())) result.screenshots.push({ stepId: step.id, image });
     }
   }
 

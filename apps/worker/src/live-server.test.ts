@@ -14,6 +14,7 @@ import { afterAll, afterEach, beforeEach, describe, expect, it } from 'vitest';
 import WebSocket from 'ws';
 import { useBrowser } from '../test/browser';
 import { db, resetDb, testConnection } from '../test/db';
+import { concealSecrets } from './conceal';
 import { LIVE_VIEWPORT, type ServerMessage } from './live-session';
 import { originPolicy, startLiveServer, type LiveServer } from './live-server';
 import { createRunWatchRegistry, type RunWatchRegistry } from './run-watch';
@@ -299,8 +300,9 @@ describe('startLiveServer – watching a run', () => {
     ]);
   });
 
-  it('shows no picture while the page shows a secret, and the page again once it is gone', async () => {
+  it('shows a page with a secret blurred, and hides it only while one is in the clear', async () => {
     const context = await browser.newContext();
+    await concealSecrets(context, ['geheim-123']);
     const page = await context.newPage();
     await page.goto(`${browser.origin()}/kontakt.html`);
     await page.getByLabel('Name').fill('geheim-123');
@@ -310,18 +312,27 @@ describe('startLiveServer – watching a run', () => {
 
     const { ws, messages, opened } = watch(runId);
     await opened;
-    await expect.poll(() => has(messages, 'hidden'), SESSION_START).toBe(true);
-    expect(has(messages, 'frame')).toBe(false);
-
-    await page.getByLabel('Name').fill('Erika');
+    // The field is blurred: the page is shown.
     await expect.poll(() => has(messages, 'frame'), SESSION_START).toBe(true);
+    expect(has(messages, 'hidden')).toBe(false);
 
-    // A step that types a secret hides the page before it starts.
-    const before = messages.length;
-    tap.step(1, 'running', true);
+    // Split over two elements no box covers it: no picture while it is there.
+    await page.evaluate(() => {
+      const split = document.createElement('p');
+      split.id = 'getrennt';
+      split.innerHTML = '<b>geheim</b>-123';
+      document.body.append(split);
+    });
+    await expect.poll(() => has(messages, 'hidden'), SESSION_START).toBe(true);
+    const hiddenAt = messages.findIndex((message) => message.type === 'hidden');
+
+    await page.evaluate(() => document.querySelector('#getrennt')?.remove());
     await expect
-      .poll(() => messages.slice(before).map((message) => message.type))
-      .toEqual(['hidden', 'step']);
+      .poll(
+        () => messages.slice(hiddenAt).some((message) => message.type === 'frame'),
+        SESSION_START,
+      )
+      .toBe(true);
     ws.close();
     await closed(ws);
     await context.close();

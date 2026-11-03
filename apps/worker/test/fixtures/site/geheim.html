@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="de">
+  <head>
+    <meta charset="utf-8" />
+    <title>Konto – Beispiel GmbH</title>
+    <style>
+      body {
+        font: 32px/1.4 sans-serif;
+        color: #000;
+        background: #fff;
+        margin: 0;
+        padding: 24px;
+      }
+      .lang {
+        height: 2000px;
+      }
+    </style>
+  </head>
+  <body>
+    <p>Ihr Schlüssel: <span id="schluessel">s3cr3t-Wert</span> (nicht weitergeben)</p>
+    <label>Kennwort <input id="kennwort" type="password" value="irgendwas" /></label>
+    <label>Notiz <input id="notiz" /></label>
+    <p id="getrennt" hidden><b>s3cr3t</b>-Wert</p>
+    <p id="nachgeladen"></p>
+    <button type="button" onclick="document.querySelector('#getrennt').hidden = false">
+      Getrennt zeigen
+    </button>
+    <dialog id="dialog"><p id="im-dialog">Im Dialog: s3cr3t-Wert</p></dialog>
+    <div class="lang"></div>
+    <p id="unten">Ganz unten: s3cr3t-Wert</p>
+  </body>
+</html>

@@ -1,4 +1,5 @@
 import { flowSchema, type Flow } from '@click-bot/shared';
+import { PNG } from 'pngjs';
 import { describe, expect, it } from 'vitest';
 import { useBrowser } from '../test/browser';
 import { createGa4Recorder } from './analytics';
@@ -384,13 +385,74 @@ describe('runFlow – links that open a new tab', () => {
   });
 });
 
+describe('runFlow – secrets in pictures', () => {
+  const SECRET = 's3cr3t-Wert';
+  const open = step('open', { type: 'open', url: '/geheim.html' });
+  const shot = step('shot', { type: 'screenshot' });
+
+  it('blurs secrets in its screenshots', async () => {
+    const result = await run([open, shot], { secrets: { konto: SECRET } });
+    expect(result.status).toBe('passed');
+    const [image] = result.screenshots;
+    if (!image) throw new Error('Kein Bildschirmfoto.');
+
+    // Where the secret stands on the page, seen without concealment.
+    const context = await browser.newContext();
+    const page = await context.newPage();
+    await page.goto(`${browser.origin()}/geheim.html`);
+    const box = await page.locator('#schluessel').boundingBox();
+    await context.close();
+    if (!box) throw new Error('Kein Schlüssel.');
+
+    const png = PNG.sync.read(image.image);
+    let darkest = 255;
+    for (let y = Math.ceil(box.y); y < box.y + box.height; y++) {
+      for (let x = Math.ceil(box.x); x < box.x + box.width; x++) {
+        const i = (y * png.width + x) * 4;
+        darkest = Math.min(
+          darkest,
+          png.data[i] ?? 255,
+          png.data[i + 1] ?? 255,
+          png.data[i + 2] ?? 255,
+        );
+      }
+    }
+    expect(darkest).toBeGreaterThan(110);
+  });
+
+  it('leaves out a screenshot that would show a secret it cannot cover, and says so', async () => {
+    const result = await run(
+      [open, step('split', { type: 'click', target: role('button', 'Getrennt zeigen') }), shot],
+      { secrets: { konto: SECRET } },
+    );
+    expect(result.status).toBe('passed');
+    expect(result.screenshots).toEqual([]);
+    expect(result.steps[2]).toMatchObject({
+      status: 'passed',
+      message: expect.stringContaining('Bildschirmfoto ausgelassen'),
+    });
+  });
+
+  it('takes no failure screenshot of a page with a secret in the clear', async () => {
+    const result = await run(
+      [
+        open,
+        step('split', { type: 'click', target: role('button', 'Getrennt zeigen') }),
+        step('missing', { type: 'click', target: role('button', 'Gibt es nicht'), timeoutMs: 500 }),
+      ],
+      { secrets: { konto: SECRET } },
+    );
+    expect(result.status).toBe('failed');
+    expect(result.screenshots).toEqual([]);
+  });
+});
+
 describe('runFlow – watched live', () => {
   it('tells the watcher each page and each step as it starts and ends', async () => {
     const told: string[] = [];
     const tap: RunTap = {
       page: (page) => told.push(`page ${new URL(page.url()).pathname}`),
-      step: (index, status, usesSecret) =>
-        told.push(`step ${index} ${status}${usesSecret ? ' secret' : ''}`),
+      step: (index, status) => told.push(`step ${index} ${status}`),
       end: () => told.push('end'),
     };
     const result = await run(
@@ -415,7 +477,7 @@ describe('runFlow – watched live', () => {
       'step 1 running',
       'page /danke.html',
       'step 1 passed',
-      'step 2 running secret',
+      'step 2 running',
       'step 2 failed',
     ]);
   });

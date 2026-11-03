@@ -595,11 +595,24 @@ time, bots }]`, `stagger`) bilden die Bots eines Termins eine Welle.
     Ein Lauf, der noch wartet, wird abgewartet (`waiting`); einer, der vorbei ist, endet sofort.
   - Bild: in Chromium der CDP-Screencast der Seite, in Firefox und WebKit alle 500 ms ein
     Bildschirmfoto.
-  - Zugangsdaten (Produktregel): Hat der Lauf welche, geht ein Bild erst raus, nachdem ein Blick
-    auf die Seite keinen ihrer Werte fand (`showsSecret` aus `secret-check.ts`, auch in
-    iframes). Während ein Schritt ein Secret tippt oder öffnet, gar keins. Der Zuschauer sieht
-    dann „Ausgeblendet“, das letzte Bild verschwindet. Ist die Seite wieder sauber, startet der
-    Screencast neu, damit ein frisches Bild kommt.
+  - Zugangsdaten (Produktregel): Die Seiten zeigen sie weichgezeichnet (siehe „Zugangsdaten auf
+    Bildern“). Hat der Lauf welche, geht ein Bild erst raus, nachdem `exposesSecret` keinen Wert
+    im Klartext fand. Sonst sieht der Zuschauer „Ausgeblendet“, das letzte Bild verschwindet. Ist
+    die Seite wieder sauber, startet der Screencast neu, damit ein frisches Bild kommt.
+- **Zugangsdaten auf Bildern** (`conceal.ts`, Produktregel): Jeder Lauf mit Zugangsdaten legt per
+  `addInitScript` in jede Seite und jedes iframe eine deckende, milchglasartige Fläche über jede
+  Stelle mit einem Wert: Text (genau der Wert, per Range), Felder, die einen enthalten, alle
+  Passwortfelder und das Feld mit Fokus, solange darin ein Wert getippt wird (Anfang eines Werts).
+  - Die Flächen liegen in einem eigenen Shadow Root, nehmen keine Klicks und ändern kein Layout;
+    als Popover liegen sie auch über modalen Dialogen. Deckend, weil Firefox und WebKit
+    `backdrop-filter` in Bildschirmfotos nicht zeichnen.
+  - Änderungen fängt ein MutationObserver bzw. das `input`-Ereignis ab, beide vor dem nächsten
+    Bild; die Lage folgt jedem Frame. Pro Dokument eingerichtet: Firefox führt das Skript im
+    iframe nur im leeren Startdokument aus, die Seite kommt danach ins selbe Fenster.
+  - Gegenprobe `exposesSecret`: zählt die Werte im sichtbaren Text gegen die abgedeckten (ein Wert
+    über zwei Elemente bleibt sonst unentdeckt). Bildschirmfotos (Schritt und Fehlerfoto) mit
+    Klartext fallen weg, der Schritt sagt „Bildschirmfoto ausgelassen …“.
+  - Der KI-Schritt bekommt bei Zugangsdaten auf der Seite weiter gar kein Bild (`showsSecret`).
 - **Lebenszeichen:** Alle 10 s schreibt der Worker in `worker_heartbeats`, mit seinem Limit
   (`max_browsers`, für den Kalender). Die Web-App zeigt „online“, wenn der letzte Eintrag
   höchstens 30 s alt ist.

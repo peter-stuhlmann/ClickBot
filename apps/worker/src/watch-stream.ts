@@ -1,6 +1,6 @@
 import type { Page } from 'playwright';
 import type { RunEvent, StepStatus, WatchedRun } from './run-watch';
-import { showsSecret } from './secret-check';
+import { exposesSecret } from './conceal';
 
 /** What a watcher of a run gets, as JSON over the WebSocket. */
 export type WatchMessage =
@@ -8,7 +8,7 @@ export type WatchMessage =
   | { type: 'waiting' }
   /** A JPEG of the page, base64. */
   | { type: 'frame'; data: string }
-  /** The page shows a secret right now, or a step types one: no picture until it is gone. */
+  /** The page shows a secret that is not blurred: no picture until it is gone. */
   | { type: 'hidden' }
   | { type: 'step'; index: number; total: number; status: StepStatus }
   | { type: 'ended'; status: string }
@@ -67,9 +67,9 @@ function snapshots(page: Page, frame: (data: string) => void): Feed {
 
 /**
  * Streams a running run to one watcher: the page it works in (a new tab included) and each step
- * as it starts and ends, until the run ends. Product rule: secrets never appear in pictures. In a
- * run with secrets, a frame only goes out after a look at the page found none of their values
- * (newer frames replace one that waits); while a step types or opens a secret, none at all.
+ * as it starts and ends, until the run ends. Product rule: secrets never appear in pictures. The
+ * pages of a run blur them (concealSecrets); in a run with secrets, a frame only goes out after a
+ * look at the page found none in the clear (newer frames replace one that waits).
  * Returns a function that stops the stream.
  */
 export function streamRun(
@@ -79,7 +79,6 @@ export function streamRun(
   let stopped = false;
   let feed: Feed | null = null;
   let attaching = Promise.resolve();
-  let secretStep = false;
   let hidden = false;
   let pending: string | null = null;
   let checking = false;
@@ -92,7 +91,7 @@ export function streamRun(
   /** Whether the page may be shown now; says "hidden" once when it may not. */
   const clean = async () => {
     const page = run.page();
-    const shows = secretStep || (page !== null && (await showsSecret(page, run.secrets)));
+    const shows = page !== null && (await exposesSecret(page, run.secrets));
     if (shows) hide();
     return !shows;
   };
@@ -118,7 +117,6 @@ export function streamRun(
   const frame = (data: string) => {
     if (stopped) return;
     if (run.secrets.length === 0) return send({ type: 'frame', data });
-    if (secretStep) return;
     pending = data;
     void flush();
   };
@@ -153,14 +151,6 @@ export function streamRun(
         return attach(event.page);
       case 'step': {
         const { index, total, status } = event;
-        if (status === 'running' && event.usesSecret) {
-          secretStep = true;
-          pending = null;
-          hide();
-        } else if (status !== 'running' && secretStep) {
-          secretStep = false;
-          void recheck().catch(() => undefined);
-        }
         return send({ type: 'step', index, total, status });
       }
       case 'end':
