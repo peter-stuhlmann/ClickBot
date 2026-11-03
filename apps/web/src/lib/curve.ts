@@ -37,3 +37,22 @@ export function curvePath(points: readonly number[], width: number, height: numb
     return `${step === 0 ? 'M' : 'L'}${x},${y}`;
   }).join(' ');
 }
+
+/** A quarter hour of the day (0–95) as "14:15–14:30 Uhr". */
+export function quarterLabel(quarter: number): string {
+  const time = (minutes: number) =>
+    `${Math.floor(minutes / 60)}:${String(minutes % 60).padStart(2, '0')}`;
+  return `${time(quarter * 15)}–${time(quarter * 15 + 15)} Uhr`;
+}
+
+/** How many runs start in a quarter hour: "Kein Durchlauf", "1 Durchlauf", "3 Durchläufe". */
+export function runsText(count: number): string {
+  if (count === 0) return 'Kein Durchlauf';
+  return `${count} ${count === 1 ? 'Durchlauf' : 'Durchläufe'}`;
+}
+
+/** One start of the preview: "10.11. um 14:22 Uhr". */
+export function startText(start: { date: string; time: string }): string {
+  const [, month, day] = start.date.split('-');
+  return `${day}.${month}. um ${start.time} Uhr`;
+}

@@ -1,6 +1,6 @@
 import { FLAT_CURVE } from '@click-bot/shared';
 import { describe, expect, it } from 'vitest';
-import { bendCurve, curveLabel, curvePath } from './curve';
+import { bendCurve, curveLabel, curvePath, quarterLabel, runsText, startText } from './curve';
 
 describe('bendCurve', () => {
   it('pulls the curve to the value at the hour, and the hours nearby along, softly', () => {
@@ -45,5 +45,27 @@ describe('curvePath', () => {
     const path = curvePath(FLAT_CURVE, 240, 100);
     expect(path.startsWith('M0,50')).toBe(true);
     expect(path.endsWith('L240,50')).toBe(true);
+  });
+});
+
+describe('quarterLabel', () => {
+  it('names the quarter hour with its start and end', () => {
+    expect(quarterLabel(0)).toBe('0:00–0:15 Uhr');
+    expect(quarterLabel(57)).toBe('14:15–14:30 Uhr');
+    expect(quarterLabel(95)).toBe('23:45–24:00 Uhr');
+  });
+});
+
+describe('runsText', () => {
+  it('counts whole runs, with the singular only for exactly one', () => {
+    expect(runsText(0)).toBe('Kein Durchlauf');
+    expect(runsText(1)).toBe('1 Durchlauf');
+    expect(runsText(3)).toBe('3 Durchläufe');
+  });
+});
+
+describe('startText', () => {
+  it('writes a start with day, month and time', () => {
+    expect(startText({ date: '2026-11-10', time: '14:22' })).toBe('10.11. um 14:22 Uhr');
   });
 });

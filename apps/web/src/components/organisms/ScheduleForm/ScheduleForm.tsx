@@ -1,7 +1,13 @@
 'use client';
 
-import { weekdaysIn, WEEKDAYS, FLAT_CURVE, type Weekday } from '@click-bot/shared';
-import { useEffect, useRef, useState } from 'react';
+import {
+  plannedStartsByQuarter,
+  weekdaysIn,
+  WEEKDAYS,
+  FLAT_CURVE,
+  type Weekday,
+} from '@click-bot/shared';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Button } from '@/components/atoms/Button';
 import { Card } from '@/components/atoms/Card';
 import { Icon } from '@/components/atoms/Icon';
@@ -77,6 +83,37 @@ function RandomFields({
   const setCurves = (curves: Partial<Record<Weekday, number[]>>) =>
     set({ curves: { ...schedule.curves, ...curves } });
 
+  // The tooltip lists the starts the plan will really draw, so it follows the period, the
+  // number of runs and every curve. Drawn from now on, like the plan that is saved.
+  const runs = Number(schedule.randomRuns.trim());
+  const plannedByQuarter = useMemo(
+    () =>
+      schedule.randomRuns.trim() === ''
+        ? null
+        : plannedStartsByQuarter(
+            {
+              type: 'random',
+              from: schedule.randomFrom,
+              to: schedule.randomTo,
+              runs,
+              curves: schedule.curves,
+              seed: schedule.seed,
+              drawFrom: new Date().toISOString(),
+            },
+            day,
+          ),
+    // `now` is meant to be the moment of the last edit, not of every render.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [
+      schedule.randomFrom,
+      schedule.randomTo,
+      schedule.randomRuns,
+      schedule.curves,
+      schedule.seed,
+      day,
+    ],
+  );
+
   // The period: a start chosen in the calendar opens the end, which never lies before it.
   const endPicker = useRef<DatePickerHandle>(null);
   const [startsPicked, setStartsPicked] = useState(0);
@@ -150,6 +187,7 @@ function RandomFields({
           label={`Verteilung am ${DAYS[day].long}`}
           points={points}
           onChange={(next) => setCurves({ [day]: next })}
+          plannedByQuarter={plannedByQuarter ?? undefined}
         />
         <div className="flex flex-wrap gap-2">
           <Button variant="ghost" size="sm" onClick={() => setCurves({ [day]: [...FLAT_CURVE] })}>

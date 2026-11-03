@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { TZDate } from '@date-fns/tz';
 import { DEFAULT_TIMEZONE, isCalendarDate, isTimeZone, localToUtc } from './local-time';
 
 /**
@@ -213,4 +214,29 @@ export function randomStarts(plan: RandomSchedule): Date[] {
   if (drawn.size >= MAX_CACHED) drawn.delete(drawn.keys().next().value as string);
   drawn.set(key, starts);
   return starts.map((date) => new Date(date));
+}
+
+/** Quarter hours in a day: the steps of the curve's tooltip. */
+export const QUARTERS_PER_DAY = 96;
+
+/** A start as the planner will run it, in the plan's time zone. */
+export type PlannedStart = { date: string; time: string };
+
+/**
+ * The starts a plan draws, sorted into the quarter hours of one `weekday` (96 lists, earliest
+ * first): exactly the starts the job will get, so a preview never promises more or less than it
+ * runs. `null` if the plan is not valid.
+ */
+export function plannedStartsByQuarter(plan: unknown, weekday: Weekday): PlannedStart[][] | null {
+  const parsed = randomScheduleSchema.safeParse(plan);
+  if (!parsed.success) return null;
+  const quarters: PlannedStart[][] = Array.from({ length: QUARTERS_PER_DAY }, () => []);
+  for (const start of randomStarts(parsed.data)) {
+    const local = new TZDate(start.getTime(), parsed.data.timezone);
+    const date = `${local.getFullYear()}-${String(local.getMonth() + 1).padStart(2, '0')}-${String(local.getDate()).padStart(2, '0')}`;
+    if (weekdayOf(date) !== weekday) continue;
+    const time = `${String(local.getHours()).padStart(2, '0')}:${String(local.getMinutes()).padStart(2, '0')}`;
+    quarters[local.getHours() * 4 + Math.floor(local.getMinutes() / 15)]?.push({ date, time });
+  }
+  return quarters;
 }

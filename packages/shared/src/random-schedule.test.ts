@@ -4,6 +4,7 @@ import {
   CURVE_POINTS,
   curveValue,
   FLAT_CURVE,
+  plannedStartsByQuarter,
   randomScheduleSchema,
   randomStarts,
   weekdaysIn,
@@ -188,5 +189,71 @@ describe('randomStarts', () => {
       [1, 1],
       [2, 1],
     ]);
+  });
+});
+
+describe('plannedStartsByQuarter', () => {
+  const plan = {
+    type: 'random',
+    from: '2026-11-02',
+    to: '2026-11-15',
+    runs: 40,
+    curves: {},
+    seed: 7,
+    timezone: 'Europe/Berlin',
+  };
+  const count = (quarters: { date: string }[][]) => quarters.reduce((n, q) => n + q.length, 0);
+
+  it('lists exactly the starts the plan draws, split over the days of the week', () => {
+    const all = randomStarts(randomScheduleSchema.parse(plan));
+    const perDay = (['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'] as const).map((day) =>
+      count(plannedStartsByQuarter(plan, day) ?? []),
+    );
+    expect(all).toHaveLength(40);
+    expect(perDay.reduce((a, b) => a + b, 0)).toBe(40);
+  });
+
+  it('puts a start into its quarter hour with local date and time', () => {
+    // Only Mondays around 9:00 count: every other day has a curve of 0.
+    const never = curve(() => 0);
+    const curves = {
+      mon: curve((hour) => (hour === 9 ? 2 : 0)),
+      tue: never,
+      wed: never,
+      thu: never,
+      fri: never,
+      sat: never,
+      sun: never,
+    };
+    const only = plannedStartsByQuarter({ ...plan, runs: 5, curves }, 'mon');
+    const found = (only ?? []).flat();
+    expect(found.length).toBeGreaterThan(0);
+    for (const [quarter, starts] of (only ?? []).entries()) {
+      for (const start of starts) {
+        expect(start.date === '2026-11-02' || start.date === '2026-11-09').toBe(true);
+        const [h, m] = start.time.split(':').map(Number) as [number, number];
+        expect(h * 4 + Math.floor(m / 15)).toBe(quarter);
+      }
+    }
+  });
+
+  it('gives the same starts again for the same plan, and other ones when the runs change', () => {
+    const a = plannedStartsByQuarter(plan, 'mon');
+    expect(plannedStartsByQuarter(plan, 'mon')).toEqual(a);
+    expect(count(plannedStartsByQuarter({ ...plan, runs: 400 }, 'mon') ?? [])).toBeGreaterThan(
+      count(a ?? []),
+    );
+  });
+
+  it('has nothing for a weekday the period does not touch', () => {
+    const quarters = plannedStartsByQuarter({ ...plan, to: '2026-11-03' }, 'fri');
+    expect(quarters).toHaveLength(96);
+    expect(count(quarters ?? [])).toBe(0);
+  });
+
+  it('is null for a plan that is not valid', () => {
+    expect(plannedStartsByQuarter({ ...plan, runs: 0 }, 'mon')).toBeNull();
+    expect(plannedStartsByQuarter({ ...plan, from: 'x' }, 'mon')).toBeNull();
+    expect(plannedStartsByQuarter({ ...plan, to: '2026-11-01' }, 'mon')).toBeNull();
   });
 });

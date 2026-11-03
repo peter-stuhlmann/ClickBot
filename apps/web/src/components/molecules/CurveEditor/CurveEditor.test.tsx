@@ -72,3 +72,99 @@ describe('CurveEditor', () => {
     expect(onChange).not.toHaveBeenCalled();
   });
 });
+
+describe('CurveEditor tooltip', () => {
+  const planned = Array.from({ length: 96 }, (_, quarter) => {
+    if (quarter === 57) {
+      return [
+        { date: '2026-11-02', time: '14:22' },
+        { date: '2026-11-09', time: '14:16' },
+      ];
+    }
+    if (quarter === 58) return [{ date: '2026-11-02', time: '14:40' }];
+    if (quarter === 59) {
+      return ['01', '02', '03', '04', '05'].map((day) => ({
+        date: `2026-11-${day}`,
+        time: '14:50',
+      }));
+    }
+    return [];
+  });
+  const props = { label: 'Verteilung am Montag', points: [...FLAT_CURVE], onChange: vi.fn() };
+
+  function stubBox() {
+    // jsdom has no layout: a 960 × 160 box at the origin, so 10 px are one quarter hour.
+    slider().getBoundingClientRect = () =>
+      ({ left: 0, top: 0, width: 960, height: 160, right: 960, bottom: 160 }) as DOMRect;
+  }
+  const hoverAt = (clientX: number) => fireEvent.pointerMove(slider(), { clientX, clientY: 80 });
+
+  it('lists the starts of the quarter hour under the pointer', () => {
+    render(<CurveEditor {...props} plannedByQuarter={planned} />);
+    stubBox();
+    expect(screen.queryByRole('tooltip')).not.toBeInTheDocument();
+    hoverAt(575);
+    const tip = screen.getByRole('tooltip');
+    expect(tip).toHaveTextContent('14:15–14:30 Uhr');
+    expect(tip).toHaveTextContent('2 Durchläufe');
+    expect(tip).toHaveTextContent('02.11. um 14:22 Uhr');
+    expect(tip).toHaveTextContent('09.11. um 14:16 Uhr');
+    fireEvent.pointerLeave(slider());
+    expect(screen.queryByRole('tooltip')).not.toBeInTheDocument();
+  });
+
+  it('says so when nothing starts, and counts a single run in the singular', () => {
+    render(<CurveEditor {...props} plannedByQuarter={planned} />);
+    stubBox();
+    hoverAt(5);
+    expect(screen.getByRole('tooltip')).toHaveTextContent('Kein Durchlauf');
+    hoverAt(585);
+    expect(screen.getByRole('tooltip')).toHaveTextContent('1 Durchlauf');
+  });
+
+  it('lists the first three starts and counts the rest', () => {
+    render(<CurveEditor {...props} plannedByQuarter={planned} />);
+    stubBox();
+    hoverAt(595);
+    const tip = screen.getByRole('tooltip');
+    expect(tip).toHaveTextContent('5 Durchläufe');
+    expect(tip).toHaveTextContent('03.11. um 14:50 Uhr');
+    expect(tip).not.toHaveTextContent('04.11.');
+    expect(tip).toHaveTextContent('und 2 weitere');
+  });
+
+  it('lists two runs that start in the same minute without a key warning', () => {
+    const error = vi.spyOn(console, 'error').mockImplementation(() => {});
+    const same = planned.map((starts, quarter) =>
+      quarter === 57
+        ? [
+            { date: '2026-11-04', time: '21:26' },
+            { date: '2026-11-04', time: '21:26' },
+          ]
+        : starts,
+    );
+    render(<CurveEditor {...props} plannedByQuarter={same} />);
+    stubBox();
+    hoverAt(575);
+    expect(screen.getByRole('tooltip')).toHaveTextContent('2 Durchläufe');
+    expect(screen.getAllByText('04.11. um 21:26 Uhr')).toHaveLength(2);
+    expect(error).not.toHaveBeenCalled();
+    error.mockRestore();
+  });
+
+  it('follows new starts when the plan changes', () => {
+    const { rerender } = render(<CurveEditor {...props} plannedByQuarter={planned} />);
+    stubBox();
+    hoverAt(575);
+    expect(screen.getByRole('tooltip')).toHaveTextContent('2 Durchläufe');
+    rerender(<CurveEditor {...props} plannedByQuarter={planned.map(() => [])} />);
+    expect(screen.getByRole('tooltip')).toHaveTextContent('Kein Durchlauf');
+  });
+
+  it('shows no tooltip without a plan', () => {
+    render(<Harness />);
+    stubBox();
+    hoverAt(400);
+    expect(screen.queryByRole('tooltip')).not.toBeInTheDocument();
+  });
+});
