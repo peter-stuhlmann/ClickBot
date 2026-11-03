@@ -598,12 +598,15 @@ time, bots }]`, `stagger`) bilden die Bots eines Termins eine Welle.
 - **Video** (`video.ts`): Testläufe immer, geplante Läufe bei `jobs.record_video` („Video
   aufnehmen“ unter „Erweiterte Einstellungen“, Standard aus).
   - `recordRun` hängt sich wie ein Zuschauer an den Lauf (`streamRun`): dieselben geprüften Bilder
-    (Zugangsdaten abgedeckt, Klartext nie), höchstens 10 je Sekunde (das neueste je Zehntel), als
-    JPEG in einen temporären Ordner, höchstens 30 Minuten. Dazu, wann welcher Schritt lief und
+    (Zugangsdaten abgedeckt, Klartext nie), aber feiner als die Live-Ansicht (`VIDEO_FRAMES`:
+    JPEG-Qualität 85, bis 1920 px; Firefox und WebKit so oft wie möglich statt alle 500 ms),
+    höchstens 15 je Sekunde (das neueste je 66 ms), in einen temporären Ordner, höchstens
+    30 Minuten. Dazu, wann welcher Schritt lief und
     wann das Bild ausgeblendet war (`VideoCue`, `step: null`).
   - `encodeVideo`: ffmpeg (`FFMPEG_PATH`, sonst `ffmpeg-static`) baut daraus `runs/<id>/video.mp4`
-    (H.264, yuv420p, faststart), jedes Bild bis zum nächsten, das letzte 1,5 s. Größe des ersten
-    Bilds, höchstens 1280 an der langen Seite; andere Größen werden eingepasst.
+    (H.264, CRF 20, yuv420p, faststart), jedes Bild bis zum nächsten, das letzte 1,5 s. Immer
+    Full HD: 1920 × 1080, bei hochkantem erstem Bild (Smartphone) 1080 × 1920. Skaliert mit
+    Lanczos, mittig auf dunklem Grund (Desktop 1440 × 900 ist 16:10, also schmale Ränder).
   - Scheitert das Video, bleibt der Lauf, wie er ist; das Log sagt warum.
   - Nach 30 Tagen (`VIDEO_DAYS`) vergisst `expireVideos` es, der Worker löscht die Datei (alle
     15 Minuten mit dem übrigen Aufräumen).

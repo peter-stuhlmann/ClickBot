@@ -5,16 +5,24 @@ import { join } from 'node:path';
 import type { VideoCue } from '@click-bot/db';
 import ffmpegStatic from 'ffmpeg-static';
 import type { WatchedRun } from './run-watch';
-import { streamRun } from './watch-stream';
+import { streamRun, type FrameQuality } from './watch-stream';
 
-/** At most ten pictures a second: smooth enough to follow a run, small enough to keep. */
-const MIN_FRAME_GAP_MS = 100;
+/** At most 15 pictures a second: scrolling stays smooth, the pictures of a run stay manageable. */
+const MIN_FRAME_GAP_MS = 66;
+/** Fine pictures up to the size of the video, from Firefox and WebKit as often as they come. */
+const VIDEO_FRAMES: FrameQuality = {
+  quality: 85,
+  maxSide: 1920,
+  snapshotEveryMs: MIN_FRAME_GAP_MS,
+};
 /** A longer run is recorded up to here. */
 const MAX_VIDEO_MS = 30 * 60_000;
 /** The last picture stays this long, so the end of the run can be seen. */
 const LAST_FRAME_MS = 1_500;
-/** Larger pictures (a phone at three device pixels per point) are scaled down to this side. */
-const MAX_SIDE = 1280;
+/** Always Full HD: across, or upright for an upright page (a phone). */
+const FULL_HD = { across: { width: 1920, height: 1080 }, upright: { width: 1080, height: 1920 } };
+/** Around a picture of another shape: the dark of the app's sidebar. */
+const BACKDROP = '0x0f172a';
 
 /** The pictures of a run in a temporary folder, and when each step ran (ms from the start). */
 export type Recording = {
@@ -107,23 +115,27 @@ export async function recordRun(
     open.delete(key);
   };
 
-  const stopStream = streamRun(run, (message) => {
-    if (done) return;
-    switch (message.type) {
-      case 'frame':
-        close(null, elapsed());
-        return frame(message.data);
-      case 'hidden':
-        if (!open.has(null)) open.set(null, elapsed());
-        return;
-      case 'step':
-        if (message.status === 'running') open.set(message.index, elapsed());
-        else close(message.index, elapsed());
-        return;
-      default:
-        return;
-    }
-  });
+  const stopStream = streamRun(
+    run,
+    (message) => {
+      if (done) return;
+      switch (message.type) {
+        case 'frame':
+          close(null, elapsed());
+          return frame(message.data);
+        case 'hidden':
+          if (!open.has(null)) open.set(null, elapsed());
+          return;
+        case 'step':
+          if (message.status === 'running') open.set(message.index, elapsed());
+          else close(message.index, elapsed());
+          return;
+        default:
+          return;
+      }
+    },
+    VIDEO_FRAMES,
+  );
 
   return {
     peek: () => ({ frames: frames.length, hidden: open.has(null) }),
@@ -133,7 +145,8 @@ export async function recordRun(
       done = true;
       clearTimeout(timer);
       await stopStream();
-      if (pending !== null) keep(pending, Math.min(end, lastAt + MIN_FRAME_GAP_MS));
+      // The newest picture goes in a full gap after the one before, like during the run.
+      if (pending !== null) keep(pending, lastAt + MIN_FRAME_GAP_MS);
       for (const key of [...open.keys()]) close(key, end);
       await writing;
       if (frames.length === 0) {
@@ -145,8 +158,6 @@ export async function recordRun(
     },
   };
 }
-
-const even = (value: number) => Math.max(2, Math.floor(value / 2) * 2);
 
 function runFfmpeg(args: string[]): Promise<void> {
   return new Promise((resolve, reject) => {
@@ -164,18 +175,16 @@ function runFfmpeg(args: string[]): Promise<void> {
 
 /**
  * Writes the recording as an MP4 (H.264, plays everywhere, also on phones) to `file` and
- * removes its pictures. Each picture stays until the next one; the size is the first picture's,
- * at most MAX_SIDE, so a picture of another size is fitted in.
+ * removes its pictures. Each picture stays until the next one. Always Full HD: 1920 × 1080, or
+ * 1080 × 1920 when the first picture is upright; a picture of another shape is fitted in.
  */
 export async function encodeVideo(recording: Recording, file: string): Promise<void> {
   try {
     const { dir, frames, durationMs } = recording;
     const first = frames[0];
     if (!first) throw new Error('Keine Bilder.');
-    const size = jpegSize(await readFile(join(dir, first.file))) ?? { width: 1280, height: 800 };
-    const scale = Math.min(1, MAX_SIDE / Math.max(size.width, size.height));
-    const width = even(size.width * scale);
-    const height = even(size.height * scale);
+    const size = jpegSize(await readFile(join(dir, first.file))) ?? FULL_HD.across;
+    const { width, height } = size.height > size.width ? FULL_HD.upright : FULL_HD.across;
 
     // The concat demuxer: each picture with how long it stays, the last one named twice.
     const lines = frames.flatMap((frame, index) => {
@@ -199,8 +208,9 @@ export async function encodeVideo(recording: Recording, file: string): Promise<v
       '-i',
       list,
       '-vf',
-      `scale=${width}:${height}:force_original_aspect_ratio=decrease,` +
-        `pad=${width}:${height}:(ow-iw)/2:(oh-ih)/2:color=white,format=yuv420p`,
+      // Sharp scaling to Full HD, centred on a dark backdrop where the shape differs.
+      `scale=${width}:${height}:force_original_aspect_ratio=decrease:flags=lanczos,` +
+        `pad=${width}:${height}:(ow-iw)/2:(oh-ih)/2:color=${BACKDROP},setsar=1,format=yuv420p`,
       '-fps_mode',
       'vfr',
       '-c:v',
@@ -208,7 +218,7 @@ export async function encodeVideo(recording: Recording, file: string): Promise<v
       '-preset',
       'veryfast',
       '-crf',
-      '28',
+      '20',
       '-movflags',
       '+faststart',
       file,

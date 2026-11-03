@@ -12,8 +12,8 @@ import { encodeVideo, ffmpegBinary, jpegSize, recordRun, type Recording } from '
 
 const SLOW = { timeout: 15_000 };
 
-/** What ffmpeg itself reads from a file: the video stream and the duration in seconds. */
-async function probe(file: string): Promise<{ video: string; seconds: number }> {
+/** What ffmpeg itself reads from a file: the codec, the size and the duration in seconds. */
+async function probe(file: string): Promise<{ video: string; size: string; seconds: number }> {
   // `ffmpeg -i` without an output exits with 1 and describes the input on stderr.
   const result = await promisify(execFile)(ffmpegBinary(), ['-hide_banner', '-i', file]).catch(
     (error: { stderr: string }) => error,
@@ -22,6 +22,7 @@ async function probe(file: string): Promise<{ video: string; seconds: number }> 
   const duration = /Duration: (\d+):(\d+):([\d.]+)/.exec(text);
   return {
     video: /Video: (\S+)/.exec(text)?.[1] ?? '',
+    size: /Video: .*?, (\d{3,4}x\d{3,4})/.exec(text)?.[1] ?? '',
     seconds: duration
       ? Number(duration[1]) * 3600 + Number(duration[2]) * 60 + Number(duration[3])
       : 0,
@@ -52,13 +53,16 @@ describe('recordRun', () => {
     await rm(out, { recursive: true, force: true });
   });
 
-  async function watched(secrets: string[] = []): Promise<{
+  async function watched(
+    secrets: string[] = [],
+    viewport = { width: 800, height: 600 },
+  ): Promise<{
     page: Page;
     tap: RunTap;
     close: () => Promise<void>;
     run: ReturnType<ReturnType<typeof createRunWatchRegistry>['find']>;
   }> {
-    const context = await browser.newContext({ viewport: { width: 800, height: 600 } });
+    const context = await browser.newContext({ viewport });
     await concealSecrets(context, secrets);
     const page = await context.newPage();
     await page.goto(`${browser.origin()}/lang.html`);
@@ -93,8 +97,10 @@ describe('recordRun', () => {
 
     const file = join(out, 'video.mp4');
     await encodeVideo(recording, file);
-    const { video, seconds } = await probe(file);
+    const { video, size, seconds } = await probe(file);
     expect(video).toBe('h264');
+    // Always Full HD, whatever size the browser had.
+    expect(size).toBe('1920x1080');
     // The last picture stays a moment, so the end can be seen.
     expect(seconds).toBeGreaterThan(1);
     expect((await stat(file)).size).toBeGreaterThan(1_000);
@@ -102,7 +108,20 @@ describe('recordRun', () => {
     await expect(stat(recording.dir)).rejects.toThrow();
   });
 
-  it('takes at most 10 pictures a second, the newest of each tenth', SLOW, async () => {
+  it('makes an upright Full HD video of an upright page, as on a phone', SLOW, async () => {
+    const { page, run, close } = await watched([], { width: 412, height: 915 });
+    if (!run) throw new Error('Kein Lauf.');
+    const recorder = await recordRun(run);
+    await page.evaluate(() => window.scrollTo({ top: 300, behavior: 'instant' }));
+    await expect.poll(() => recorder.peek().frames, SLOW).toBeGreaterThan(0);
+    const recording = (await recorder.stop()) as Recording;
+    await close();
+    const file = join(out, 'hoch.mp4');
+    await encodeVideo(recording, file);
+    expect((await probe(file)).size).toBe('1080x1920');
+  });
+
+  it('takes at most 15 pictures a second, the newest of each', SLOW, async () => {
     const { page, run, close } = await watched();
     if (!run) throw new Error('Kein Lauf.');
     const recorder = await recordRun(run);
@@ -115,7 +134,7 @@ describe('recordRun', () => {
     const gaps = recording.frames
       .slice(1)
       .map((frame, index) => frame.at - (recording.frames[index]?.at ?? 0));
-    expect(Math.min(...gaps)).toBeGreaterThanOrEqual(99);
+    expect(Math.min(...gaps)).toBeGreaterThanOrEqual(66);
     await rm(recording.dir, { recursive: true, force: true });
   });
 

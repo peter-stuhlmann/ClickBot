@@ -14,17 +14,29 @@ export type WatchMessage =
   | { type: 'ended'; status: string }
   | { type: 'error'; message: string };
 
-const SCREENCAST_QUALITY = 60;
-const MAX_FRAME_SIZE = 1280;
-/** Firefox and WebKit have no screencast: a picture this often instead. */
-const SNAPSHOT_INTERVAL_MS = 500;
+/** How the pictures of a stream are taken: JPEG quality, longest side, and how often. */
+export type FrameQuality = {
+  quality: number;
+  /** Chromium's screencast scales larger pictures down to this. */
+  maxSide: number;
+  /** Firefox and WebKit have no screencast: a screenshot this often instead. */
+  snapshotEveryMs: number;
+};
+
+/** For watching live: light pictures, so the connection stays quick. */
+export const LIVE_FRAMES: FrameQuality = { quality: 60, maxSide: 1280, snapshotEveryMs: 500 };
+
 const SNAPSHOT_TIMEOUT_MS = 2_000;
 const SECRET_CHECK_MS = 1_000;
 
 type Feed = { stop(): Promise<void> };
 
 /** Chromium paints its frames over CDP, only when the page changes. */
-async function screencast(page: Page, frame: (data: string) => void): Promise<Feed> {
+async function screencast(
+  page: Page,
+  frame: (data: string) => void,
+  quality: FrameQuality,
+): Promise<Feed> {
   const cdp = await page.context().newCDPSession(page);
   cdp.on('Page.screencastFrame', ({ data, sessionId }) => {
     frame(data);
@@ -32,9 +44,9 @@ async function screencast(page: Page, frame: (data: string) => void): Promise<Fe
   });
   await cdp.send('Page.startScreencast', {
     format: 'jpeg',
-    quality: SCREENCAST_QUALITY,
-    maxWidth: MAX_FRAME_SIZE,
-    maxHeight: MAX_FRAME_SIZE,
+    quality: quality.quality,
+    maxWidth: quality.maxSide,
+    maxHeight: quality.maxSide,
   });
   return {
     async stop() {
@@ -45,16 +57,16 @@ async function screencast(page: Page, frame: (data: string) => void): Promise<Fe
 }
 
 /** Firefox and WebKit: a screenshot of the visible part, one after another. */
-function snapshots(page: Page, frame: (data: string) => void): Feed {
+function snapshots(page: Page, frame: (data: string) => void, quality: FrameQuality): Feed {
   let stopped = false;
   let timer: ReturnType<typeof setTimeout> | undefined;
   const next = async () => {
     const image = await page
-      .screenshot({ type: 'jpeg', quality: SCREENCAST_QUALITY, timeout: SNAPSHOT_TIMEOUT_MS })
+      .screenshot({ type: 'jpeg', quality: quality.quality, timeout: SNAPSHOT_TIMEOUT_MS })
       .catch(() => null);
     if (stopped) return;
     if (image) frame(image.toString('base64'));
-    timer = setTimeout(() => void next(), SNAPSHOT_INTERVAL_MS);
+    timer = setTimeout(() => void next(), quality.snapshotEveryMs);
   };
   void next();
   return {
@@ -70,11 +82,13 @@ function snapshots(page: Page, frame: (data: string) => void): Feed {
  * as it starts and ends, until the run ends. Product rule: secrets never appear in pictures. The
  * pages of a run blur them (concealSecrets); in a run with secrets, a frame only goes out after a
  * look at the page found none in the clear (newer frames replace one that waits).
+ * `quality`: light pictures for watching (default), finer ones for a video.
  * Returns a function that stops the stream.
  */
 export function streamRun(
   run: WatchedRun,
   send: (message: WatchMessage) => void,
+  quality: FrameQuality = LIVE_FRAMES,
 ): () => Promise<void> {
   let stopped = false;
   let feed: Feed | null = null;
@@ -127,7 +141,10 @@ export function streamRun(
       feed = null;
       if (stopped || page.isClosed()) return;
       try {
-        feed = run.engine === 'chromium' ? await screencast(page, frame) : snapshots(page, frame);
+        feed =
+          run.engine === 'chromium'
+            ? await screencast(page, frame, quality)
+            : snapshots(page, frame, quality);
       } catch {
         // The page closed meanwhile; the next page attaches again.
       }
