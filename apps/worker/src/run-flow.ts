@@ -10,6 +10,7 @@ import { blockAds } from './ad-blocking';
 import { AiStepError, runAiStep, type AgentDriver } from './ai-step';
 import { createGa4Recorder } from './analytics';
 import { markBotTraffic } from './bot-marking';
+import { trackPageActivity } from './page-structure';
 import { concealSecrets, exposesSecret } from './conceal';
 import { ExpectationError, toStepMessage } from './errors';
 import { waitForPdf } from './pdf';
@@ -82,6 +83,8 @@ export async function runFlow(
 ): Promise<RunResult> {
   const secrets = Object.values(options.secrets);
   await concealSecrets(context, secrets);
+  // An AI step waits for a page to settle, which is free for a page that has been quiet a while.
+  if (flow.steps.some((step) => step.type === 'ai')) await trackPageActivity(context);
   await markBotTraffic(context, options.runNr, options.analyticsMarking ?? ALL_MARKINGS_ON);
   const blockedAds = options.blockAds === false ? () => 0 : await blockAds(context);
   const analytics = createGa4Recorder();

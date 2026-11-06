@@ -14,6 +14,11 @@ export type AiProviderInfo = {
   modelSuggestions: readonly string[];
   /** Where to get a key, shown as a hint. */
   keyHelp: string;
+  /**
+   * Whether the API takes tool (function) definitions and answers with a tool call, which the
+   * AI step uses to get its action as checked arguments. Others answer in JSON text.
+   */
+  toolCalling: boolean;
 };
 
 export const AI_PROVIDERS: Record<AiProviderKind, AiProviderInfo> = {
@@ -23,6 +28,7 @@ export const AI_PROVIDERS: Record<AiProviderKind, AiProviderInfo> = {
     keyRequired: true,
     modelSuggestions: [],
     keyHelp: 'Google AI Studio → API-Schlüssel',
+    toolCalling: true,
   },
   openai: {
     label: 'OpenAI',
@@ -30,6 +36,7 @@ export const AI_PROVIDERS: Record<AiProviderKind, AiProviderInfo> = {
     keyRequired: true,
     modelSuggestions: [],
     keyHelp: 'platform.openai.com → API keys',
+    toolCalling: true,
   },
   perplexity: {
     label: 'Perplexity',
@@ -38,6 +45,8 @@ export const AI_PROVIDERS: Record<AiProviderKind, AiProviderInfo> = {
     // Perplexity has no endpoint that lists its models.
     modelSuggestions: ['sonar', 'sonar-pro', 'sonar-reasoning-pro'],
     keyHelp: 'perplexity.ai → Settings → API',
+    // Its Sonar API has no tool calling.
+    toolCalling: false,
   },
   anthropic: {
     label: 'Claude',
@@ -45,6 +54,7 @@ export const AI_PROVIDERS: Record<AiProviderKind, AiProviderInfo> = {
     keyRequired: true,
     modelSuggestions: [],
     keyHelp: 'console.anthropic.com → API Keys',
+    toolCalling: true,
   },
   custom: {
     label: 'Custom',
@@ -52,6 +62,8 @@ export const AI_PROVIDERS: Record<AiProviderKind, AiProviderInfo> = {
     keyRequired: false,
     modelSuggestions: [],
     keyHelp: 'Nur nötig, wenn die API einen Schlüssel verlangt.',
+    // Depends on the model behind the address (Ollama: only some), so it answers in text.
+    toolCalling: false,
   },
 };
 

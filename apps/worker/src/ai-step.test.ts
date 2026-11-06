@@ -7,6 +7,10 @@ import { runFlow, type RunOptions } from './run-flow';
 
 const browser = useBrowser();
 
+// Rounds of a page that is quiet cost next to nothing (the AI is a fake that answers at once). A
+// round that waits a second again would take 25 s here: a low limit finds that without any load.
+const FAST_ROUNDS = { timeout: 10_000 };
+
 const flow = (steps: unknown[]): Flow => flowSchema.parse({ version: 1, steps });
 const role = (r: string, name: string) => ({ by: 'role', role: r, name });
 const goalStep = (instruction: string) => ({ id: 'ziel', type: 'ai', instruction });
@@ -31,6 +35,13 @@ function script(...answers: Record<string, unknown>[]) {
       };
     }
     if (next.type === 'inspect') return { kind: 'inspect', target: next.target as never };
+    if (next.type === 'query') {
+      return {
+        kind: 'query',
+        selector: next.selector as string,
+        ...(next.attributes ? { attributes: next.attributes as string[] } : {}),
+      };
+    }
     return {
       kind: 'step',
       step: flowSchema.parse({ version: 1, steps: [{ ...next, id: 'ki' }] }).steps[0] as never,
@@ -173,7 +184,7 @@ describe('AI steps (free tests)', () => {
     expect(result.screenshots).toEqual([]);
   });
 
-  it(`asks for the verdict after ${MAX_AI_ACTIONS} actions`, async () => {
+  it(`asks for the verdict after ${MAX_AI_ACTIONS} actions`, FAST_ROUNDS, async () => {
     const seen: AgentInput[] = [];
     const drive = async (input: AgentInput): Promise<AgentAction> => {
       seen.push(input);
@@ -201,7 +212,7 @@ describe('AI steps (free tests)', () => {
     expect(result.steps[1]?.aiActions).toHaveLength(MAX_AI_ACTIONS);
   });
 
-  it('fails when the AI still sends an action instead of its verdict', async () => {
+  it('fails when the AI still sends an action instead of its verdict', FAST_ROUNDS, async () => {
     const drive = async (): Promise<AgentAction> => ({
       kind: 'step',
       step: flowSchema.parse({
@@ -293,7 +304,9 @@ describe('AI steps – measuring and the result of the test', () => {
       { type: 'inspect', target: { by: 'role', role: 'heading', name: 'Gibt es nicht' } },
       verdict(met('Egal.')),
     );
-    const result = await run([farben, goalStep('Prüfe die Farbe.')], { ai: drive });
+    // The step allows its actions half a second to find their element.
+    const quick = { ...goalStep('Prüfe die Farbe.'), timeoutMs: 500 };
+    const result = await run([farben, quick], { ai: drive });
     expect(seen[1]?.history[0]?.result).toMatch(/Element nicht gefunden/);
     expect(result.status).toBe('passed');
   });
@@ -320,7 +333,7 @@ describe('AI steps – measuring and the result of the test', () => {
     expect(result.steps[1]?.aiSummary).not.toContain('geheim-123');
   });
 
-  it('counts an inspect like any action toward the limit', async () => {
+  it('counts an inspect like any action toward the limit', FAST_ROUNDS, async () => {
     const inspections = Array.from({ length: MAX_AI_ACTIONS }, () => ({
       type: 'inspect',
       target: h1,
@@ -328,5 +341,44 @@ describe('AI steps – measuring and the result of the test', () => {
     const { drive, seen } = script(...inspections, verdict(met('Egal.')));
     await run([farben, goalStep('Egal.')], { ai: drive });
     expect(seen[MAX_AI_ACTIONS]?.final).toBe(true);
+  });
+
+  const alt = { id: 'alt', type: 'open', url: '/alt-texte.html' };
+
+  it('lists the elements of a selector for the AI, with alt missing, empty and given', async () => {
+    const { drive, seen } = script(
+      { type: 'query', selector: 'img' },
+      verdict(met('Alle Bilder haben einen Alt-Text.')),
+    );
+    const result = await run([alt, goalStep('Prüfe die Alt-Texte der Bilder.')], { ai: drive });
+
+    const answer = seen[1]?.history[0];
+    expect(answer?.action).toEqual({ type: 'query', selector: 'img' });
+    expect(answer?.result).toContain('7 Treffer für „img“:');
+    expect(answer?.result).toContain('alt fehlt · src=„/bilder/ohne.jpg“');
+    expect(answer?.result).toContain('alt leer · src=„/bilder/dekor.jpg“');
+    // The report names the action and the count, not the whole list.
+    expect(result.steps[1]?.aiActions).toEqual(['Elemente abgefragt: 7 Treffer für „img“:']);
+    expect(result.status).toBe('passed');
+  });
+
+  it('passes the attributes the AI asked for, and tells it about an invalid selector', async () => {
+    const { drive, seen } = script(
+      { type: 'query', selector: 'img', attributes: ['alt'] },
+      { type: 'query', selector: 'img[' },
+      verdict(met('Egal.')),
+    );
+    await run([alt, goalStep('Egal.')], { ai: drive });
+    expect(seen[1]?.history[0]?.result).not.toContain('src=');
+    expect(seen[2]?.history[1]?.result).toBe('Ungültiger CSS-Selektor: „img[“.');
+  });
+
+  it('masks a secret in what a query found', async () => {
+    const { drive, seen } = script(
+      { type: 'query', selector: 'img', attributes: ['src'] },
+      verdict(met('Egal.')),
+    );
+    await run([alt, goalStep('Egal.')], { ai: drive, secrets: { pfad: '/bilder/ohne.jpg' } });
+    expect(seen[1]?.history[0]?.result).not.toContain('/bilder/ohne.jpg');
   });
 });

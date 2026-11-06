@@ -165,6 +165,52 @@ describe('worker', () => {
     });
   });
 
+  it('runs an AI step through tool calls when the provider has them, and stores the result', async () => {
+    await saveAiProvider(db, cipher, {
+      kind: 'custom',
+      model: 'test-modell',
+      baseUrl: 'http://127.0.0.1:1/v1',
+    });
+    const calls = [
+      { name: 'click', args: { target: { by: 'role', role: 'button', name: 'Alle akzeptieren' } } },
+      {
+        name: 'verdict',
+        args: {
+          summary: 'Der Cookie-Banner lässt sich schließen.',
+          criteria: [{ goal: 'Cookies lassen sich akzeptieren.', status: 'met', evidence: 'Weg.' }],
+        },
+      },
+    ];
+    const offered: string[][] = [];
+    await dueJob([
+      { id: 'open', type: 'open', url: '/kontakt.html' },
+      { id: 'ki', type: 'ai', instruction: 'Akzeptiere die Cookies.' },
+    ]);
+    const w = startWorker({
+      createAiClient: () => ({
+        supportsTools: true,
+        completeWithTools: async (_request, tools) => {
+          offered.push(tools.map((tool) => tool.name));
+          return { call: calls.shift() ?? null, text: '' };
+        },
+        complete: async () => {
+          throw new Error('The text path must not be used.');
+        },
+        listModels: async () => null,
+      }),
+    });
+    await w.tick();
+    await w.idle();
+    const [run] = await allRuns();
+    expect(run?.status).toBe('passed');
+    expect(offered[0]).toContain('query');
+    const steps = await db.select().from(schema.runSteps).orderBy(schema.runSteps.stepIndex);
+    expect(steps[1]).toMatchObject({
+      status: 'passed',
+      aiSummary: 'Der Cookie-Banner lässt sich schließen.',
+    });
+  });
+
   it('stores the tokens the AI used, with its model, and none for a flow without AI', async () => {
     await saveAiProvider(db, cipher, {
       kind: 'custom',

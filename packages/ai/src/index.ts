@@ -9,12 +9,15 @@ export {
   type AiImage,
   type AiMessage,
   type AiRequest,
+  type AiTool,
+  type AiToolAnswer,
   type ConnectionResult,
 } from './client';
 export {
   agentPrompt,
   nextAgentAction,
   parseAgentAction,
+  parseAgentToolCall,
   type AgentAction,
   type AgentInput,
   type AgentPage,

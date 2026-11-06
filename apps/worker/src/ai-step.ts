@@ -3,6 +3,7 @@ import { verdictOutcome, type Criterion, type Step, type VerdictOutcome } from '
 import type { Page } from 'playwright';
 import { StepError, toStepMessage } from './errors';
 import { inspectTarget } from './inspect';
+import { queryElements } from './query';
 import { readStructure, waitForPageToSettle } from './page-structure';
 import { showsSecret } from './secret-check';
 import { executeStep, type StepContext } from './steps';
@@ -105,6 +106,9 @@ async function safeScreenshot(page: Page, secrets: string[], type: 'jpeg' | 'png
     .screenshot({
       type,
       ...(type === 'jpeg' ? { quality: 60 } : {}),
+      // By default Playwright inserts a <style> to hide the text cursor for a moment: a change of
+      // the DOM that the wait for a settled page would take for the page's own.
+      caret: 'initial',
       timeout: SCREENSHOT_TIMEOUT_MS,
     })
     .catch(() => null);
@@ -128,6 +132,8 @@ export async function runAiStep(
     );
   }
   const secrets = Object.values(ctx.vars.secrets);
+  // How long an action waits for its element: what the step allows, at most ACTION_TIMEOUT_MS.
+  const waitMs = Math.min(step.timeoutMs, ACTION_TIMEOUT_MS);
   const actions: string[] = [];
   const history: AgentInput['history'] = [];
 
@@ -179,11 +185,30 @@ export async function runAiStep(
         actions,
       );
     }
+    if (action.kind === 'query') {
+      // Reading changes nothing; the list is what the AI counts and quotes in its verdict.
+      let result: string;
+      try {
+        result = mask(await queryElements(page, action.selector, action.attributes));
+      } catch (error) {
+        result = mask(toStepMessage(error));
+      }
+      history.push({
+        action: {
+          type: 'query',
+          selector: action.selector,
+          ...(action.attributes ? { attributes: action.attributes } : {}),
+        },
+        result,
+      });
+      actions.push(`Elemente abgefragt: ${result.split('\n')[0]}`);
+      continue;
+    }
     if (action.kind === 'inspect') {
       // Reading changes nothing; the line it gives is what the AI quotes in its verdict.
       let result: string;
       try {
-        result = mask(await inspectTarget(current, action.target, ACTION_TIMEOUT_MS));
+        result = mask(await inspectTarget(current, action.target, waitMs));
       } catch (error) {
         result = mask(toStepMessage(error));
       }

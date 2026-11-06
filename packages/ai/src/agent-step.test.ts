@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { agentPrompt, nextAgentAction, parseAgentAction, type AgentInput } from './agent-step';
-import { AiError, type AiClient, type AiRequest } from './client';
+import { AiError, type AiClient, type AiRequest, type AiTool, type AiToolAnswer } from './client';
 
 const input: AgentInput = {
   instruction: 'Auf der Startseite gibt es einen blauen Button „Newsletter abonnieren“.',
@@ -142,6 +142,47 @@ describe('parseAgentAction', () => {
     ).toThrow(/keine Aktionen mehr/);
   });
 
+  it('reads the query action, with or without the attributes to show', () => {
+    expect(parseAgentAction('{"type":"query","selector":"img"}')).toEqual({
+      kind: 'query',
+      selector: 'img',
+    });
+    expect(
+      parseAgentAction('{"type":"query","selector":" main img ","attributes":["alt","src"]}'),
+    ).toEqual({ kind: 'query', selector: 'main img', attributes: ['alt', 'src'] });
+  });
+
+  it.each([
+    ['{"type":"query"}'],
+    ['{"type":"query","selector":""}'],
+    ['{"type":"query","selector":5}'],
+    [`{"type":"query","selector":"${'a'.repeat(201)}"}`],
+    ['{"type":"query","selector":"img","attributes":[]}'],
+    ['{"type":"query","selector":"img","attributes":"alt"}'],
+    ['{"type":"query","selector":"img","attributes":["alt","bad name"]}'],
+    ['{"type":"query","selector":"img","attributes":[1]}'],
+    [
+      `{"type":"query","selector":"img","attributes":${JSON.stringify(Array.from({ length: 9 }, (_, i) => `a${i}`))}}`,
+    ],
+  ])('rejects a query that is not usable: %s', (answer) => {
+    expect(() => parseAgentAction(answer)).toThrow(AiError);
+  });
+
+  it('does not allow a query when no actions are left', () => {
+    expect(() => parseAgentAction('{"type":"query","selector":"img"}', { final: true })).toThrow(
+      /keine Aktionen mehr/,
+    );
+  });
+
+  it('tells the model to count with a query, group sub-goals and give numbers', () => {
+    const { system } = agentPrompt(input);
+    expect(system).toContain('"type":"query"');
+    expect(system).toMatch(/alt fehlt/);
+    expect(system).toMatch(/An empty alt \(alt leer\) is\s+correct/);
+    expect(system).toMatch(/One sub-goal for a whole group/);
+    expect(system).toMatch(/uses numbers, not "meist"/);
+  });
+
   it('tells the model to measure, and to answer with a concrete summary', () => {
     const { system } = agentPrompt(input);
     expect(system).toContain('"type":"inspect"');
@@ -201,5 +242,132 @@ describe('nextAgentAction', () => {
   it('gives up after the second unusable answer', async () => {
     const { client } = fakeClient('nichts', 'immer noch nichts');
     await expect(nextAgentAction(client, input)).rejects.toThrow(AiError);
+  });
+});
+
+describe('nextAgentAction with tool calling', () => {
+  function toolClient(...answers: AiToolAnswer[]) {
+    const seen: { request: AiRequest; tools: readonly AiTool[] }[] = [];
+    const client: AiClient = {
+      supportsTools: true,
+      async completeWithTools(request, tools) {
+        seen.push({ request, tools });
+        const next = answers.shift();
+        if (!next) throw new Error('No answer left.');
+        return next;
+      },
+      async complete() {
+        throw new Error('The text path must not be used.');
+      },
+      listModels: async () => null,
+    };
+    return { client, seen };
+  }
+  const click = {
+    call: { name: 'click', args: { target: { by: 'role', role: 'button', name: 'Absenden' } } },
+    text: '',
+  };
+
+  it('asks with the tools and the prompt for tool calls, and reads the call', async () => {
+    const { client, seen } = toolClient(click);
+    expect(await nextAgentAction(client, input)).toMatchObject({
+      kind: 'step',
+      step: { type: 'click' },
+    });
+    const [{ request, tools }] = seen as [(typeof seen)[number]];
+    expect(tools.map((tool) => tool.name)).toContain('query');
+    expect(request.system).toMatch(/exactly one call of one of your tools/);
+    // No JSON protocol in this prompt: the tools carry it.
+    expect(request.system).not.toContain('{"type":"click"');
+    // The page of this round is in the message, as before.
+    expect(request.messages[0]?.content).toContain('Goal of the test:');
+  });
+
+  it('offers only the verdict when no actions are left', async () => {
+    const verdictCall = {
+      call: {
+        name: 'verdict',
+        args: { summary: SUMMARY, criteria: [met] },
+      },
+      text: '',
+    };
+    const { client, seen } = toolClient(verdictCall);
+    expect(await nextAgentAction(client, { ...input, final: true })).toMatchObject({
+      kind: 'verdict',
+      summary: SUMMARY,
+    });
+    expect(seen[0]?.tools.map((tool) => tool.name)).toEqual(['verdict']);
+  });
+
+  it('gives an unusable call a second try, with the problem told in the same message', async () => {
+    const bad = { call: { name: 'press', args: { key: 'F5' } }, text: '' };
+    const { client, seen } = toolClient(bad, click);
+    expect(await nextAgentAction(client, input)).toMatchObject({ kind: 'step' });
+    expect(seen).toHaveLength(2);
+    const again = seen[1]?.request.messages;
+    expect(again).toHaveLength(1);
+    expect(again?.[0]?.content).toMatch(
+      /Your last call could not be used: .*Call one tool again\.$/s,
+    );
+    expect(seen[0]?.request.messages[0]?.content).not.toMatch(/last call could not be used/);
+  });
+
+  it('gives up after the second unusable call', async () => {
+    const bad = { call: { name: 'rm', args: {} }, text: '' };
+    const { client } = toolClient(bad, bad);
+    await expect(nextAgentAction(client, input)).rejects.toThrow(AiError);
+  });
+
+  it('reads a text answer as JSON when the model did not call a tool', async () => {
+    const { client } = toolClient({ call: null, text: '{"type":"open","url":"/preise"}' });
+    expect(await nextAgentAction(client, input)).toMatchObject({ step: { url: '/preise' } });
+  });
+
+  it('keeps the text protocol for a client without tools', async () => {
+    const { client } = fakeClient('{"type":"open","url":"/preise"}');
+    expect(await nextAgentAction(client, input)).toMatchObject({ step: { url: '/preise' } });
+  });
+
+  it('answers in text when the provider refuses tools for the model, and stays with text', async () => {
+    const refused = new AiError('OpenAI antwortet mit HTTP 400: Function tools … not supported.');
+    refused.toolsUnsupported = true;
+    let toolCalls = 0;
+    const requests: AiRequest[] = [];
+    const client: AiClient = {
+      supportsTools: true,
+      async completeWithTools() {
+        toolCalls += 1;
+        client.supportsTools = false;
+        throw refused;
+      },
+      async complete(request) {
+        requests.push(request);
+        return '{"type":"open","url":"/preise"}';
+      },
+      listModels: async () => null,
+    };
+    expect(await nextAgentAction(client, input)).toMatchObject({ step: { url: '/preise' } });
+    // The text prompt with its JSON protocol, not the one for tools.
+    expect(requests[0]?.system).toContain('{"type":"click"');
+    // The next round does not ask for tools again.
+    expect(await nextAgentAction(client, input)).toMatchObject({ step: { url: '/preise' } });
+    expect(toolCalls).toBe(1);
+    expect(requests).toHaveLength(2);
+  });
+
+  it('does not take any other error of a tool call for a refusal of tools', async () => {
+    const down = new AiError('OpenAI antwortet mit HTTP 500: kaputt');
+    const client: AiClient = {
+      supportsTools: true,
+      completeWithTools: async () => {
+        throw down;
+      },
+      complete: async () => {
+        throw new Error('The text path must not be used.');
+      },
+      listModels: async () => null,
+    };
+    // One second try, then the error is reported as it is.
+    await expect(nextAgentAction(client, input)).rejects.toBe(down);
   });
 });

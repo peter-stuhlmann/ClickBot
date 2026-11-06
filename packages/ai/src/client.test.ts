@@ -1,5 +1,12 @@
 import { describe, expect, it } from 'vitest';
-import { AiError, createAiClient, testAiConnection, usageOf, type AiConfig } from './client';
+import {
+  AiError,
+  createAiClient,
+  testAiConnection,
+  toolCallOf,
+  usageOf,
+  type AiConfig,
+} from './client';
 
 type Call = { url: string; method: string; headers: Record<string, string>; body: unknown };
 
@@ -534,5 +541,199 @@ describe('token usage of an answer', () => {
     });
     expect(usageOf('gemini', {})).toBeNull();
     expect(usageOf('anthropic', {})).toBeNull();
+  });
+});
+
+describe('tool calls', () => {
+  const tools = [
+    {
+      name: 'click',
+      description: 'Click an element.',
+      parameters: {
+        type: 'object',
+        properties: { target: { type: 'object' } },
+        required: ['target'],
+      },
+    },
+    { name: 'verdict', description: 'Give the verdict.', parameters: { type: 'object' } },
+  ];
+  const ask = { system: 'Du testest.', messages: [{ role: 'user' as const, content: 'Los' }] };
+  const args = { target: { by: 'role', role: 'button', name: 'Absenden' } };
+
+  async function call(config: AiConfig, answer: unknown, onUsage?: (usage: unknown) => void) {
+    const api = fakeApi(() => json(answer));
+    const client = createAiClient(config, { fetch: api.fetch, onUsage });
+    const result = await client.completeWithTools?.(ask, tools);
+    return { result, body: api.calls[0]?.body as Record<string, unknown> };
+  }
+
+  it('Claude: tools with a schema, one must be called, system and tools marked for the cache', async () => {
+    const { result, body } = await call(
+      { kind: 'anthropic', apiKey: KEY, model: 'claude-x' },
+      { content: [{ type: 'tool_use', id: 't1', name: 'click', input: args }] },
+    );
+    expect(result).toEqual({ call: { name: 'click', args }, text: '' });
+    const claudeTools = body.tools as {
+      name: string;
+      input_schema: unknown;
+      cache_control?: unknown;
+    }[];
+    expect(body.tool_choice).toEqual({ type: 'any' });
+    expect(claudeTools.map((tool) => tool.name)).toEqual(['click', 'verdict']);
+    expect(claudeTools[0]?.input_schema).toEqual(tools[0]?.parameters);
+    // The prefix that never changes between rounds is cached: system prompt and all tools.
+    expect(body.system).toEqual([
+      { type: 'text', text: 'Du testest.', cache_control: { type: 'ephemeral' } },
+    ]);
+    expect(claudeTools[0]?.cache_control).toBeUndefined();
+    expect(claudeTools[1]?.cache_control).toEqual({ type: 'ephemeral' });
+  });
+
+  it('OpenAI and Custom-style APIs: function tools, "required", arguments read from a JSON string', async () => {
+    const { result, body } = await call(
+      { kind: 'openai', apiKey: KEY, model: 'gpt-x' },
+      {
+        choices: [
+          {
+            message: {
+              content: null,
+              tool_calls: [
+                {
+                  id: 'c1',
+                  type: 'function',
+                  function: { name: 'click', arguments: JSON.stringify(args) },
+                },
+              ],
+            },
+          },
+        ],
+      },
+    );
+    expect(result).toEqual({ call: { name: 'click', args }, text: '' });
+    expect(body.tool_choice).toBe('required');
+    expect((body.tools as unknown[])[0]).toEqual({
+      type: 'function',
+      function: {
+        name: 'click',
+        description: 'Click an element.',
+        parameters: tools[0]?.parameters,
+      },
+    });
+    // The system prompt stays a plain string here.
+    expect((body.messages as unknown[])[0]).toEqual({ role: 'system', content: 'Du testest.' });
+  });
+
+  it('Gemini: function declarations, mode ANY, the call read from its parts', async () => {
+    const { result, body } = await call(
+      { kind: 'gemini', apiKey: KEY, model: 'gemini-x' },
+      { candidates: [{ content: { parts: [{ functionCall: { name: 'click', args } }] } }] },
+    );
+    expect(result).toEqual({ call: { name: 'click', args }, text: '' });
+    expect(body.toolConfig).toEqual({ functionCallingConfig: { mode: 'ANY' } });
+    const declared = (body.tools as { functionDeclarations: { name: string }[] }[])[0];
+    expect(declared?.functionDeclarations.map((tool) => tool.name)).toEqual(['click', 'verdict']);
+  });
+
+  it('reports the tokens of a tool answer, and the cache reads of Claude as cached', async () => {
+    const seen: unknown[] = [];
+    await call(
+      { kind: 'anthropic', apiKey: KEY, model: 'claude-x' },
+      {
+        content: [{ type: 'tool_use', id: 't1', name: 'click', input: args }],
+        usage: { input_tokens: 50, output_tokens: 20, cache_read_input_tokens: 1500 },
+      },
+      (usage) => seen.push(usage),
+    );
+    expect(seen).toEqual([{ inputTokens: 50, outputTokens: 20, cachedTokens: 1500 }]);
+  });
+
+  it('gives the text beside the call, and no call when the model only wrote text', async () => {
+    const { result } = await call(
+      { kind: 'openai', apiKey: KEY, model: 'gpt-x' },
+      { choices: [{ message: { content: 'Ich weiß nicht.' } }] },
+    );
+    expect(result).toEqual({ call: null, text: 'Ich weiß nicht.' });
+  });
+
+  it('says so when OpenAI sends arguments that are not JSON', () => {
+    expect(() =>
+      toolCallOf('openai', {
+        choices: [
+          { message: { tool_calls: [{ function: { name: 'click', arguments: '{kaputt' } }] } },
+        ],
+      }),
+    ).toThrow(AiError);
+    // No arguments at all is a call without arguments.
+    expect(
+      toolCallOf('openai', {
+        choices: [{ message: { tool_calls: [{ function: { name: 'x' } }] } }],
+      }),
+    ).toEqual({ name: 'x', args: {} });
+  });
+
+  it('knows which providers take tools, and refuses to ask the others', async () => {
+    const supports = (kind: AiConfig['kind']) =>
+      createAiClient({ kind, apiKey: KEY, model: 'm', baseUrl: 'http://localhost:1/v1' })
+        .supportsTools;
+    expect(
+      ['gemini', 'openai', 'anthropic'].map((kind) => supports(kind as AiConfig['kind'])),
+    ).toEqual([true, true, true]);
+    expect(supports('perplexity')).toBe(false);
+    expect(supports('custom')).toBe(false);
+    await expect(
+      createAiClient({ kind: 'perplexity', apiKey: KEY, model: 'sonar' }).completeWithTools?.(
+        ask,
+        tools,
+      ),
+    ).rejects.toThrow(/unterstützt keine Funktionsaufrufe/);
+  });
+
+  it('does not change the plain request: no tools, the system prompt as before', async () => {
+    const api = fakeApi(() => json({ content: [{ type: 'text', text: 'OK' }] }));
+    await createAiClient(
+      { kind: 'anthropic', apiKey: KEY, model: 'claude-x' },
+      { fetch: api.fetch },
+    ).complete(ask);
+    const body = api.calls[0]?.body as Record<string, unknown>;
+    expect(body.tools).toBeUndefined();
+    expect(body.tool_choice).toBeUndefined();
+    expect(body.system).toBe('Du testest.');
+  });
+
+  const TOOLS_REJECTED =
+    "Function tools with reasoning_effort are not supported for gpt-6-luna in /v1/chat/completions. To use function tools, use /v1/responses or set reasoning_effort to 'none'.";
+
+  it('turns off tools for the client when the provider refuses them for this model (HTTP 400)', async () => {
+    let tried = 0;
+    const api = fakeApi(() => {
+      tried += 1;
+      return json({ error: { message: TOOLS_REJECTED } }, 400);
+    });
+    const client = createAiClient(
+      { kind: 'openai', apiKey: KEY, model: 'gpt-6-luna' },
+      { fetch: api.fetch },
+    );
+    expect(client.supportsTools).toBe(true);
+
+    const error = await client.completeWithTools?.(ask, tools).catch((e: unknown) => e);
+    expect(error).toBeInstanceOf(AiError);
+    expect((error as AiError).toolsUnsupported).toBe(true);
+    expect((error as AiError).message).toContain('HTTP 400');
+    // From now on this client answers in text, without asking for tools again.
+    expect(client.supportsTools).toBe(false);
+    expect(tried).toBe(1);
+  });
+
+  it('keeps tools on for errors that are not about the request: a wrong key, a limit, a server error', async () => {
+    for (const status of [401, 429, 500, 503]) {
+      const api = fakeApi(() => json({ error: { message: 'nein' } }, status));
+      const client = createAiClient(
+        { kind: 'openai', apiKey: KEY, model: 'gpt-x' },
+        { fetch: api.fetch },
+      );
+      const error = await client.completeWithTools?.(ask, tools).catch((e: unknown) => e);
+      expect((error as AiError).toolsUnsupported, String(status)).toBe(false);
+      expect(client.supportsTools, String(status)).toBe(true);
+    }
   });
 });

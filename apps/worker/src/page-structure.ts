@@ -1,4 +1,4 @@
-import type { Frame, Page } from 'playwright';
+import type { BrowserContext, Frame, Page } from 'playwright';
 
 const SNAPSHOT_TIMEOUT_MS = 3_000;
 /** Enough for a large page; the rest would only cost the model tokens. */
@@ -17,18 +17,44 @@ const NETWORK_IDLE_MAX_MS = 3_000;
 const QUIET_MS = 1_000;
 const DOM_QUIET_MAX_MS = 4_000;
 
-// A string, not a function: tsx would wrap named functions in __name(), which the page lacks.
-// Rest: no change to the DOM for `quietMs`, and no loading indicator (aria-busy, progressbar).
+/** Where a page notes when its DOM changed last (ms since 1970), for the wait below. */
+const CHANGE_MARK = '__clickBotChange';
+
+// Runs in every document before its own scripts. A string, not a function: tsx would wrap named
+// functions in __name(), which the page lacks.
+const TRACK_SCRIPT = `(() => {
+  if (typeof window.${CHANGE_MARK} === 'number') return;
+  window.${CHANGE_MARK} = Date.now();
+  const mark = () => { window.${CHANGE_MARK} = Date.now(); };
+  new MutationObserver(mark).observe(document, {
+    subtree: true, childList: true, attributes: true, characterData: true,
+  });
+  window.addEventListener('load', mark);
+})();`;
+
+/**
+ * Makes every page of the context note when its DOM changed last, from its first moment on. The
+ * wait for a settling page then costs nothing when the page has long been quiet (the AI needs
+ * seconds to answer), and waits only when it changed just now, e.g. after a click.
+ */
+export async function trackPageActivity(context: BrowserContext): Promise<void> {
+  await context.addInitScript({ content: TRACK_SCRIPT });
+}
+
+// Rest: no change to the DOM for `quietMs` (by the mark of the page; a page that was not tracked
+// starts counting now), and no loading indicator (aria-busy, progressbar).
 const AT_REST_SCRIPT = `async ({ quietMs, maxMs }) => {
   const busy = () => document.querySelector('[aria-busy="true"], [role="progressbar"]') !== null;
-  let last = Date.now();
-  const observer = new MutationObserver(() => { last = Date.now(); });
-  observer.observe(document, { subtree: true, childList: true, attributes: true, characterData: true });
+  if (typeof window.${CHANGE_MARK} !== 'number') {
+    window.${CHANGE_MARK} = Date.now();
+    new MutationObserver(() => { window.${CHANGE_MARK} = Date.now(); }).observe(document, {
+      subtree: true, childList: true, attributes: true, characterData: true,
+    });
+  }
   const end = Date.now() + maxMs;
-  while (Date.now() < end && (Date.now() - last < quietMs || busy())) {
+  while (Date.now() < end && (Date.now() - window.${CHANGE_MARK} < quietMs || busy())) {
     await new Promise((resolve) => setTimeout(resolve, 50));
   }
-  observer.disconnect();
 }`;
 
 /**

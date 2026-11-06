@@ -118,4 +118,17 @@ describe('RunStepItem', () => {
     render(<RunStepItem {...step({ status: 'passed' })} />);
     expect(screen.queryByText('Testergebnis:')).not.toBeInTheDocument();
   });
+
+  it('shows the message of a failed or unclear step in full, and cuts only a long locator', () => {
+    const long = 'Nicht erfüllt: Die Bilder von Apartment 1 haben passende Alt-Texte. Beim Bild …';
+    const { rerender } = render(<RunStepItem {...step({ status: 'failed', detail: long })} />);
+    expect(screen.getByText(long)).not.toHaveClass('truncate');
+    expect(screen.getByText(long)).toHaveClass('break-words');
+    rerender(<RunStepItem {...step({ status: 'unclear', detail: long })} />);
+    expect(screen.getByText(long)).not.toHaveClass('truncate');
+    rerender(
+      <RunStepItem {...step({ status: 'passed', detail: 'url = "https://beispiel.de"' })} />,
+    );
+    expect(screen.getByText('url = "https://beispiel.de"')).toHaveClass('truncate');
+  });
 });

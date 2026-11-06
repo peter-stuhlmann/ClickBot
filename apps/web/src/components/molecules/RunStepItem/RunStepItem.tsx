@@ -80,7 +80,10 @@ export function RunStepItem({
         {detail && (
           <span
             className={cn(
-              'truncate text-meta',
+              'text-meta',
+              // The locator of a step that went well is one short line; what went wrong is
+              // read in full, never cut off.
+              status === 'passed' || muted ? 'truncate' : 'break-words',
               status === 'failed' && 'text-danger',
               (status === 'healed' || status === 'unclear') && 'text-warning',
               (status === 'passed' || muted) && 'font-mono text-small text-text-muted',

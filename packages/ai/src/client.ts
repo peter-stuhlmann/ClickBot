@@ -25,7 +25,23 @@ export type AiRequest = {
   maxTokens?: number;
 };
 
+/** A tool the model may call: a name, what it does and the JSON schema of its arguments. */
+export type AiTool = { name: string; description: string; parameters: Record<string, unknown> };
+
+/** What the model answered when it had to call a tool; `text` is any text beside the call. */
+export type AiToolAnswer = {
+  call: { name: string; args: Record<string, unknown> } | null;
+  text: string;
+};
+
 export type AiClient = {
+  /** Whether this provider takes tools; if not, `completeWithTools` is not available. */
+  supportsTools?: boolean;
+  /**
+   * Asks for exactly one call of one of `tools` (the provider is told it must call one). The
+   * arguments come back parsed. Only if `supportsTools`. Throws AiError like `complete`.
+   */
+  completeWithTools?(request: AiRequest, tools: readonly AiTool[]): Promise<AiToolAnswer>;
   /** The model's text answer. Throws AiError with a German message for the report or the UI. */
   complete(request: AiRequest): Promise<string>;
   /** The provider's models, or null if it cannot list them (Perplexity). */
@@ -42,7 +58,17 @@ export type AiDeps = {
 
 /** A problem with the provider, worded for the user. Never contains the API key. */
 export class AiError extends Error {
-  constructor(message: string) {
+  /**
+   * The provider refused the request because of its tools (HTTP 400/422 on a request with
+   * tools), e.g. OpenAI for a reasoning model: the caller can ask again without them.
+   */
+  toolsUnsupported = false;
+
+  constructor(
+    message: string,
+    /** The HTTP status of the provider's answer, if the error comes from one. */
+    readonly status?: number,
+  ) {
     super(message);
     this.name = 'AiError';
   }
@@ -195,7 +221,7 @@ function messageFor(kind: AiProviderKind, { role, content, images = [] }: AiMess
   };
 }
 
-function bodyFor(config: AiConfig, request: AiRequest): HttpRequest {
+function bodyFor(config: AiConfig, request: AiRequest, tools?: readonly AiTool[]): HttpRequest {
   const maxTokens = request.maxTokens ?? DEFAULT_MAX_TOKENS;
   const { system } = request;
   const messages = request.messages.map((message) => messageFor(config.kind, message));
@@ -206,7 +232,26 @@ function bodyFor(config: AiConfig, request: AiRequest): HttpRequest {
         body: {
           model: config.model,
           max_tokens: maxTokens,
-          ...(system ? { system } : {}),
+          // With tools the system prompt and the tools never change between rounds: marked, so
+          // Claude can serve them from its cache (cheaper, faster) from the second round on.
+          ...(system
+            ? {
+                system: tools
+                  ? [{ type: 'text', text: system, cache_control: { type: 'ephemeral' } }]
+                  : system,
+              }
+            : {}),
+          ...(tools
+            ? {
+                tools: tools.map((tool, index) => ({
+                  name: tool.name,
+                  description: tool.description,
+                  input_schema: tool.parameters,
+                  ...(index === tools.length - 1 ? { cache_control: { type: 'ephemeral' } } : {}),
+                })),
+                tool_choice: { type: 'any' },
+              }
+            : {}),
           messages,
         },
       };
@@ -217,6 +262,20 @@ function bodyFor(config: AiConfig, request: AiRequest): HttpRequest {
           ...(system ? { systemInstruction: { parts: [{ text: system }] } } : {}),
           contents: messages,
           generationConfig: { maxOutputTokens: maxTokens },
+          ...(tools
+            ? {
+                tools: [
+                  {
+                    functionDeclarations: tools.map((tool) => ({
+                      name: tool.name,
+                      description: tool.description,
+                      parameters: tool.parameters,
+                    })),
+                  },
+                ],
+                toolConfig: { functionCallingConfig: { mode: 'ANY' } },
+              }
+            : {}),
         },
       };
     default:
@@ -227,9 +286,61 @@ function bodyFor(config: AiConfig, request: AiRequest): HttpRequest {
           // OpenAI's newer models only accept max_completion_tokens; compatible APIs know max_tokens.
           [config.kind === 'openai' ? 'max_completion_tokens' : 'max_tokens']: maxTokens,
           messages: system ? [{ role: 'system', content: system }, ...messages] : messages,
+          ...(tools
+            ? {
+                tools: tools.map((tool) => ({
+                  type: 'function',
+                  function: {
+                    name: tool.name,
+                    description: tool.description,
+                    parameters: tool.parameters,
+                  },
+                })),
+                tool_choice: 'required',
+              }
+            : {}),
         },
       };
   }
+}
+
+/**
+ * The first tool call of an answer, its arguments parsed. Claude and Gemini send them as an
+ * object, OpenAI as a JSON string. Null if the model answered without calling a tool.
+ */
+export function toolCallOf(kind: AiProviderKind, data: Json): AiToolAnswer['call'] {
+  if (kind === 'anthropic') {
+    const block = asArray(data.content)
+      .map((item) => asRecord(item))
+      .find((item) => item.type === 'tool_use');
+    return block ? { name: String(block.name ?? ''), args: asRecord(block.input) } : null;
+  }
+  if (kind === 'gemini') {
+    const [candidate] = asArray(data.candidates);
+    const part = asArray(asRecord(asRecord(candidate).content).parts)
+      .map((item) => asRecord(item))
+      .find((item) => item.functionCall !== undefined);
+    const call = asRecord(part?.functionCall);
+    return part ? { name: String(call.name ?? ''), args: asRecord(call.args) } : null;
+  }
+  const [choice] = asArray(data.choices);
+  const [call] = asArray(asRecord(asRecord(choice).message).tool_calls);
+  if (call === undefined) return null;
+  const fn = asRecord(asRecord(call).function);
+  const raw = fn.arguments;
+  let args: Json = {};
+  if (typeof raw === 'string' && raw.trim()) {
+    try {
+      args = asRecord(JSON.parse(raw));
+    } catch {
+      throw new AiError(
+        'Die KI hat die Argumente ihres Aufrufs nicht als gültiges JSON geliefert.',
+      );
+    }
+  } else {
+    args = asRecord(raw);
+  }
+  return { name: String(fn.name ?? ''), args };
 }
 
 function modelsFrom(kind: AiProviderKind, data: Json): string[] {
@@ -287,14 +398,18 @@ export function createAiClient(config: AiConfig, deps: AiDeps = {}): AiClient {
       ]);
       const text = await Promise.race([response.text(), timeout]);
       if (response.status === 401 || response.status === 403) {
-        throw new AiError(`${label} lehnt den API-Schlüssel ab (HTTP ${response.status}).`);
+        throw new AiError(
+          `${label} lehnt den API-Schlüssel ab (HTTP ${response.status}).`,
+          response.status,
+        );
       }
       if (response.status === 429) {
-        throw new AiError(`${label}: Limit erreicht (HTTP 429). Später erneut versuchen.`);
+        throw new AiError(`${label}: Limit erreicht (HTTP 429). Später erneut versuchen.`, 429);
       }
       if (!response.ok) {
         throw new AiError(
           mask(`${label} antwortet mit HTTP ${response.status}: ${providerMessage(text)}`),
+          response.status,
         );
       }
       try {
@@ -307,7 +422,32 @@ export function createAiClient(config: AiConfig, deps: AiDeps = {}): AiClient {
     }
   }
 
+  // Some models refuse tools although the provider has them (OpenAI reasoning models in Chat
+  // Completions). After such a refusal this client no longer offers them.
+  let toolsRefused = false;
+
   return {
+    get supportsTools() {
+      return AI_PROVIDERS[config.kind].toolCalling && !toolsRefused;
+    },
+    async completeWithTools(request, tools) {
+      if (!AI_PROVIDERS[config.kind].toolCalling) {
+        throw new AiError(`${label} unterstützt keine Funktionsaufrufe.`);
+      }
+      let data: Json;
+      try {
+        data = await send(bodyFor(config, request, tools));
+      } catch (error) {
+        if (error instanceof AiError && (error.status === 400 || error.status === 422)) {
+          toolsRefused = true;
+          error.toolsUnsupported = true;
+        }
+        throw error;
+      }
+      const usage = usageOf(config.kind, data);
+      if (usage) deps.onUsage?.(usage);
+      return { call: toolCallOf(config.kind, data), text: textOf(config.kind, data) };
+    },
     async complete(request) {
       const data = await send(bodyFor(config, request));
       // Counted even if the text is empty: the provider bills it either way.

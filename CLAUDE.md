@@ -515,6 +515,12 @@ time, bots }]`, `stagger`) bilden die Bots eines Termins eine Welle.
   Live-Browser blockiert immer; es gibt dort noch keinen Job.
 - **KI-Schritt** (`ai-step.ts`, Typ `ai`, `instruction` ist das Ziel des Tests): ein freier Test.
   `runFlow` führt ihn aus, nicht `executeStep`.
+  - Das Warten kostet nichts, wenn die Seite schon länger ruht: Jede Seite eines Laufs mit KI-Schritt
+    merkt sich, wann sich ihr DOM zuletzt geändert hat (`trackPageActivity`, Init-Skript); die
+    KI braucht für ihre Antwort Sekunden, danach ist die Ruhezeit meist vorbei. Gewartet wird nur
+    nach einer Änderung, z. B. einem Klick. Das Bildschirmfoto für die KI blendet den Cursor nicht
+    aus (`caret: 'initial'`): Playwright fügt dafür sonst kurz ein `<style>` ein, und das zählte
+    als Änderung der Seite (jede Runde hätte eine Sekunde gewartet).
   - Vor jeder Runde wartet `waitForPageToSettle` (`page-structure.ts`), bis die Seite zur Ruhe
     kommt: Netzwerk ruhig (höchstens 3 s), 1 s ohne Änderung am DOM und kein Ladeindikator
     (`aria-busy`, `role=progressbar`), höchstens 4 s. Sonst sähe die KI bei Seiten, die ihren Inhalt
@@ -540,6 +546,13 @@ time, bots }]`, `stagger`) bilden die Bots eines Termins eine Welle.
     Stärke und Schriftart des einen Elements, das das Ziel trifft. Sie verändert nichts, zählt
     zu den 25 Aktionen und liefert der KI den gemessenen Wert, statt dass sie ihn am Foto
     schätzt (Farben, Größen und Schriften misst sie, Lage und Aussehen beurteilt sie am Foto).
+    Und „Elemente abfragen“ (`query`, `query.ts`): alle Treffer eines CSS-Selektors in Seite und
+    iframes, mit Anzahl und je den ersten 40 mit ihren Attributen (bei Bildern `alt`, `src`,
+    `title`, `aria-label`, `loading`; wählbar). „alt fehlt“ (Fehler) und „alt leer“ (korrekt für
+    dekorative Bilder) werden unterschieden, was der Seitenaufbau nicht kann: Er zeigt `<img>` ohne
+    `alt` wie ein Hintergrundbild, verschweigt Bilder mit leerem `alt` und gibt einen `title` als
+    Namen aus. Der Prompt verlangt für Aufzählungen ein Teilziel für die ganze Gruppe, Zahlen im
+    Testergebnis und eine genannte Regel für weiche Wörter wie „aussagekräftig“.
     „Seite öffnen“ nur auf der Website der Start-URL (`www.` egal). Erfundene echte E-Mail-Adressen
     werden `{{faker.email}}` (`safeMail`).
   - Zugangsdaten sieht die KI nur als Namen (`{{secret.name}}`). Adresse, Titel, Seitenaufbau und
@@ -731,6 +744,24 @@ time, bots }]`, `stagger`) bilden die Bots eines Termins eine Welle.
 - **„Verbindung testen“** (`testAiConnection`) lädt die Modelle des Anbieters und sagt, ob das
   eingetragene dabei ist. Perplexity kann seine Modelle nicht auflisten, dort geht eine
   Anfrage mit 5 Tokens raus.
+- **Funktionsaufrufe** (`completeWithTools`, `agent-tools.ts`, `AI_PROVIDERS[…].toolCalling`): Bei
+  Gemini, OpenAI und Claude bekommt der KI-Schritt seine Aktion als Aufruf eines Werkzeugs
+  (je Aktion eines, dazu `verdict`; der Anbieter muss eines aufrufen). Die Argumente kommen als
+  Objekt statt als Text, ein JSON-Auszug entfällt. Die Schemas sind bewusst flach (kein
+  `oneOf`/`anyOf`), weil jeder Anbieter einen anderen Teil von JSON Schema versteht; geprüft wird
+  danach weiter mit den echten Schrittschemas, in demselben Code wie die JSON-Antwort
+  (`parseRaw`), ein Schritt-Typ bleibt an einer Stelle definiert. Perplexity und Custom
+  antworten weiter als JSON-Text (ohne Funktionsaufrufe bzw. modellabhängig); bei einer
+  Textantwort trotz Werkzeugen wird sie als JSON gelesen. Verweigert der Anbieter Werkzeuge für ein
+  Modell (HTTP 400/422 auf eine Anfrage mit Werkzeugen, z. B. OpenAI bei Reasoning-Modellen in
+  Chat Completions: „Function tools with reasoning_effort are not supported“), merkt sich der
+  Client das (`AiError.toolsUnsupported`, `supportsTools` wird false) und die Runde und alle
+  folgenden antworten im Text. Das Reasoning wird dafür nicht abgeschaltet: Es hilft der KI beim
+  Bewerten. Andere Fehler (Schlüssel, Limit, Serverfehler) schalten die Werkzeuge nicht ab. Bei Claude sind System-Prompt und
+  Werkzeuge für den Cache markiert (`cache_control`), ab der zweiten Runde zählen sie als
+  zwischengespeichert. Jede Runde bleibt ein frischer Prompt mit der aktuellen Seite, kein
+  Gespräch aus Aufrufen und Ergebnissen: Die Seitenaufbauten und Fotos früherer Runden würden
+  sich sonst als Token stapeln.
 - **Token** (`usageOf`, `AiDeps.onUsage`): Jede Antwort, die Token meldet (auch eine mit leerem
   Text), geht an `onUsage`; der Worker summiert sie je Lauf. Anbieter ohne Angabe (manche
   OpenAI-kompatible APIs) melden nichts, dann gibt es für den Lauf keine Kosten.
